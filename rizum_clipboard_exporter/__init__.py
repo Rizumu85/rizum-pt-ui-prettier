@@ -1,3 +1,9 @@
+"""
+Rizum Clipboard Exporter Plugin for Substance Painter
+- Provides UI for exporting layer/mask/applied to clipboard
+- Includes settings dialog for dilation and bit depth
+- Integrates with RizumToolkit menu system
+"""
 # Painter API import
 import substance_painter
 from substance_painter import ui, logging
@@ -6,8 +12,7 @@ from substance_painter import ui, logging
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QPushButton, QDialog, QDialogButtonBox, QCheckBox,
-                               QSlider, QComboBox, QSpinBox, QTextEdit, QFrame,
-                               QGroupBox, QToolButton)
+                               QSlider, QComboBox, QSpinBox, QTextEdit, QToolButton)
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QAction
 
@@ -18,7 +23,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from rizum_toolkit_menu import get_toolkit_menu
 
 clipboard_exporter = None
-plugin_ui_elements = []
 
 class CustomSlider(QSlider):
     """Custom styled slider."""
