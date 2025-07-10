@@ -7,7 +7,7 @@ from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QPushButton, QDialog, QDialogButtonBox, QCheckBox,
                                QSlider, QComboBox, QSpinBox, QTextEdit, QFrame,
-                               QGroupBox)
+                               QGroupBox, QToolButton)
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QAction
 
@@ -20,32 +20,103 @@ from rizum_toolkit_menu import get_toolkit_menu
 clipboard_exporter = None
 plugin_ui_elements = []
 
+class CustomSlider(QSlider):
+    """Custom styled slider."""
+    
+    def __init__(self, orientation=Qt.Horizontal, parent=None):
+        super().__init__(orientation, parent)
+        self.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: none;
+                height: 4px;
+                background: #666666;
+                border-radius: 2px;
+            }
+            
+            QSlider::sub-page:horizontal {
+                background: #cccccc;
+                border-radius: 2px;
+            }
+            
+            QSlider::handle:horizontal {
+                background: #cccccc;
+                border: none;
+                width: 8px;
+                height: 16px;
+                margin: -6px 0;
+            }
+            
+            QSlider::handle:horizontal:hover {
+                background: #dddddd;
+            }
+        """)
+
+class CustomSpinBox(QSpinBox):
+    """Custom styled spinbox."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("""
+            QSpinBox {
+                border: none;
+                border-bottom: 2px solid #4d4d4d;
+                background: transparent;
+                padding: 2px;
+                margin-right: 8px;
+                text-align: right;
+            }
+            
+            QSpinBox:focus {
+                border-bottom: 2px solid #666666;
+                background: #1a1a1a;
+            }
+        """)
+        # Set text alignment to right
+        self.setAlignment(Qt.AlignRight)
+
 class ClipboardExporterWidget(QWidget):
     """Main widget for the clipboard exporter."""
     
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Rizum Clipboard Exporter")
+        self.setMinimumHeight(100)
+        self.setMaximumHeight(250)
         self.setup_ui()
     
     def setup_ui(self):
         """Setup the user interface."""
         layout = QVBoxLayout()
+        layout.setSpacing(6)  # Reduce vertical spacing
+        layout.setContentsMargins(8, 8, 8, 8)  # Tighter margins
         
         # Export buttons in horizontal layout
         buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(8)  # Reduce spacing between buttons
+        
+        # Layer button
         self.layer_btn = QPushButton("Layer")
         self.layer_btn.clicked.connect(self.export_layer)
+        self.layer_btn.setMaximumWidth(self.layer_btn.sizeHint().width())
         buttons_layout.addWidget(self.layer_btn)
         
+        # Mask button
         self.mask_btn = QPushButton("Mask")
         self.mask_btn.clicked.connect(self.export_mask)
+        self.mask_btn.setMaximumWidth(self.mask_btn.sizeHint().width())
         buttons_layout.addWidget(self.mask_btn)
         
-        self.applied_btn = QPushButton("Applied")
+        # Applied button (using QToolButton for better size control)
+        self.applied_btn = QToolButton()
+        self.applied_btn.setText("⤵️")
         self.applied_btn.clicked.connect(self.export_applied)
+        self.applied_btn.setFixedSize(32, 32)
+        self.applied_btn.setToolTip("Applied")
+        self.applied_btn.setToolButtonStyle(Qt.ToolButtonTextOnly)
         buttons_layout.addWidget(self.applied_btn)
         
+        # Add stretch to push buttons to the left
+        buttons_layout.addStretch()
         layout.addLayout(buttons_layout)
         
         # Instructions section
@@ -54,24 +125,48 @@ class ClipboardExporterWidget(QWidget):
         self.setLayout(layout)
     
     def setup_instructions(self, parent_layout):
-        """Setup the instructions section as a group box."""
-        # Instructions group box
-        self.instructions_group = QGroupBox("Instructions")
-        instructions_layout = QVBoxLayout()
+        """Setup the collapsible instructions section."""
+        # Instructions header with toggle button
+        header_layout = QHBoxLayout()
+        self.toggle_btn = QPushButton("▶ INSTRUCTIONS")
+        self.toggle_btn.clicked.connect(self.toggle_instructions)
+        font = self.toggle_btn.font()
+        font.setBold(True)
+        font.setPointSize(font.pointSize() + 1)
+        self.toggle_btn.setFont(font)
+        self.toggle_btn.setMinimumWidth(200)
+        self.toggle_btn.setFixedHeight(28)  # Make button shorter
+        header_layout.addWidget(self.toggle_btn)
+        parent_layout.addLayout(header_layout)
         
         # Instructions text
         self.instructions_text = QTextEdit()
-        self.instructions_text.setMaximumHeight(100)
+        self.instructions_text.setMaximumHeight(70)  # Make instructions box shorter
         self.instructions_text.setReadOnly(True)
         self.instructions_text.setPlainText(
             "Layer: Exports the currently selected layer\n"
             "Mask: Exports the mask of the selected layer\n"
             "Applied: Exports the layer with its mask applied"
         )
-        instructions_layout.addWidget(self.instructions_text)
-        
-        self.instructions_group.setLayout(instructions_layout)
-        parent_layout.addWidget(self.instructions_group)
+        self.instructions_text.hide()
+        parent_layout.addWidget(self.instructions_text)
+    
+    def toggle_instructions(self):
+        """Toggle the instructions visibility and adjust widget height."""
+        if self.instructions_text.isVisible():
+            self.instructions_text.hide()
+            self.toggle_btn.setText("▶ INSTRUCTIONS")
+            self.setMinimumHeight(100)
+            self.setMaximumHeight(100)
+            self.resize(self.width(), 100)
+        else:
+            self.instructions_text.show()
+            self.toggle_btn.setText("▼ INSTRUCTIONS")
+            # Estimate expanded height (can be tweaked)
+            expanded_height = 100 + self.instructions_text.maximumHeight()
+            self.setMinimumHeight(expanded_height)
+            self.setMaximumHeight(250)
+            self.resize(self.width(), expanded_height)
     
     def export_layer(self):
         """Export the current layer to clipboard."""
@@ -112,16 +207,30 @@ class SettingsDialog(QDialog):
         self.infinite_dilation_cb.toggled.connect(self.on_infinite_dilation_toggled)
         layout.addLayout(infinite_dilation_layout)
         
-        # Dilation slider (left centered, indented, no spinbox)
+        # Dilation slider and spinbox
         dilation_layout = QHBoxLayout()
-        dilation_layout.addSpacing(20)  # Indent
         dilation_layout.addWidget(QLabel("Dilation (Pixels)"))
         dilation_layout.addStretch()
-        self.dilation_slider = QSlider(Qt.Horizontal)
-        self.dilation_slider.setRange(1, 20)
+        
+        # Custom slider
+        self.dilation_slider = CustomSlider(Qt.Horizontal)
+        self.dilation_slider.setRange(1, 256)
         self.dilation_slider.setValue(3)
-        self.dilation_slider.setMaximumWidth(150)
+        self.dilation_slider.setMaximumWidth(200)
         dilation_layout.addWidget(self.dilation_slider)
+        
+        # Custom spinbox (matching drag_distance settings style)
+        self.dilation_spinbox = CustomSpinBox()
+        self.dilation_spinbox.setRange(1, 20)
+        self.dilation_spinbox.setValue(3)
+        self.dilation_spinbox.setMinimumWidth(60)
+        self.dilation_spinbox.setMaximumWidth(80)
+        dilation_layout.addWidget(self.dilation_spinbox)
+        
+        # Connect slider and spinbox
+        self.dilation_slider.valueChanged.connect(self.dilation_spinbox.setValue)
+        self.dilation_spinbox.valueChanged.connect(self.dilation_slider.setValue)
+        
         layout.addLayout(dilation_layout)
         
         # Bit depth dropdown (left centered, dropdown right centered)
@@ -145,6 +254,7 @@ class SettingsDialog(QDialog):
     def on_infinite_dilation_toggled(self, checked):
         """Handle infinite dilation toggle."""
         self.dilation_slider.setEnabled(not checked)
+        self.dilation_spinbox.setEnabled(not checked)
     
     def load_settings(self):
         """Load current settings from QSettings."""
@@ -155,6 +265,7 @@ class SettingsDialog(QDialog):
         
         self.infinite_dilation_cb.setChecked(infinite_dilation)
         self.dilation_slider.setValue(dilation_pixels)
+        self.dilation_spinbox.setValue(dilation_pixels)
         self.bit_depth_combo.setCurrentText(bit_depth)
         
         # Update UI state
@@ -164,7 +275,7 @@ class SettingsDialog(QDialog):
         """Save current settings to QSettings."""
         settings = QSettings("RizumClipboardExporter", "Settings")
         settings.setValue("infinite_dilation", self.infinite_dilation_cb.isChecked())
-        settings.setValue("dilation_pixels", self.dilation_slider.value())
+        settings.setValue("dilation_pixels", self.dilation_spinbox.value())
         settings.setValue("bit_depth", self.bit_depth_combo.currentText())
 
 class RizumClipboardExporter:
