@@ -6,7 +6,8 @@ from substance_painter import ui, logging
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QPushButton, QDialog, QDialogButtonBox, QCheckBox,
-                               QSlider, QComboBox, QSpinBox, QTextEdit, QFrame)
+                               QSlider, QComboBox, QSpinBox, QTextEdit, QFrame,
+                               QGroupBox)
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QAction
 
@@ -31,18 +32,21 @@ class ClipboardExporterWidget(QWidget):
         """Setup the user interface."""
         layout = QVBoxLayout()
         
-        # Export buttons
+        # Export buttons in horizontal layout
+        buttons_layout = QHBoxLayout()
         self.layer_btn = QPushButton("Layer")
         self.layer_btn.clicked.connect(self.export_layer)
-        layout.addWidget(self.layer_btn)
+        buttons_layout.addWidget(self.layer_btn)
         
         self.mask_btn = QPushButton("Mask")
         self.mask_btn.clicked.connect(self.export_mask)
-        layout.addWidget(self.mask_btn)
+        buttons_layout.addWidget(self.mask_btn)
         
         self.applied_btn = QPushButton("Applied")
         self.applied_btn.clicked.connect(self.export_applied)
-        layout.addWidget(self.applied_btn)
+        buttons_layout.addWidget(self.applied_btn)
+        
+        layout.addLayout(buttons_layout)
         
         # Instructions section
         self.setup_instructions(layout)
@@ -50,20 +54,10 @@ class ClipboardExporterWidget(QWidget):
         self.setLayout(layout)
     
     def setup_instructions(self, parent_layout):
-        """Setup the collapsible instructions section."""
-        # Instructions frame
-        self.instructions_frame = QFrame()
-        self.instructions_frame.setFrameStyle(QFrame.StyledPanel)
+        """Setup the instructions section as a group box."""
+        # Instructions group box
+        self.instructions_group = QGroupBox("Instructions")
         instructions_layout = QVBoxLayout()
-        
-        # Instructions header with toggle button
-        header_layout = QHBoxLayout()
-        self.toggle_btn = QPushButton("▼ Instructions")
-        self.toggle_btn.setMaximumWidth(120)
-        self.toggle_btn.clicked.connect(self.toggle_instructions)
-        header_layout.addWidget(self.toggle_btn)
-        header_layout.addStretch()
-        instructions_layout.addLayout(header_layout)
         
         # Instructions text
         self.instructions_text = QTextEdit()
@@ -74,20 +68,10 @@ class ClipboardExporterWidget(QWidget):
             "Mask: Exports the mask of the selected layer\n"
             "Applied: Exports the layer with its mask applied"
         )
-        self.instructions_text.hide()
         instructions_layout.addWidget(self.instructions_text)
         
-        self.instructions_frame.setLayout(instructions_layout)
-        parent_layout.addWidget(self.instructions_frame)
-    
-    def toggle_instructions(self):
-        """Toggle the instructions visibility."""
-        if self.instructions_text.isVisible():
-            self.instructions_text.hide()
-            self.toggle_btn.setText("▼ Instructions")
-        else:
-            self.instructions_text.show()
-            self.toggle_btn.setText("▲ Instructions")
+        self.instructions_group.setLayout(instructions_layout)
+        parent_layout.addWidget(self.instructions_group)
     
     def export_layer(self):
         """Export the current layer to clipboard."""
@@ -111,7 +95,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Clipboard Exporter Settings")
         self.setModal(True)
-        self.resize(300, 200)
+        self.resize(350, 200)
         self.setup_ui()
         self.load_settings()
     
@@ -119,36 +103,35 @@ class SettingsDialog(QDialog):
         """Setup the settings dialog UI."""
         layout = QVBoxLayout()
         
-        # Infinite Dilation toggle
-        self.infinite_dilation_cb = QCheckBox("Enable Infinite Dilation")
-        layout.addWidget(self.infinite_dilation_cb)
+        # Infinite Dilation toggle (left centered, toggle right centered)
+        infinite_dilation_layout = QHBoxLayout()
+        infinite_dilation_layout.addWidget(QLabel("Infinite Dilation"))
+        infinite_dilation_layout.addStretch()
+        self.infinite_dilation_cb = QCheckBox()
+        infinite_dilation_layout.addWidget(self.infinite_dilation_cb)
         self.infinite_dilation_cb.toggled.connect(self.on_infinite_dilation_toggled)
+        layout.addLayout(infinite_dilation_layout)
         
-        # Dilation slider (only visible when infinite dilation is off)
+        # Dilation slider (left centered, indented, no spinbox)
         dilation_layout = QHBoxLayout()
-        dilation_layout.addWidget(QLabel("Dilation (Pixels):"))
+        dilation_layout.addSpacing(20)  # Indent
+        dilation_layout.addWidget(QLabel("Dilation (Pixels)"))
+        dilation_layout.addStretch()
         self.dilation_slider = QSlider(Qt.Horizontal)
         self.dilation_slider.setRange(1, 20)
         self.dilation_slider.setValue(3)
+        self.dilation_slider.setMaximumWidth(150)
         dilation_layout.addWidget(self.dilation_slider)
-        self.dilation_spinbox = QSpinBox()
-        self.dilation_spinbox.setRange(1, 20)
-        self.dilation_spinbox.setValue(3)
-        dilation_layout.addWidget(self.dilation_spinbox)
-        
-        # Connect slider and spinbox
-        self.dilation_slider.valueChanged.connect(self.dilation_spinbox.setValue)
-        self.dilation_spinbox.valueChanged.connect(self.dilation_slider.setValue)
-        
         layout.addLayout(dilation_layout)
         
-        # Bit depth dropdown
+        # Bit depth dropdown (left centered, dropdown right centered)
         bit_depth_layout = QHBoxLayout()
-        bit_depth_layout.addWidget(QLabel("Bit Depth:"))
+        bit_depth_layout.addWidget(QLabel("Bit Depth"))
+        bit_depth_layout.addStretch()
         self.bit_depth_combo = QComboBox()
         self.bit_depth_combo.addItems(["8 bits", "16 bits"])
+        self.bit_depth_combo.setMaximumWidth(100)
         bit_depth_layout.addWidget(self.bit_depth_combo)
-        bit_depth_layout.addStretch()
         layout.addLayout(bit_depth_layout)
         
         # Dialog buttons
@@ -162,7 +145,6 @@ class SettingsDialog(QDialog):
     def on_infinite_dilation_toggled(self, checked):
         """Handle infinite dilation toggle."""
         self.dilation_slider.setEnabled(not checked)
-        self.dilation_spinbox.setEnabled(not checked)
     
     def load_settings(self):
         """Load current settings from QSettings."""
@@ -173,7 +155,6 @@ class SettingsDialog(QDialog):
         
         self.infinite_dilation_cb.setChecked(infinite_dilation)
         self.dilation_slider.setValue(dilation_pixels)
-        self.dilation_spinbox.setValue(dilation_pixels)
         self.bit_depth_combo.setCurrentText(bit_depth)
         
         # Update UI state
@@ -183,7 +164,7 @@ class SettingsDialog(QDialog):
         """Save current settings to QSettings."""
         settings = QSettings("RizumClipboardExporter", "Settings")
         settings.setValue("infinite_dilation", self.infinite_dilation_cb.isChecked())
-        settings.setValue("dilation_pixels", self.dilation_spinbox.value())
+        settings.setValue("dilation_pixels", self.dilation_slider.value())
         settings.setValue("bit_depth", self.bit_depth_combo.currentText())
 
 class RizumClipboardExporter:
