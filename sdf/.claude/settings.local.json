@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//e/Documents/Adobe/Adobe Substance 3D Painter/python/plugins/**)",
+      "Read(//e/Documents/**)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('sdf_bake.py'\\).read\\(\\)\\); print\\('OK'\\)\")"
+    ]
+  }
+}
