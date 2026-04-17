@@ -776,8 +776,9 @@ def close_plugin():
 | 12 | `_export_composited_user0()` + `smooth_sdf_qimage()` | Deferred for now; current bake path requires a system Python with `numpy` + `cv2` or, later, a bundled executable. |
 | 13 | `reimport_baked_sdf()` + Bake button | Real `Bake SDF` button runs export → tool → import and updates `SDF_Baked_Result` in User0. |
 | 14 | Bake progress indication ✅ | `Bake SDF` shows clear stage progress: exporting frames, running SDF tool, importing baked result. Implemented via optional `on_progress(stage, current, total)` callback threaded through `bake_sdf` / `export_all_frames` / `run_sdf_tool` / `reimport_baked_sdf`, rendered by a modal `QProgressDialog` in `_on_bake_sdf` (no cancel — subprocess is uninterruptible). Non-UI callers still work by omitting the callback. **Also reverted an off-plan `export_live_composite` + `composite_tool_with_live` merge step that was producing "Frame_08 duplicated" bakes: `np.maximum(tool, live)` let the live stepped composite dominate the SDF tool output wherever a frame's gray value was higher than the tool's smooth interpolation. `bake_sdf()` is now the clean 3-step flow from Phase 6 (export → tool → reimport).** |
-| 15 | Visibility-safe bake | If the user manually hid `SDF_Generator` or any frame layers, bake temporarily forces the canonical bake set visible, then restores the user's original visibility state. No more accidental one-color/empty bake output from hidden layers. |
-| 16 | Quick bake vs final bake | Add a fast bake path for iteration that finishes in seconds, while keeping a higher-quality final bake mode for export. |
+| 15 | Pause current `sdftool` patching path | **Current decision**: stop iterating on bake post-process patches for the `sdf_shadow_threshold_map-main` path. The custom-mask artifacts were reduced but not solved cleanly, and later fixes introduced different regressions (black interior lines, then unwanted white spill). Do not resume from more heuristic patching. |
+| 16 | Resume from Substance graph / `.sbsar` analysis data | After external analysis in Substance Designer or from unpacked graph metadata, document how `FaceShadowBlend` actually blends frames, what assumptions it makes about mask nesting, and whether it is blur-based, threshold-stack-based, or something else. Use that data to choose the next implementation path instead of guessing. |
+| 17 | Replan bake direction after analysis | Based on the gathered graph data, choose exactly one next path: (a) drive the real graph via `sbsrender` / Automation Toolkit, (b) build a separate blur-based baker that conceptually matches the graph, or (c) return to the current `sdftool` path only if the analysis shows the mismatch was caused by an identifiable integration mistake rather than the algorithm itself. |
 
 ---
 
@@ -886,6 +887,11 @@ Store the values in the panel class; pass them into the export functions as para
   not the right shared-user experience. For release, bundle the bake tool as a self-contained
   executable (preferred) or ship a private embedded Python runtime with the plugin. Treat system
   Python discovery as a fallback/debug path, not the primary artist workflow.
+- **Current bake-status decision**: pause work on the current `sdftool` post-processing branch.
+  The recent experiments (frame normalization, exact-zero dead-zone fill, and debug snapshots)
+  helped characterize the failure modes, but the remaining visual mismatch suggests this path is
+  not the desired look target. Resume only after external Substance graph / `.sbsar` analysis
+  data is available.
 
 ## Open Questions (for runtime verification)
 
@@ -896,6 +902,28 @@ Store the values in the panel class; pass them into the export functions as para
    of relying on PATH/system Python. If a development override is still needed later, consider a
    settings field for an explicit Python path.
 5. **Visibility toggle + event listener feedback**: Disconnect `LayerStacksModelDataChanged` listener before the bake's visibility toggle loop. Reconnect after. Otherwise the UI refresh fires for every toggle.
+6. **What does `FaceShadowBlend` actually do?**: gather the external analysis results before any
+   further bake implementation work. At minimum, capture:
+   - the effective frame ordering the graph expects
+   - whether it requires strict subset / nesting masks
+   - whether it blends via blur, threshold stacking, pairwise differences, or a hybrid method
+   - whether there is a practical route to reproducing it in Python vs. calling it directly
+
+## Pause / Resume Point
+
+Current stop point: do **not** continue patching the current `sdf_shadow_threshold_map-main`
+bake branch.
+
+When resuming, start from the external analysis of:
+- `FaceShadowBlend.sbsar` opened in Substance Designer, if possible
+- `SDF_FaceShadowBlend/_unpack/assemblies/content/0000/FaceShadowBlend.xml`
+- any screenshots / notes of the graph nodes, parameters, and blend order
+
+Expected resume output:
+1. A short note describing how the graph appears to work.
+2. A decision on the next bake direction (`sbsrender`, blur-based reimplementation, or a proven
+   correction to the current `sdftool` path).
+3. Only after that, update `sdf_bake.py` again.
 
 ## Bake Fix Log
 
@@ -912,6 +940,11 @@ Store the values in the panel class; pass them into the export functions as para
   was inverted vs. layer names turned out to be a misread of an old export
   folder. Current naming (`Frame_01` → `sdf_frame_01.png`, broadest first)
   is correct; no reorder / no `-r` flag needed.
+- **Later `sdftool` patch experiments were not accepted as the final direction**:
+  bake-time frame normalization and dead-zone filling partially reduced the custom-mask failure,
+  but the visual result still diverged from the desired Substance look and introduced new artifact
+  trade-offs. Keep these experiments as debugging history only; do not treat them as the final
+  bake design.
 
 ## Resolved Questions (already fixed in this plan)
 
