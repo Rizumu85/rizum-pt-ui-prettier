@@ -3,7 +3,12 @@
     "allow": [
       "Read(//e/Documents/Adobe/Adobe Substance 3D Painter/python/plugins/**)",
       "Read(//e/Documents/**)",
-      "Bash(python -c \"import ast; ast.parse\\(open\\('sdf_bake.py'\\).read\\(\\)\\); print\\('OK'\\)\")"
+      "Bash(python -c \"import ast; ast.parse\\(open\\('sdf_bake.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import py7zr; print\\(py7zr.__version__\\)\")",
+      "Bash(mkdir -p _unpack)",
+      "Bash(7z l *)",
+      "Bash(7z x *)"
     ]
   }
 }

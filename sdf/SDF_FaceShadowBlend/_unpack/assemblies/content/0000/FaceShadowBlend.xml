@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sbsdescription SYSTEM "sbsdescription.dtd">
+<sbsdescription formatversion="2.1" asmuid="2253809384" cookerbuild="3870020257" content="full">
+	<graphs count="1">
+		<graph pkgurl="pkg://FaceShadowBlend" label="FaceShadowBlend" primaryinput="1" category="mask" author="Adam Homoki" authorurl="https://kloki.artstation.com/">
+			<sbspresets count="0">
+			</sbspresets>
+			<guigroups>
+				<guigroup identifier="Input" label="Input"/>
+				<guigroup identifier="SDF" label="SDF"/>
+				<guigroup identifier="Output" label="Output"/>
+			</guigroups>
+			<outputs count="2">
+				<output uid="472148500" identifier="FaceShadowOutput"
+					type="5" format="12" width="256" height="256" mipmaps="0" dynamicsize="yes">
+					<outputgui label="FaceShadowOutput" typegui="image">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</outputgui>
+				</output>
+				<output uid="472782271" identifier="TestOutput"
+					type="5" format="12" width="256" height="256" mipmaps="0" dynamicsize="yes">
+					<outputgui label="TestOutput" typegui="image">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</outputgui>
+				</output>
+			</outputs>
+			<inputs count="29">
+				<input uid="2116501577" identifier="$outputsize"
+					type="8" default="8,8" alteroutputs="472148500,472782271" alternodes="0"/>
+				<input uid="472155622" identifier="1"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="1" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152280" identifier="2"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="2" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152274" identifier="3"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="3" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152292" identifier="4"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="4" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152304" identifier="5"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="5" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152076" identifier="6"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="6" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152071" identifier="7"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="7" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152084" identifier="8"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="8" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152111" identifier="9"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="9" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152122" identifier="10"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="10" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152154" identifier="11"
+					type="5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="image" label="11" showas="pin" group="Input">
+						<guiimage  colortype="grayscale" format="fixed">
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+						</guiimage>
+						<channels>
+							<channel names="mask" colorspace="Linear"/>
+						</channels>
+					</inputgui>
+				</input>
+				<input uid="472152778" identifier="Number_of_Pictures"
+					type="0" default="11" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Number_of_Pictures" showas="tweak" group="Input">
+						<guislider  min="0" max="11" clamp="on" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234151" identifier="Slider_1"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_1" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234217" identifier="Slider_2"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_2" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234030" identifier="Slider_3"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_3" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234089" identifier="Slider_4"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_4" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234884" identifier="Slider_5"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_5" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234954" identifier="Slider_6"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_6" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234981" identifier="Slider_7"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_7" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234783" identifier="Slider_8"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_8" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234805" identifier="Slider_9"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_9" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234856" identifier="Slider_10"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_10" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472234668" identifier="Slider_11"
+					type="0" default="1" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Slider_11" showas="tweak" group="Input">
+						<guislider  min="0" max="1" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472498399" identifier="Blur_Intensity"
+					type="0" default="20" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Blur_Intensity" showas="tweak" group="SDF">
+						<guislider  min="0" max="50" step="0.01"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472499593" identifier="Blur_Samples"
+					type="4" default="16" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Blur_Samples" showas="tweak" group="SDF">
+						<guislider  min="1" max="16" clamp="on" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472500004" identifier="Blur_Blades"
+					type="4" default="9" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Blur_Blades" showas="tweak" group="SDF">
+						<guislider  min="1" max="9" clamp="on" step="1"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472787165" identifier="Blur_Output"
+					type="0" default="0.5" alteroutputs="472148500,472782271" alternodes="0">
+					<inputgui widget="slider" label="Blur_Output" showas="tweak" group="Output">
+						<guislider  min="0" max="16" step="0.01"/>
+						<channels/>
+					</inputgui>
+				</input>
+				<input uid="472782221" identifier="Test_Output"
+					type="0" default="0.5" alteroutputs="472782271" alternodes="0">
+					<inputgui widget="slider" label="Test_Output" showas="tweak" group="Output">
+						<guislider  min="0" max="1" clamp="on" step="0.01"/>
+						<channels/>
+					</inputgui>
+				</input>
+			</inputs>
+		</graph>
+	</graphs>
+</sbsdescription>

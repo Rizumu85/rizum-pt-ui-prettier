@@ -1,7 +1,6 @@
 import os
 import shutil
 import subprocess
-import tempfile
 
 import substance_painter as sp
 
@@ -156,6 +155,7 @@ def run_sdf_tool(
             "gray",
             "-f",
             filter_mode,
+            "-r",
         ],
         capture_output=True,
         text=True,
@@ -198,8 +198,34 @@ def reimport_baked_sdf(baked_path: str, on_progress=None):
         on_progress("Importing baked result", 1, 1)
 
 
+def _resolve_bake_debug_dir() -> str:
+    """Pick a persistent folder for the bake's intermediate frames and output.
+
+    Uses the saved project's directory if available, otherwise the user's
+    Documents folder. Artists can inspect `frames/*.png` and `sdf_baked.png`
+    after a bake to diagnose issues.
+    """
+    project_path = None
+    try:
+        project_path = sp.project.file_path()
+    except Exception:
+        project_path = None
+    if project_path:
+        base = os.path.dirname(project_path)
+    else:
+        base = os.path.join(os.path.expanduser("~"), "Documents")
+    debug_dir = os.path.join(base, "sdf_bake_debug")
+    frames_dir = os.path.join(debug_dir, "frames")
+    os.makedirs(frames_dir, exist_ok=True)
+    return debug_dir
+
+
 def bake_sdf(on_progress=None) -> str:
-    """Run the validated bake flow and import the result into Painter."""
+    """Run the validated bake flow and import the result into Painter.
+
+    Intermediate frames and the baked PNG are written to a persistent
+    `sdf_bake_debug/` folder next to the project so they can be inspected.
+    """
     group = _find_sdf_group()
     if group is None:
         raise RuntimeError("SDF_Generator group not found. Run Setup first.")
@@ -214,23 +240,28 @@ def bake_sdf(on_progress=None) -> str:
     if python_exe is None:
         raise RuntimeError("No system Python with numpy and cv2 was found on PATH.")
 
-    with tempfile.TemporaryDirectory(prefix="sdf_bake_") as temp_dir:
-        frames_dir = os.path.join(temp_dir, "frames")
-        output_dir = os.path.join(temp_dir, "output")
-        os.makedirs(frames_dir, exist_ok=True)
-        os.makedirs(output_dir, exist_ok=True)
+    debug_dir = _resolve_bake_debug_dir()
+    frames_dir = os.path.join(debug_dir, "frames")
+    # Wipe stale frames from the prior bake so leftover PNGs don't feed the tool.
+    for name in os.listdir(frames_dir):
+        if name.lower().endswith(".png"):
+            try:
+                os.remove(os.path.join(frames_dir, name))
+            except OSError:
+                pass
 
-        export_all_frames(group, texture_set_name, frames_dir, on_progress=on_progress)
-        baked_path = run_sdf_tool(
-            python_exe,
-            frames_dir,
-            output_dir,
-            output_name="sdf_baked",
-            filter_mode="gaussian",
-            bit_depth=16,
-            on_progress=on_progress,
-        )
-        reimport_baked_sdf(baked_path, on_progress=on_progress)
-        if on_progress is not None:
-            on_progress("Done", 1, 1)
-        return baked_path
+    export_all_frames(group, texture_set_name, frames_dir, on_progress=on_progress)
+    baked_path = run_sdf_tool(
+        python_exe,
+        frames_dir,
+        debug_dir,
+        output_name="sdf_baked",
+        filter_mode="gaussian",
+        bit_depth=16,
+        on_progress=on_progress,
+    )
+    reimport_baked_sdf(baked_path, on_progress=on_progress)
+    if on_progress is not None:
+        on_progress("Done", 1, 1)
+    sp.logging.info(f"SDF bake artifacts saved to: {debug_dir}")
+    return baked_path
