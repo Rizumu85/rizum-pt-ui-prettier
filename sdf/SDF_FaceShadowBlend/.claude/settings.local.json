@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:helpx.adobe.com)",
+      "WebSearch",
+      "Bash(python3 -c ' *)",
+      "Bash(grep -iE \"\\\\.\\(png|jpg|gif|webp\\)$\")",
+      "Bash(awk '{print $5, $9}')"
+    ]
+  }
+}
