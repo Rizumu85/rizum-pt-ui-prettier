@@ -68,8 +68,9 @@ def setup_sdf_group(n_frames: int = 9):
 
         # inside_node(group, Substack) inserts at the TOP each time.
         # Iterate 1→N so Frame_01 stays at the bottom and Frame_N ends up at
-        # the top. Values run high→low bottom-to-top, so the broadest frame is
-        # at the bottom and the stack narrows upward.
+        # the top. Values run high→low bottom-to-top, so the narrowest frame
+        # (deepest shadow only) is at the bottom and the stack broadens upward.
+        # Matches FaceShadowBlend's `a→h` ordering (a=narrowest at bottom).
         for i in range(1, n_frames + 1):
             _insert_frame(group, i, n_frames, additive=True)
 ```
@@ -115,7 +116,9 @@ def _find_sdf_group() -> sp.layerstack.GroupLayerNode | None:
 
 **Verify**: `SDF_Generator` group has N fill layers. Each has a mask with a base fill effect +
 one empty paint effect. User0 values run high → low bottom-to-top, so `Frame_01` is the
-broadest / most-shadowed frame.
+**narrowest** frame (deep-shadow / always-shadowed regions only) and `Frame_N` is the
+broadest. This matches FaceShadowBlend's `a→h` order and proper SDF semantics
+(high threshold value = pixel stays in shadow even at high NdotL).
 
 ---
 
@@ -218,9 +221,9 @@ def set_frame_mask_mode(frame_fill, additive: bool):
 
 | Frame | Shadow size | Recommended mode |
 |---|---|---|
-| Frame_01–03 | Large (most of face) | Additive — start black and paint a broad white shadow region |
+| Frame_01–03 | Small (deep shadow only) | Additive — start black and paint tight white patches in the deepest crevices |
 | Frame_04–06 | Medium | Additive by default; subtractive is optional if carve-out feels easier |
-| Frame_07–09 | Small (deep shadow only) | Additive — add progressively smaller white patches |
+| Frame_07–09 | Large (most of face) | Additive — paint progressively broader white regions that contain the smaller frames below |
 
 ### Duplicate-and-modify (no plugin code needed)
 
@@ -426,10 +429,11 @@ def export_all_frames(group_node, texture_set_name: str,
     CRITICAL: Two fixes applied here:
     1. destChannel "L" (Luminance) — not "R". An R-only PNG causes cv2's
        BGR→gray to compute 0.299×R=76 for white, which binarizes to black.
-    2. Temp fill value 1.0 — the narrowest frame in the stack can have a low
-       fill value such as ~0.111, which is 8-bit value ~28 and below the
-       binarization threshold 127. Temporarily set each exported frame to 1.0
-       so masked pixels export as white (255), then restore the original value.
+    2. Temp fill value 1.0 — the broadest frame at the top of the stack can
+       have a low fill value such as ~0.111, which is 8-bit value ~28 and
+       below the binarization threshold 127. Temporarily set each exported
+       frame to 1.0 so masked pixels export as white (255), then restore the
+       original value.
     """
     # sub_layers() is top-to-bottom; reverse for bottom-first ordering
     frame_layers = list(reversed(group_node.sub_layers()))
@@ -712,8 +716,8 @@ instead of keeping stale rows from the previous stack.
 
 ### Painting tips to show in the UI
 
-- Frame_01 (bottom) covers the most face area. Frame_N (top) covers the least. Build upward.
-- Each frame's shadow region should be a subset of the frame below it.
+- Frame_01 (bottom) covers the **least** face area — paint only the deepest, always-shadowed crevices here. Frame_N (top) covers the **most** face area. Build downward-to-upward = narrow to broad.
+- Each frame's shadow region should be a **superset** of the frame below it (broader contains narrower).
 - Sync Values is safe to click anytime — only updates gray fill values and names.
 - After baking, the `SDF_Baked_Result` layer sits above the generator group — toggle it to compare.
 - For the bake step, install numpy and opencv-python in your system Python for best quality.
@@ -762,7 +766,7 @@ def close_plugin():
 
 | Step | Task | Verify |
 |---|---|---|
-| 1 | `__init__.py` + `sdf_layer_setup.py`: `setup_sdf_group()`, `_insert_frame()`, `_find_sdf_group()`, `_frame_name()` | Group with N fill layers (Frame_N at top, Frame_01 at bottom), each has base fill + paint effect in mask. User0 values run high→low bottom-to-top, so Frame_01 is the broadest frame. |
+| 1 | `__init__.py` + `sdf_layer_setup.py`: `setup_sdf_group()`, `_insert_frame()`, `_find_sdf_group()`, `_frame_name()` | Group with N fill layers (Frame_N at top, Frame_01 at bottom), each has base fill + paint effect in mask. User0 values run high→low bottom-to-top, so Frame_01 is the **narrowest** (deep-shadow-only) frame and Frame_N is the broadest. |
 | 2 | `sdf_frame_ops.py`: `_sync_frame_values_impl()`, `sync_frame_values()` | Reorder layers, click Sync → values and names update. Single undo step. |
 | 3 | `sdf_realtime_plugin.py`: Minimal UI — Setup button + frame list + [→] select | Panel shows rows, clicking [→] selects layer in SP (outside ScopedModification). |
 | 4 | Real-time preview test | Paint on a mask → viewport shadow updates immediately. |
@@ -771,14 +775,14 @@ def close_plugin():
 | 7 | `sdf_external.py`: `export_frame_for_external()` + [↑] button | PNG exported with `destChannel: "L"`, correct frame isolated. |
 | 8 | `import_external_edit()` + [↓] button | PNG imported as FillEffectNode with `GenericColorSpace.Raw`. Re-import promotes the refreshed external fill to the top of the mask stack. |
 | 9 | `borrow_shape_from_layer()` + [⊕ Borrow Shape] button | Anchor point inside source Content stack, wired into frame mask, levels effect added. |
-| 10 | `sdf_bake.py`: `export_all_frames()` | N zero-padded PNGs exported in canonical broad→narrow order, with temp 1.0 fill (white where masked, black elsewhere). |
-| 11 | `find_python_with_deps()` + `run_sdf_tool()` | Subprocess runs run.py in temp dir, deletes any previous target output before launch, and produces a baked PNG without hitting the tool's overwrite prompt. Passes `-r` (reverse gradient) because our frame order is broad→narrow (Frame_01 = 100%, Frame_N = narrowest/darkest) — without `-r` the baked map comes out inverted relative to the live preview. |
+| 10 | `sdf_bake.py`: `export_all_frames()` | N zero-padded PNGs exported in canonical narrow→broad order (Frame_01 first = narrowest, matching FaceShadowBlend `a→h`), with temp 1.0 fill (white where masked, black elsewhere). |
+| 11 | `find_python_with_deps()` + `run_sdf_tool()` | (Paused — see steps 15–17.) Originally documented `-r` reverse-gradient flag for the old broad→narrow order; under the current narrow→broad convention the flag should not be needed for a `sdftool`-based bake either. The active bake direction is the FaceShadowBlend-style blur baker (step 17), not `sdftool`. |
 | 12 | `_export_composited_user0()` + `smooth_sdf_qimage()` | Deferred for now; current bake path requires a system Python with `numpy` + `cv2` or, later, a bundled executable. |
 | 13 | `reimport_baked_sdf()` + Bake button | Real `Bake SDF` button runs export → tool → import and updates `SDF_Baked_Result` in User0. |
 | 14 | Bake progress indication ✅ | `Bake SDF` shows clear stage progress: exporting frames, running SDF tool, importing baked result. Implemented via optional `on_progress(stage, current, total)` callback threaded through `bake_sdf` / `export_all_frames` / `run_sdf_tool` / `reimport_baked_sdf`, rendered by a modal `QProgressDialog` in `_on_bake_sdf` (no cancel — subprocess is uninterruptible). Non-UI callers still work by omitting the callback. **Also reverted an off-plan `export_live_composite` + `composite_tool_with_live` merge step that was producing "Frame_08 duplicated" bakes: `np.maximum(tool, live)` let the live stepped composite dominate the SDF tool output wherever a frame's gray value was higher than the tool's smooth interpolation. `bake_sdf()` is now the clean 3-step flow from Phase 6 (export → tool → reimport).** |
 | 15 | Pause current `sdftool` patching path | **Current decision**: stop iterating on bake post-process patches for the `sdf_shadow_threshold_map-main` path. The custom-mask artifacts were reduced but not solved cleanly, and later fixes introduced different regressions (black interior lines, then unwanted white spill). Do not resume from more heuristic patching. |
 | 16 | Resume from Substance graph / `.sbsar` analysis data | After external analysis in Substance Designer or from unpacked graph metadata, document how `FaceShadowBlend` actually blends frames, what assumptions it makes about mask nesting, and whether it is blur-based, threshold-stack-based, or something else. Use that data to choose the next implementation path instead of guessing. |
-| 17 | Replan bake direction after analysis ✅ | **Current direction chosen from the Zhihu article + open-source graph screenshot**: proceed toward a separate **blur-based baker** that matches `FaceShadowBlend`'s apparent structure rather than resuming the old `sdftool` path. The best-supported model is now: `N` ordered masks → `N-1` adjacent-pair subtract bands → `N-1` per-pair `Non-Uniform Blur Grayscale` nodes → per-branch `1/N` opacity normalization → progressive add-chain with intermediate taps → final grayscale output plus `Histogram Scan` preview. Treat `sbsrender` / Automation Toolkit as a possible later validation path if direct graph execution becomes practical, but the working implementation target is the pairwise transition-feathering baker. Return to `sdftool` only if a later graph inspection proves this reading is wrong. |
+| 17 | Replan bake direction after analysis ✅ | **Direction**: build a separate **blur-based baker** matching `FaceShadowBlend.sbs`. Verified structure from `SDFFaceLightMap.md` XML + `01_verify_subtract_direction.py`: <br>• `N` ordered masks, sorted **narrow→broad** (matches FaceShadowBlend `a→h`, matches our Frame_01→Frame_N convention).<br>• `N-1` adjacent-pair subtract bands. Substance subtract = `dest − src` clamped; with `dest=broader, src=narrower` this yields the **ring** between them.<br>• **`N` (not N-1)** Non-Uniform Blur Grayscale nodes: each NUB uses the lower (narrower) frame as **source** and the corresponding ring as the blur-mask **effect**. The topmost (broadest) frame **reuses the last ring** as its mask — that's the extra Nth NUB.<br>• Per-branch opacity = `1/N` (matches "Opacity=1/贴图数" comment).<br>• Progressive **add-chain** sums all N weighted NUB outputs.<br>• Intensity is **not uniform** in the reference graph (38.38, 24.27, then 11.69×6 for N=8). Broader-end pairs use larger feathering. Make this a parameter — possibly a per-pair list or a curve. <br>• Final grayscale output + `Histogram Scan` preview tap. <br>**Out of scope**: `sbsrender` / Automation Toolkit. Return to `sdftool` only if this implementation fails empirically. |
 
 ---
 
@@ -871,10 +875,14 @@ Store the values in the panel class; pass them into the export functions as para
 - **Row gap was caused by stretch, not layout spacing**: `row_layout.addWidget(name_label, 1)`
   made the name column absorb extra width and pushed the percentage away. Fixed by using
   font-metric-based fixed widths for `Frame_99` and `[100%]` plus a small explicit spacing.
-- **Frame convention was reversed after runtime validation**: the working authoring order is
-  broad shadow first and narrower shadows later, with `Frame_01` at the bottom and the highest
-  User0 value. Older stacks created under the previous convention may need reordering and a
-  `Sync Values` pass.
+- **Frame convention — current (Option A, aligned with FaceShadowBlend)**: `Frame_01` sits at
+  the bottom with the highest User0 value (1.0) and represents the **narrowest** shadow region
+  (deep crevices only). `Frame_N` sits at the top with the lowest value and represents the
+  **broadest** shadow region. This matches FaceShadowBlend's `a→h` ordering (`a`=narrowest at
+  bottom). The value formula `(total - index + 1) / total` and iteration order are unchanged
+  from the previous convention — only the painting/labeling intent flipped. Older stacks that
+  were authored under the broad-at-bottom interpretation will look semantically inverted; either
+  re-author the masks or treat them as reverse-direction tests.
 - **Hidden-frame bake trap**: bake currently depends on the frame set being visible unless the
   bake flow explicitly overrides visibility during export. This should be fixed so manual hiding
   in the Layers panel never causes a misleading one-color or empty bake result.

@@ -61,7 +61,8 @@ def setup_sdf_group(n_frames: int = 9):
 
         # inside_node(group, Substack) inserts at TOP each time.
         # Iterate 1→N so Frame_01 stays at the bottom and Frame_N ends up at
-        # the top. Values run high→low bottom-to-top, matching the canonical
-        # broad-shadow-first workflow.
+        # the top. Values run high→low bottom-to-top: Frame_01 = narrowest
+        # (deepest shadow only, value 1.0), Frame_N = broadest (lowest value).
+        # Matches FaceShadowBlend's `a→h` order.
         for i in range(1, n_frames + 1):
             _insert_frame(group, i, n_frames, additive=True)
