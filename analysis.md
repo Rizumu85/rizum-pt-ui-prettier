@@ -27,3 +27,15 @@ The practical architecture is a small PySide6 library with:
 - A preview app that can be run outside Painter for fast visual iteration.
 
 This keeps the design system reusable without coupling it to a single plugin.
+
+## Visual Diff Workflow
+
+`pt-ui-font-gemini.html` is the current pixel reference for the UI Font panel. The preview tooling renders both the real HTML reference and the PySide6 panel into `visual-diff/` so small geometry, font, icon, and button differences can be compared directly.
+
+Important findings:
+
+- The HTML panel uses `--panel-width: 356px`, but the screenshot size is `358x232` because the CSS border is outside the content width.
+- HTML divider lines are header/footer pseudo-elements and do not consume layout height.
+- The Size mock input is `88px` wide in the screenshot: `70px` content width plus horizontal padding and border.
+- Native Qt SpinBox, ComboBox, and CheckBox rendering does not match the HTML mockup closely enough for visual tuning, so the preview uses mock controls for this panel.
+- Qt high-DPI screenshots must be normalized to 1x before comparing with Playwright screenshots, otherwise text looks softer than the HTML reference.

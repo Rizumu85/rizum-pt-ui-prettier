@@ -4,8 +4,8 @@
 
 Do not patch Substance 3D Painter installation files. Use the UI kit in one of two scopes:
 
-1. Plugin scope: call `apply_theme(self.widget)` on a plugin panel or dialog.
-2. App scope: call `apply_theme(QApplication.instance())` from an explicit appearance/font helper plugin.
+1. Plugin scope: call `apply_theme(self.widget, mode="overlay")` on a plugin panel or dialog.
+2. App scope: call `apply_theme(QApplication.instance(), mode="overlay")` from an explicit appearance/font helper plugin.
 
 Plugin scope is the default. App scope is useful for experiments, but it can affect Painter-owned widgets and other plugins.
 
@@ -29,7 +29,7 @@ Then apply the theme once after creating the dock root widget:
 ```python
 self.widget = QtWidgets.QWidget()
 self.widget.setObjectName("RizumPtToPsSmokeTestPanel")
-apply_theme(self.widget)
+apply_theme(self.widget, mode="overlay")
 ```
 
 Use components gradually. For example:
@@ -54,7 +54,7 @@ from rizum_ui import apply_theme
 
 app = QtWidgets.QApplication.instance()
 if app is not None:
-    apply_theme(app)
+    apply_theme(app, mode="overlay")
 ```
 
 Keep the existing reset path so font and style experiments can be backed out during the Painter session.

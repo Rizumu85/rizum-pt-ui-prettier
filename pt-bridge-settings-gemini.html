@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings - Pure Pro UI</title>
+<style>
+    :root {
+        /* Pro Dark Theme (Default) */
+        --bg-app: #111111;
+        --bg-window: #1b1b1b;
+        --border-color: #414141;
+        
+        --text-primary: #E0E0E0;
+        --text-secondary: #9E9E9E;
+        --text-tertiary: #666666;
+        
+        --btn-primary-bg: #FFFFFF;    
+        --btn-primary-text: #1b1b1b;  
+        --btn-secondary: #343434;
+        
+        --panel-width: 340px;
+        --top-section-height: 40px;
+        --footer-height: 48px;
+        
+        --line-margin: 12px;
+        --radius-window: 10px;
+        --radius-item: 6px;
+        --btn-radius: 100px;
+        
+        --hover-overlay: rgba(255, 255, 255, 0.04);
+        --transition-smooth: 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    [data-theme="light"] {
+        --bg-app: #F2F2F7;
+        --bg-window: #FFFFFF;
+        --border-color: #E5E5E5;
+        --text-primary: #1D1D1F;
+        --text-secondary: #86868B;
+        --text-tertiary: #999999;
+        --btn-primary-bg: #1D1D1F;
+        --btn-primary-text: #FFFFFF;
+        --btn-secondary: #E5E5E7;
+        --hover-overlay: rgba(0, 0, 0, 0.03);
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-app);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+        transition: background 0.3s ease;
+    }
+
+    .theme-toggle { margin-bottom: 20px; display: flex; gap: 10px; }
+    .theme-btn {
+        padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border-color);
+        background: var(--bg-window); color: var(--text-primary); cursor: pointer; font-size: 12px; font-weight: 600;
+        transition: all 0.15s;
+    }
+    .theme-btn:hover { background: var(--hover-overlay); }
+
+    .settings-window {
+        width: var(--panel-width);
+        background: var(--bg-window);
+        border-radius: var(--radius-window);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        border: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    [data-theme="light"] .settings-window {
+        box-shadow: 0 8px 30px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+        border: none;
+    }
+
+    /* --- Header --- */
+    .header {
+        height: var(--top-section-height);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 16px;
+        font-weight: 600;
+        font-size: 13px;
+        position: relative;
+    }
+    .header::after {
+        content: ''; position: absolute; bottom: 0; left: var(--line-margin); right: var(--line-margin);
+        height: 1px; background: var(--border-color);
+    }
+    .close-btn {
+        width: 14px; height: 14px; color: var(--text-secondary); cursor: pointer; transition: 0.15s;
+    }
+    .close-btn:hover { color: var(--text-primary); }
+
+    /* --- Body Area (No different colored regions!) --- */
+    .settings-body {
+        padding: 8px 12px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px; /* 极小的 Gap，让行与行之间依靠自身的 padding 产生呼吸感 */
+        overflow-y: auto;
+        max-height: 480px;
+    }
+    .settings-body::-webkit-scrollbar { width: 4px; }
+    .settings-body::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+    /* --- Section Titles (No outlines, just pure spacing) --- */
+    .section-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-tertiary);
+        padding: 20px 8px 6px; /* 顶部留出巨大呼吸感 */
+    }
+    /* 第一行取消顶部多余空白 */
+    .section-title:first-child { padding-top: 8px; } 
+
+    /* --- Tree Item Rows (Matched to Bridge Style) --- */
+    .tree-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px;
+        border-radius: var(--radius-item);
+        transition: background 0.15s;
+    }
+    .tree-item:hover {
+        background: var(--hover-overlay);
+    }
+
+    .item-texts { display: flex; flex-direction: column; justify-content: center; }
+    .item-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+    .item-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+    /* --- Controls (No heavy borders!) --- */
+
+    /* Segmented Control (Minimalist) */
+    .seg-control {
+        display: flex;
+        gap: 2px;
+    }
+    .seg-opt {
+        padding: 4px 10px; 
+        font-size: 12px; 
+        font-weight: 500; 
+        color: var(--text-secondary);
+        border-radius: 4px; 
+        cursor: pointer; 
+        transition: 0.15s;
+    }
+    .seg-opt:hover:not(.active) { background: var(--hover-overlay); color: var(--text-primary); }
+    .seg-opt.active { background: var(--btn-primary-bg); color: var(--btn-primary-text); font-weight: 600; }
+
+    /* Pure White Toggle Switch */
+    .toggle {
+        width: 32px; height: 18px; border-radius: 9px;
+        background: rgba(255,255,255,0.1); position: relative; cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
+        border: 1px solid transparent;
+    }
+    .toggle::after {
+        content: ''; position: absolute; top: 1.5px; left: 2px; width: 13px; height: 13px;
+        border-radius: 50%; background: var(--text-secondary); transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), background 0.2s;
+    }
+    .toggle:hover { background: rgba(255,255,255,0.15); }
+    .toggle.on { background: #FFFFFF; }
+    .toggle.on::after { transform: translateX(13px); background: #1b1b1b; }
+    
+    [data-theme="light"] .toggle { background: #E5E5E5; border-color: #D1D1D6; }
+    [data-theme="light"] .toggle::after { background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+    [data-theme="light"] .toggle.on { background: #1D1D1F; border-color: #1D1D1F; }
+    [data-theme="light"] .toggle.on::after { background: #FFFFFF; }
+
+    /* Stepper (Icon Buttons instead of a bordered box) */
+    .stepper {
+        display: flex; align-items: center; gap: 6px;
+    }
+    .step-btn { 
+        width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; 
+        border-radius: 4px; cursor: pointer; color: var(--text-secondary); font-size: 14px; font-weight: 500; transition: 0.15s;
+    }
+    .step-btn:hover { background: var(--hover-overlay); color: var(--text-primary); }
+    .step-val { width: 24px; text-align: center; font-size: 12px; color: var(--text-primary); font-weight: 500; }
+
+    /* Mock Select for Path (Matched to Bridge Dropdowns) */
+    .mock-select {
+        display: flex; align-items: center; justify-content: space-between; gap: 6px;
+        font-size: 11px; color: var(--text-secondary); cursor: pointer; padding: 6px 8px;
+        border-radius: 6px; transition: 0.15s; border: 1px solid transparent;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+    }
+    .mock-select:hover { background: var(--hover-overlay); }
+
+    .icon-btn {
+        width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+        border-radius: 4px; cursor: pointer; color: var(--text-secondary); transition: 0.15s; flex-shrink: 0;
+    }
+    .icon-btn:hover { background: var(--hover-overlay); color: var(--text-primary); }
+
+    /* --- Footer --- */
+    .footer {
+        height: var(--footer-height); 
+        padding: 0 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+    }
+    .footer::before {
+        content: ''; position: absolute; top: 0; left: var(--line-margin); right: var(--line-margin);
+        height: 1px; background: var(--border-color);
+    }
+    
+    .footer-hint { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
+
+    .btn {
+        height: 26px; 
+        padding: 0 20px;
+        border-radius: var(--btn-radius);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        outline: none;
+        display: flex;
+        align-items: center;
+        transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-apply { background: var(--btn-primary-bg); color: var(--btn-primary-text); }
+    .btn-apply:hover { opacity: 0.85; }
+
+    .svg-icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="theme-toggle">
+    <button class="theme-btn" onclick="setTheme('light')">Apple Light</button>
+    <button class="theme-btn" onclick="setTheme('dark')">Pro Dark</button>
+</div>
+
+<div class="settings-window">
+    <!-- Header -->
+    <div class="header">
+        <span>Settings</span>
+        <svg class="svg-icon close-btn" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </div>
+
+    <!-- Main Content -->
+    <div class="settings-body">
+        
+        <!-- Appearance Section -->
+        <div class="section-title">Appearance</div>
+        <div class="tree-item">
+            <span class="item-name">Theme</span>
+            <div class="seg-control">
+                <div class="seg-opt" onclick="switchThemeSeg(this, 'light')">Light</div>
+                <div class="seg-opt active" onclick="switchThemeSeg(this, 'dark')">Dark</div>
+                <div class="seg-opt" onclick="switchThemeSeg(this, 'system')">System</div>
+            </div>
+        </div>
+
+        <!-- Export Section -->
+        <div class="section-title">Export</div>
+        <div class="tree-item" onclick="toggleSwitch(this)">
+            <div class="item-texts">
+                <span class="item-name">Padding</span>
+                <span class="item-meta">Infinite</span>
+            </div>
+            <div class="toggle on"></div>
+        </div>
+        
+        <div class="tree-item">
+            <div class="item-texts">
+                <span class="item-name">Dilation</span>
+                <span class="item-meta">px</span>
+            </div>
+            <div class="stepper">
+                <div class="step-btn">−</div>
+                <span class="step-val">8</span>
+                <div class="step-btn">+</div>
+            </div>
+        </div>
+        
+        <div class="tree-item" onclick="toggleSwitch(this)">
+            <span class="item-name">Auto-open Photoshop</span>
+            <div class="toggle"></div>
+        </div>
+
+        <!-- Photoshop Section -->
+        <div class="section-title">Photoshop</div>
+        <div class="tree-item" style="gap: 8px;">
+            <div class="mock-select" title="C:\Program Files\Adobe\Photoshop 2025\Photoshop.exe">
+                <span>C:\Program Files\Adobe\Photoshop...</span>
+            </div>
+            <div class="icon-btn" title="Browse executable">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+        </div>
+
+        <!-- About Section -->
+        <div class="section-title">About</div>
+        <div class="tree-item">
+            <span class="item-name">Version</span>
+            <span class="item-meta" style="margin-top: 0;">2.0.0</span>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <span class="footer-hint">Changes save automatically</span>
+        <button class="btn btn-apply">Done</button>
+    </div>
+</div>
+
+<script>
+    function setTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        const segs = document.querySelectorAll('.seg-opt');
+        segs.forEach(s => s.classList.remove('active'));
+        if(theme === 'light') segs[0].classList.add('active');
+        if(theme === 'dark') segs[1].classList.add('active');
+    }
+
+    function switchThemeSeg(el, theme) {
+        const segs = document.querySelectorAll('.seg-opt');
+        segs.forEach(s => s.classList.remove('active'));
+        el.classList.add('active');
+        if (theme !== 'system') {
+            document.body.setAttribute('data-theme', theme);
+        }
+    }
+    
+    function toggleSwitch(row) {
+        const t = row.querySelector('.toggle');
+        if (t) t.classList.toggle('on');
+    }
+</script>
+
+</body>
+</html>

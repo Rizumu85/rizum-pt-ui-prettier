@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SP Export Dialogue - Fixed Alignment</title>
+<style>
+    :root {
+        --bg-app: #111111;
+        --bg-window: #1b1b1b;
+        --border-color: #414141;
+        
+        --text-primary: #E0E0E0;
+        --text-secondary: #9E9E9E;
+        --text-tertiary: #666666;
+        
+        --btn-export-bg: #FFFFFF;    
+        --btn-export-text: #1b1b1b;  
+        --btn-cancel: #343434;
+        
+        --panel-width: 260px;
+        --top-section-height: 40px;
+        --footer-height: 48px;
+        
+        --line-margin: 12px;
+        --radius-window: 10px;
+        --radius-item: 6px;
+        --radius-group: 8px;
+        --btn-radius: 100px;
+        
+        --transition-smooth: 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-app);
+        color: var(--text-primary);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .export-window {
+        width: var(--panel-width);
+        background: var(--bg-window);
+        border-radius: var(--radius-window);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        border: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* --- Header --- */
+    .header {
+        height: var(--top-section-height);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 16px;
+        font-weight: 600;
+        font-size: 13px;
+        position: relative;
+    }
+    .header::after {
+        content: ''; position: absolute; bottom: 0; left: var(--line-margin); right: var(--line-margin);
+        height: 1px; background: var(--border-color);
+    }
+
+    /* --- Top Controls --- */
+    .top-controls {
+        height: var(--top-section-height);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 16px;
+        position: relative;
+    }
+    .top-controls::after {
+        content: ''; position: absolute; bottom: 0; left: var(--line-margin); right: var(--line-margin);
+        height: 1px; background: var(--border-color);
+    }
+    
+    .left-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .mock-select {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 85px; 
+        font-size: 13px; 
+        color: var(--text-primary); 
+        cursor: pointer;
+        padding: 6px 8px;
+        border-radius: 6px;
+        transition: all 0.15s;
+        margin-left: -8px;
+    }
+    .mock-select:hover { background: rgba(255, 255, 255, 0.05); }
+
+    .action-icons { display: flex; gap: 4px; align-items: center; }
+    .icon-btn {
+        width: 26px; height: 26px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 4px; cursor: pointer;
+        color: var(--text-secondary);
+    }
+    .icon-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+
+    /* --- Tree View Area --- */
+    .tree-view {
+        padding: 8px;
+        max-height: 350px;
+        overflow-y: auto;
+        font-size: 13px;
+    }
+    .tree-view::-webkit-scrollbar { width: 4px; }
+    .tree-view::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+    .group-container { 
+        margin-bottom: 4px; 
+        border-radius: var(--radius-group);
+        transition: background 0.2s ease;
+        padding: 2px 0; 
+    }
+    .group-container:hover { background: rgba(255, 255, 255, 0.04); }
+
+    /* 所有行（父级和子级）的通用样式 */
+    .tree-item {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        border-radius: var(--radius-item);
+        cursor: pointer;
+        gap: 10px;
+        margin-right: 4px; /* <--- 核心修改：所有行统一右边距，确保 Checkbox 垂直对齐 */
+    }
+
+    /* 子通道缩进 & 取消位移动效 */
+    .child-item { 
+        margin-left: 24px; 
+        margin-bottom: 2px;
+    }
+    .child-item:hover { 
+        background: rgba(255, 255, 255, 0.06) !important;
+        transform: none; /* 彻底移除位移动效 */
+    }
+
+    /* --- White Checkboxes --- */
+    .checkbox {
+        appearance: none;
+        width: 15px; height: 15px;
+        border: 1.5px solid #FFFFFF; 
+        border-radius: 3px;
+        outline: none;
+        cursor: pointer;
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        margin-left: auto; /* 自动推到最右侧 */
+    }
+    .checkbox:checked, .checkbox:indeterminate { background: #FFFFFF; }
+    .checkbox:checked::after {
+        content: ''; position: absolute;
+        width: 3.5px; height: 7px;
+        border: solid var(--bg-window); 
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg) translateY(-1px);
+    }
+    .checkbox:indeterminate::after {
+        content: ''; position: absolute;
+        width: 8px; height: 2px; background: var(--bg-window);
+    }
+
+    /* --- Accordion --- */
+    .chevron {
+        width: 14px; height: 14px;
+        transition: transform var(--transition-smooth);
+        color: var(--text-secondary);
+    }
+    .group-container.expanded .chevron { transform: rotate(90deg); }
+    .group-content-wrapper {
+        display: grid; grid-template-rows: 0fr;
+        transition: grid-template-rows var(--transition-smooth);
+    }
+    .group-container.expanded .group-content-wrapper { grid-template-rows: 1fr; }
+    .group-content { overflow: hidden; }
+
+    .item-name { font-weight: 500; color: #E0E0E0; }
+    .item-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+    /* --- Footer --- */
+    .footer {
+        height: var(--footer-height); 
+        padding: 0 16px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+    }
+    .footer::before {
+        content: ''; position: absolute; top: 0; left: var(--line-margin); right: var(--line-margin);
+        height: 1px; background: var(--border-color);
+    }
+    
+    .btn {
+        height: 26px; 
+        padding: 0 18px;
+        border-radius: var(--btn-radius);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        outline: none;
+        display: flex;
+        align-items: center;
+        transition: opacity 0.15s, background 0.15s;
+    }
+    
+    .btn-cancel { background: var(--btn-cancel); color: #fff; }
+    .btn-cancel:hover { opacity: 0.8; }
+    
+    .btn-export { 
+        background: var(--btn-export-bg); 
+        color: var(--btn-export-text);    
+        font-weight: 600;                 
+    }
+    .btn-export:hover { background: #E0E0E0; }
+
+    .svg-icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+
+<div class="export-window">
+    <div class="header">
+        <span>Export</span>
+        <svg class="svg-icon" style="cursor:pointer; opacity:0.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </div>
+
+    <div class="top-controls">
+        <div class="left-controls">
+            <div class="mock-select" title="Select Export Mode">
+                <span>All Sets</span>
+                <svg class="svg-icon" style="width:10px; height:10px; opacity: 0.8;" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div style="width: 1px; height: 14px; background: var(--border-color);"></div>
+        </div>
+        
+        <div class="action-icons">
+            <div class="icon-btn" title="Expand All" onclick="setAllGroups(true)">
+                <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="7 13 12 18 17 13"></polyline><polyline points="7 6 12 11 17 6"></polyline></svg>
+            </div>
+            <div class="icon-btn" title="Collapse All" onclick="setAllGroups(false)">
+                <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="7 11 12 6 17 11"></polyline><polyline points="7 18 12 13 17 18"></polyline></svg>
+            </div>
+            <div style="width: 1px; height: 14px; background: #333; margin: 0 4px;"></div>
+            <div class="icon-btn" title="Select All" onclick="setAllChecks(true)">
+                <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="2.5" fill="currentColor"></svg>
+            </div>
+            <div class="icon-btn" title="Select None" onclick="setAllChecks(false)">
+                <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="tree-view">
+        <div class="group-container expanded">
+            <div class="tree-item" onclick="toggleGroup(this)">
+                <svg class="svg-icon chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <div class="item-texts">
+                    <span class="item-name">M_body</span>
+                    <span class="item-meta">4 Channels</span>
+                </div>
+                <input type="checkbox" class="checkbox parent-check" onclick="event.stopPropagation(); handleParentCheck(this)" checked>
+            </div>
+            <div class="group-content-wrapper">
+                <div class="group-content">
+                    <div class="tree-item child-item" onclick="toggleCheckbox(this)">
+                        <span class="item-name">basecolor</span>
+                        <input type="checkbox" class="checkbox child-check" checked>
+                    </div>
+                    <div class="tree-item child-item" onclick="toggleCheckbox(this)">
+                        <span class="item-name">User1</span>
+                        <input type="checkbox" class="checkbox child-check" checked>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <button class="btn btn-cancel">Cancel</button>
+        <button class="btn btn-export">Export</button>
+    </div>
+</div>
+
+<script>
+    function toggleGroup(el) { el.closest('.group-container').classList.toggle('expanded'); }
+    function setAllGroups(exp) { document.querySelectorAll('.group-container').forEach(g => exp ? g.classList.add('expanded') : g.classList.remove('expanded')); }
+    function toggleCheckbox(row) { const cb = row.querySelector('.checkbox'); cb.checked = !cb.checked; updateParent(row); }
+    function handleParentCheck(pcb) { pcb.closest('.group-container').querySelectorAll('.child-check').forEach(cb => cb.checked = pcb.checked); }
+    function updateParent(row) {
+        const container = row.closest('.group-container');
+        const pcb = container.querySelector('.parent-check');
+        const children = Array.from(container.querySelectorAll('.child-check'));
+        const checked = children.filter(c => c.checked).length;
+        if (checked === 0) { pcb.checked = false; pcb.indeterminate = false; }
+        else if (checked === children.length) { pcb.checked = true; pcb.indeterminate = false; }
+        else { pcb.checked = false; pcb.indeterminate = true; }
+    }
+    function setAllChecks(s) { document.querySelectorAll('.checkbox').forEach(cb => { cb.checked = s; cb.indeterminate = false; }); }
+</script>
+</body>
+</html>

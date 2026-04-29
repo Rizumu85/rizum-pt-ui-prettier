@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painter UI Font - Pro UI V3</title>
+<style>
+    :root {
+        /* Pro Dark Theme (Default) */
+        --bg-app: #111111;
+        --bg-window: #1b1b1b;
+        --border-color: #414141;
+        
+        --text-primary: #E0E0E0;
+        --text-secondary: #9E9E9E;
+        --text-tertiary: #666666;
+        
+        --btn-export-bg: #FFFFFF;    
+        --btn-export-text: #1b1b1b;  
+        --btn-cancel: #343434;
+        
+        --panel-width: 260px;
+        --top-section-height: 40px;
+        --footer-height: 48px;
+        
+        --line-margin: 12px;
+        --radius-window: 10px;
+        --radius-item: 6px;
+        --btn-radius: 100px;
+        
+        --transition-smooth: 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    /* Apple Light Theme */
+    [data-theme="light"] {
+        --bg-app: #F2F2F7;
+        --bg-window: #FFFFFF;
+        --border-color: #E5E5E5;
+        --text-primary: #1D1D1F;
+        --text-secondary: #86868B;
+        --text-tertiary: #999999;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-app);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+        transition: background 0.3s ease;
+    }
+
+    .theme-toggle { margin-bottom: 20px; display: flex; gap: 10px; }
+    .theme-btn {
+        padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border-color);
+        background: var(--bg-window); color: var(--text-primary); cursor: pointer; font-size: 12px; font-weight: 600;
+    }
+
+    .plugin-window {
+        width: var(--panel-width);
+        background: var(--bg-window);
+        border-radius: var(--radius-window);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        border: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    [data-theme="light"] .plugin-window {
+        box-shadow: 0 8px 30px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+        border: none;
+    }
+
+    /* --- Header --- */
+    .header {
+        height: var(--top-section-height);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 16px;
+        font-weight: 600;
+        font-size: 13px;
+        position: relative;
+    }
+    .header::after {
+        content: ''; position: absolute; bottom: 0; left: var(--line-margin); right: var(--line-margin);
+        height: 1px; background: var(--border-color);
+    }
+
+    /* --- Form Content Area --- */
+    .main-content {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* Form Rows */
+    .form-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .form-label {
+        width: 32px; 
+        font-size: 13px;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    /* Input & Select (Mock) */
+    .mock-input {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: transparent;
+        border: 1px solid transparent;
+        font-size: 13px; 
+        color: var(--text-primary); 
+        padding: 6px 8px;
+        border-radius: var(--radius-item);
+        transition: all 0.15s;
+        cursor: pointer;
+    }
+    .mock-input:hover { background: rgba(255, 255, 255, 0.05); }
+    [data-theme="light"] .mock-input:hover { background: rgba(0, 0, 0, 0.03); }
+
+    .spin-arrows {
+        display: flex;
+        flex-direction: column;
+        opacity: 0.4;
+        transition: 0.15s;
+    }
+    .mock-input:hover .spin-arrows { opacity: 0.8; }
+
+    /* --- Sub Actions & Options Row --- */
+    .sub-actions-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-left: 44px; 
+        margin-top: -6px;  
+        margin-bottom: 2px;
+        padding-right: 4px; /* 对应子项呼吸感 */
+    }
+
+    .icon-group {
+        display: flex;
+        gap: 4px;
+    }
+
+    .icon-btn {
+        width: 26px; height: 26px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 4px; cursor: pointer;
+        color: var(--text-secondary);
+        transition: all 0.15s;
+    }
+    .icon-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-primary); }
+    [data-theme="light"] .icon-btn:hover { background: rgba(0, 0, 0, 0.05); }
+
+    /* Inline Hinting Checkbox - 呼吸感增强版 */
+    .inline-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 10px; /* <--- 间距从 6px 增加到 10px，增加呼吸感 */
+        cursor: pointer;
+        padding: 4px 8px; /* 增加内边距让 Hover 块更圆润 */
+        border-radius: 6px;
+        transition: background 0.15s;
+    }
+    .inline-checkbox:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    [data-theme="light"] .inline-checkbox:hover {
+        background: rgba(0, 0, 0, 0.03);
+    }
+    
+    .inline-checkbox span {
+        font-size: 11px;
+        color: var(--text-secondary);
+        font-weight: 500;
+        transition: color 0.15s;
+    }
+    .inline-checkbox:hover span {
+        color: var(--text-primary);
+    }
+
+    /* Checkbox */
+    .checkbox {
+        appearance: none;
+        width: 14px; height: 14px;
+        border: 1.5px solid #FFFFFF; 
+        border-radius: 3px;
+        outline: none;
+        cursor: pointer;
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        transition: background 0.15s;
+        margin: 0;
+    }
+    [data-theme="light"] .checkbox { border-color: #1D1D1F; }
+    
+    .checkbox:checked { background: #FFFFFF; }
+    [data-theme="light"] .checkbox:checked { background: #1D1D1F; }
+    
+    .checkbox:checked::after {
+        content: ''; position: absolute;
+        width: 3px; height: 6px;
+        border: solid var(--bg-window); 
+        border-width: 0 1.5px 1.5px 0;
+        transform: rotate(45deg) translateY(-1px);
+    }
+    [data-theme="light"] .checkbox:checked::after { border-color: #FFFFFF; }
+
+    /* --- Footer --- */
+    .footer {
+        height: var(--footer-height); 
+        padding: 0 16px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+    }
+    .footer::before {
+        content: ''; position: absolute; top: 0; left: var(--line-margin); right: var(--line-margin);
+        height: 1px; background: var(--border-color);
+    }
+    
+    .btn {
+        height: 26px; 
+        padding: 0 18px;
+        border-radius: var(--btn-radius);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        outline: none;
+        display: flex;
+        align-items: center;
+        transition: opacity 0.15s, background 0.15s;
+    }
+    
+    .btn-reset { background: var(--btn-cancel); color: #fff; }
+    [data-theme="light"] .btn-reset { background: #E5E5E7; color: #1D1D1F; }
+    .btn-reset:hover { opacity: 0.8; }
+    
+    .btn-apply { background: var(--btn-export-bg); color: var(--btn-export-text); font-weight: 600; }
+    .btn-apply:hover { opacity: 0.85; }
+
+    .svg-icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="theme-toggle">
+    <button class="theme-btn" onclick="setTheme('light')">Apple Light</button>
+    <button class="theme-btn" onclick="setTheme('dark')">Pro Dark</button>
+</div>
+
+<div class="plugin-window">
+    <!-- Header -->
+    <div class="header">
+        <span>UI Font</span>
+        <svg class="svg-icon" style="cursor:pointer; opacity:0.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        
+        <!-- Size Row -->
+        <div class="form-row">
+            <span class="form-label">Size</span>
+            <div class="mock-input" style="width: 70px;">
+                <span>1.00</span>
+                <div class="spin-arrows">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -2px;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Font Row -->
+        <div class="form-row">
+            <span class="form-label">Font</span>
+            <div class="mock-input" style="flex: 1;">
+                <span>System Default</span>
+                <svg class="svg-icon" style="width:10px; height:10px; opacity: 0.8;" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+        </div>
+
+        <!-- Sub Actions & Options Row -->
+        <div class="sub-actions-row">
+            <div class="icon-group">
+                <div class="icon-btn" title="Open fonts folder">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                </div>
+                <div class="icon-btn" title="Refresh font list">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                </div>
+            </div>
+            
+            <!-- Inline Render Toggle - 增加了内部 Gap 和 Padding -->
+            <div class="inline-checkbox" onclick="toggleCheckbox(this)">
+                <span>No hinting</span>
+                <input type="checkbox" class="checkbox" checked onclick="event.stopPropagation(); this.checked = !this.checked;">
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <button class="btn btn-reset">Reset</button>
+        <button class="btn btn-apply">Apply</button>
+    </div>
+</div>
+
+<script>
+    function setTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+    }
+    
+    function toggleCheckbox(row) {
+        const cb = row.querySelector('.checkbox');
+        cb.checked = !cb.checked;
+    }
+</script>
+
+</body>
+</html>
