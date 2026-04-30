@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Progress - Minimalist UI</title>
+<style>
+    :root {
+        /* Pro Dark Theme 核心变量 */
+        --bg-app: #111111;
+        --bg-window: #1b1b1b;
+        --border-color: #414141;
+        
+        --text-primary: #E0E0E0;
+        --text-secondary: #9E9E9E;
+        --text-tertiary: #666666;
+        
+        --accent-white: #FFFFFF;
+        --btn-cancel-bg: #343434;
+        
+        --panel-width: 320px;
+        --radius-window: 10px;
+        --radius-item: 6px;
+        --btn-radius: 100px;
+        
+        /* 物理感动画曲线 */
+        --transition-physics: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        --transition-bar: 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-app);
+        color: var(--text-primary);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .progress-window {
+        width: var(--panel-width);
+        background: var(--bg-window);
+        border-radius: var(--radius-window);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        border: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* --- Header --- */
+    .header {
+        height: 40px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 16px;
+        font-weight: 600;
+        font-size: 13px;
+        position: relative;
+    }
+    .header::after {
+        content: ''; position: absolute; bottom: 0; left: 12px; right: 12px;
+        height: 1px; background: var(--border-color);
+    }
+
+    /* --- Content Area --- */
+    .progress-body {
+        padding: 20px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+
+    .status-text {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .percent-text {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-tertiary);
+        letter-spacing: 0.02em;
+    }
+
+    /* --- 核心进度条样式 (纤细、无边框) --- */
+    .progress-track {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.08); /* 极暗的槽 */
+        border-radius: 2px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .progress-fill {
+        height: 100%;
+        width: 45%; /* 初始进度 */
+        background: var(--accent-white);
+        border-radius: 2px;
+        /* 进度条平滑移动动画 */
+        transition: width var(--transition-bar);
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.2); /* 极其微弱的发光，模拟屏幕质感 */
+    }
+
+    .meta-info {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        margin-top: 2px;
+    }
+
+    /* --- Footer --- */
+    .footer {
+        height: 48px;
+        padding: 0 16px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        position: relative;
+    }
+    .footer::before {
+        content: ''; position: absolute; top: 0; left: 12px; right: 12px;
+        height: 1px; background: var(--border-color);
+    }
+
+    /* 延续之前的胶囊按钮风格 */
+    .btn {
+        height: 26px;
+        padding: 0 16px;
+        border-radius: var(--btn-radius);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        outline: none;
+        background: var(--btn-cancel-bg);
+        color: #fff;
+        transition: all var(--transition-physics);
+    }
+
+    .btn:hover {
+        background: #444;
+    }
+
+    /* 物理按压反馈 */
+    .btn:active {
+        transform: scale(0.96);
+        opacity: 0.8;
+    }
+
+    /* 用于测试的控制区 */
+    .test-controls {
+        position: absolute;
+        bottom: 20px;
+        display: flex;
+        gap: 10px;
+    }
+    .test-btn {
+        padding: 6px 12px;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        border-radius: 100px;
+        font-size: 10px;
+        cursor: pointer;
+    }
+</style>
+</head>
+<body>
+
+    <div class="progress-window">
+        <!-- Header -->
+        <div class="header">
+            <span>Processing...</span>
+        </div>
+
+        <!-- Body -->
+        <div class="progress-body">
+            <div class="status-row">
+                <span class="status-text" id="status">Exporting Textures</span>
+                <span class="percent-text" id="percent">45%</span>
+            </div>
+            
+            <div class="progress-track">
+                <div class="progress-fill" id="fill"></div>
+            </div>
+
+            <div class="meta-info" id="meta">12 of 28 maps remaining</div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <button class="btn">Cancel</button>
+        </div>
+    </div>
+
+    <!-- 演示控制 -->
+    <div class="test-controls">
+        <button class="test-btn" onclick="updateProgress(10, 'Preparing...')">10%</button>
+        <button class="test-btn" onclick="updateProgress(75, 'Exporting...')">75%</button>
+        <button class="test-btn" onclick="updateProgress(100, 'Complete')">100%</button>
+    </div>
+
+    <script>
+        function updateProgress(val, status) {
+            document.getElementById('fill').style.width = val + '%';
+            document.getElementById('percent').innerText = val + '%';
+            document.getElementById('status').innerText = status;
+            if(val === 100) {
+                document.getElementById('meta').innerText = 'Task completed successfully.';
+            } else {
+                document.getElementById('meta').innerText = 'Processing assets...';
+            }
+        }
+    </script>
+
+</body>
+</html>

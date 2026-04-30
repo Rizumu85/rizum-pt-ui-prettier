@@ -35,7 +35,7 @@ Goal: Let UI changes be previewed without restarting Substance 3D Painter.
 - [x] Update the UI Font preview to mirror the live compact dock/card implementation.
 - [x] Align the PT Bridge preview controls with the export dialog HTML reference.
 - [x] Add a reusable animated collapsible group for folder/layer-style rows.
-- [ ] Re-check dropdown arrow rotation, combo popup toggle behavior, icon sharpness, and collapsible group animation in a fresh session against live Painter recordings.
+- [ ] Re-check dropdown arrow behavior, combo popup toggle behavior, export dropdown width, and live-clipped collapsible group animation in a fresh session against live Painter recordings.
 
 ## Direction 3: Painter Integration
 

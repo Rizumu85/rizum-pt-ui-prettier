@@ -398,6 +398,10 @@ def make_collapsible_group(
         def __init__(self):
             super().__init__()
             self._animated_height = 0
+            self._content_widget = None
+            self._content_height = 0
+            self._content_width = -1
+            self._height_changed = None
             self.setAutoFillBackground(False)
             clipped_attr = getattr(QtCore.Qt.WidgetAttribute, "WA_Clipped", None)
             if clipped_attr is not None:
@@ -408,8 +412,37 @@ def make_collapsible_group(
 
         def resizeEvent(self, event):
             super().resizeEvent(event)
-            for child in self.findChildren(QtWidgets.QWidget, options=QtCore.Qt.FindChildOption.FindDirectChildrenOnly):
-                child.resize(self.width(), child.sizeHint().height())
+            self.syncContentWidth()
+
+        def setContentWidget(self, widget):
+            self._content_widget = widget
+            self.syncContentSize()
+
+        def contentHeight(self):
+            return self._content_height
+
+        def syncContentSize(self):
+            if self._content_widget is None:
+                return 0
+            width = max(0, self.width())
+            if width <= 0:
+                width = max(0, self.parentWidget().width() if self.parentWidget() else 0)
+            if width <= 0:
+                width = max(0, self._content_widget.sizeHint().width())
+            height = max(0, self._content_widget.sizeHint().height())
+            self._content_width = width
+            self._content_height = height
+            self._content_widget.setGeometry(0, 0, width, height)
+            return height
+
+        def syncContentWidth(self):
+            if self._content_widget is None:
+                return
+            width = max(0, self.width())
+            if width == self._content_width:
+                return
+            self._content_width = width
+            self._content_widget.setGeometry(0, 0, width, self._content_height)
 
         def getAnimatedHeight(self):
             return self._animated_height
@@ -417,6 +450,8 @@ def make_collapsible_group(
         def setAnimatedHeight(self, value):
             self._animated_height = max(0, int(round(value)))
             self.setFixedHeight(self._animated_height)
+            if self._height_changed is not None:
+                self._height_changed(self._animated_height)
             self.update()
             self.updateGeometry()
 
@@ -486,13 +521,28 @@ def make_collapsible_group(
     group_layout.addWidget(content)
 
     def content_height():
-        content_inner.adjustSize()
-        return content_inner.sizeHint().height()
+        return content.syncContentSize()
 
     def sync_inner_size():
-        content_inner.resize(content.width(), content_inner.sizeHint().height())
+        content.syncContentSize()
+
+    def sync_group_height(content_height_value=None):
+        if content_height_value is None:
+            content_height_value = content.getAnimatedHeight()
+        margins = group_layout.contentsMargins()
+        total_height = (
+            margins.top()
+            + header.height()
+            + int(content_height_value)
+            + margins.bottom()
+        )
+        group.setFixedHeight(total_height)
+        group.update()
+        group.updateGeometry()
 
     content.setVisible(True)
+    content.setContentWidget(content_inner)
+    content._height_changed = sync_group_height
     sync_inner_size()
     if expanded:
         initial_height = content_height()
@@ -507,11 +557,19 @@ def make_collapsible_group(
             return
         chevron.setAngle(90.0 if next_expanded else 0.0)
 
+    def finish_animation_state(next_expanded, target_height):
+        content.setAnimatedHeight(target_height)
+        content_inner.setVisible(next_expanded)
+        update_chevron(next_expanded)
+        group._rizum_animating = False
+        group._rizum_collapse_animation = None
+
     def set_expanded(next_expanded):
         next_expanded = bool(next_expanded)
         if group._rizum_expanded == next_expanded:
             return
         group._rizum_expanded = next_expanded
+        group._rizum_animating = True
         group._rizum_animation_token += 1
         animation_token = group._rizum_animation_token
         content.setVisible(True)
@@ -545,9 +603,7 @@ def make_collapsible_group(
         def finish():
             if animation_token != group._rizum_animation_token:
                 return
-            content.setAnimatedHeight(target_height)
-            content_inner.setVisible(next_expanded)
-            update_chevron(next_expanded)
+            finish_animation_state(next_expanded, target_height)
 
         animation_group.finished.connect(finish)
         group._rizum_collapse_animation = animation_group
@@ -557,6 +613,8 @@ def make_collapsible_group(
         set_expanded(not group._rizum_expanded)
 
     group._rizum_expanded = bool(expanded)
+    group._rizum_animating = False
+    group._rizum_collapse_animation = None
     group._rizum_animation_token = 0
     group._rizum_header = header
     group._rizum_content = content
@@ -836,8 +894,8 @@ def make_combo_input(options=None):
             self._fit_to_contents = True
 
             layout = QtWidgets.QHBoxLayout(self)
-            layout.setContentsMargins(8, 6, 8, 6)
-            layout.setSpacing(4)
+            layout.setContentsMargins(8, 6, 10, 6)
+            layout.setSpacing(6)
             self._label = QtWidgets.QLabel()
             self._label.setObjectName("RizumMockText")
             self._label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
@@ -861,6 +919,8 @@ def make_combo_input(options=None):
             self._items = []
             self._current_index = -1
             self._label.setText("")
+            if self._fit_to_contents:
+                self.setFixedWidth(0)
 
         def addItem(self, text, userData=None):
             self._items.append((text, userData))
@@ -873,17 +933,45 @@ def make_combo_input(options=None):
             if self._fit_to_contents:
                 self.fitToContents()
             else:
+                self._label.setMinimumWidth(0)
                 self.setMinimumWidth(0)
                 self.setMaximumWidth(16777215)
 
         def fitToContents(self):
             if not self._fit_to_contents or not self._items:
                 return
-            metrics = self.fontMetrics()
-            text_width = max(metrics.horizontalAdvance(item[0]) for item in self._items)
+            metrics = self._label.fontMetrics()
+            text_width = max(metrics.horizontalAdvance(str(item[0])) for item in self._items)
             margins = self.layout().contentsMargins()
-            width = text_width + margins.left() + margins.right() + self.layout().spacing() + self._arrow.width()
+            width = (
+                text_width
+                + margins.left()
+                + margins.right()
+                + self.layout().spacing()
+                + self._arrow.width()
+                + 6
+            )
+            self._label.setMinimumWidth(text_width)
             self.setFixedWidth(width)
+
+        def showEvent(self, event):
+            super().showEvent(event)
+            if self._fit_to_contents:
+                QtCore.QTimer.singleShot(0, self.fitToContents)
+
+        def changeEvent(self, event):
+            super().changeEvent(event)
+            if (
+                self._fit_to_contents
+                and event.type()
+                in (
+                    QtCore.QEvent.Type.FontChange,
+                    QtCore.QEvent.Type.ApplicationFontChange,
+                    QtCore.QEvent.Type.StyleChange,
+                    QtCore.QEvent.Type.Polish,
+                )
+            ):
+                QtCore.QTimer.singleShot(0, self.fitToContents)
 
         def findData(self, data):
             for index, item in enumerate(self._items):
@@ -1040,9 +1128,9 @@ class CompactChevronDown:
                 self.setObjectName("RizumChevronIcon")
                 self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
                 self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, False)
+                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
                 self.setAutoFillBackground(False)
                 self.setFixedSize(10, 10)
-                self.setStyleSheet("background: transparent; border: 0;")
                 self._angle = 0.0
 
             def getAngle(self):
@@ -1058,13 +1146,8 @@ class CompactChevronDown:
                 old_animation = getattr(self, "_rizum_arrow_animation", None)
                 if old_animation is not None:
                     old_animation.stop()
-                animation = QtCore.QPropertyAnimation(self, b"angle", self)
-                animation.setDuration(400)
-                animation.setStartValue(self._angle)
-                animation.setEndValue(180.0 if is_open else 0.0)
-                animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
-                self._rizum_arrow_animation = animation
-                animation.start()
+                self._rizum_arrow_animation = None
+                self.setAngle(0.0)
 
             def paintEvent(self, event):
                 painter = QtGui.QPainter(self)
