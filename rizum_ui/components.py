@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPACT_DOCK_MIN_WIDTH = 250
 COMPACT_DOCK_DEFAULT_WIDTH = COMPACT_DOCK_MIN_WIDTH
 COMPACT_DOCK_DEFAULT_HEIGHT = 184
-COMPACT_DOCK_OUTER_MARGINS = (4, 0, 4, 2)
+COMPACT_DOCK_OUTER_MARGINS = (3, 0, 3, 3)
 COMPACT_DOCK_PANEL_BG = "#2b2b2b"
 COMPACT_DOCK_CARD_BG = "#1b1b1b"
 COMPACT_DOCK_CARD_RADIUS = 10
@@ -213,6 +213,362 @@ def set_compact_footer_button_width(button, width, height=FOOTER_BUTTON_HEIGHT):
         pass
 
 
+def update_compact_field_row(row_widget, label_width=None, control_width=None):
+    """Refresh fixed field-row metrics after a runtime font change."""
+    try:
+        label = row_widget._rizum_label
+    except AttributeError:
+        label = None
+    try:
+        control = row_widget._rizum_control
+    except AttributeError:
+        control = None
+
+    if label is not None and label_width is not None:
+        label.setFixedWidth(int(label_width))
+    if control is not None and control_width is not None:
+        control.setFixedWidth(int(control_width))
+    try:
+        row_widget.updateGeometry()
+    except Exception:
+        pass
+
+
+def compact_text_width(text, widget=None, minimum=0, maximum=None, padding=0):
+    """Return a clamped text width using the active Qt font metrics."""
+    from PySide6 import QtGui, QtWidgets
+
+    if widget is not None:
+        font = widget.font()
+    else:
+        app = QtWidgets.QApplication.instance()
+        font = app.font() if app is not None else QtGui.QFont()
+    width = QtGui.QFontMetrics(font).horizontalAdvance(str(text)) + padding
+    width = max(minimum, width)
+    if maximum is not None:
+        width = min(maximum, width)
+    return int(width)
+
+
+def compact_label_width(labels, widget=None, minimum=28, maximum=56, padding=0):
+    """Size compact field labels from localized text without bloating English."""
+    if isinstance(labels, str):
+        labels = [labels]
+    width = minimum
+    for label in labels:
+        width = max(
+            width,
+            compact_text_width(label, widget=widget, minimum=minimum, padding=padding),
+        )
+    return min(maximum, int(width))
+
+
+def compact_footer_button_width(button, minimum=56, maximum=112, padding=22):
+    """Return a localized footer button width while preserving compact bounds."""
+    return compact_text_width(
+        button.text(),
+        widget=button,
+        minimum=minimum,
+        maximum=maximum,
+        padding=padding,
+    )
+
+
+def make_inline_checkbox_row(label_text, checkbox, parent=None, minimum=88, maximum=150):
+    """Create a compact localized label + checkbox row."""
+    from PySide6 import QtCore, QtWidgets
+
+    widget = QtWidgets.QWidget(parent)
+    widget.setObjectName("RizumInlineCheckbox")
+    widget.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+    layout = QtWidgets.QHBoxLayout(widget)
+    layout.setContentsMargins(6, 3, 6, 3)
+    layout.setSpacing(6)
+
+    label = QtWidgets.QLabel(label_text)
+    label.setObjectName("RizumHintLabel")
+    text_width = compact_text_width(label_text, widget=label, minimum=0, maximum=maximum - 26)
+    label.setMinimumWidth(text_width)
+    label.setSizePolicy(
+        QtWidgets.QSizePolicy.Policy.Preferred,
+        QtWidgets.QSizePolicy.Policy.Preferred,
+    )
+    layout.addWidget(label)
+    layout.addWidget(checkbox)
+
+    row_width = min(maximum, max(minimum, text_width + checkbox.width() + 24))
+    widget.setMinimumWidth(row_width)
+    widget._rizum_label = label
+    widget._rizum_checkbox = checkbox
+    widget._rizum_minimum = minimum
+    widget._rizum_maximum = maximum
+
+    def toggle(event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            checkbox.toggle()
+
+    widget.mousePressEvent = toggle
+    return widget
+
+
+def update_inline_checkbox_row(widget, label_text=None, minimum=None, maximum=None):
+    """Refresh an inline checkbox row after translation or font-scale changes."""
+    from PySide6 import QtWidgets
+
+    label = getattr(widget, "_rizum_label", None)
+    checkbox = getattr(widget, "_rizum_checkbox", None)
+    minimum = int(minimum if minimum is not None else getattr(widget, "_rizum_minimum", 88))
+    maximum = int(maximum if maximum is not None else getattr(widget, "_rizum_maximum", 150))
+    if label is None:
+        label = widget.findChild(QtWidgets.QLabel, "RizumHintLabel")
+    if checkbox is None:
+        checkbox = widget.findChild(QtWidgets.QWidget, "RizumMockCheckbox")
+    if label is None or checkbox is None:
+        return
+
+    if label_text is not None:
+        label.setText(label_text)
+    text_width = compact_text_width(
+        label.text(),
+        widget=label,
+        minimum=0,
+        maximum=max(0, maximum - 26),
+    )
+    label.setMinimumWidth(text_width)
+    row_width = min(maximum, max(minimum, text_width + checkbox.width() + 24))
+    widget.setMinimumWidth(row_width)
+    try:
+        widget.updateGeometry()
+    except Exception:
+        pass
+
+
+def make_collapsible_group(
+    title,
+    subtitle="",
+    children=None,
+    leading_widget=None,
+    trailing_widget=None,
+    expanded=True,
+    show_chevron=True,
+    parent=None,
+):
+    """Create an animated folder-like group with optional leading/trailing slots."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    duration = 300
+
+    class _CollapsibleChevron(QtWidgets.QWidget):
+        def __init__(self, is_expanded):
+            super().__init__()
+            self.setObjectName("RizumCollapsibleChevron")
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            self.setFixedSize(14, 14)
+            self._angle = 90.0 if is_expanded else 0.0
+
+        def getAngle(self):
+            return self._angle
+
+        def setAngle(self, angle):
+            self._angle = float(angle)
+            self.update()
+
+        angle = QtCore.Property(float, getAngle, setAngle)
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            painter.translate(self.width() / 2, self.height() / 2)
+            painter.rotate(self._angle)
+            painter.translate(-self.width() / 2, -self.height() / 2)
+            pen = QtGui.QPen(QtGui.QColor("#9e9e9e"))
+            pen.setWidthF(1.7)
+            pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            painter.drawPolyline(
+                [
+                    QtCore.QPointF(5.0, 3.7),
+                    QtCore.QPointF(8.4, 7.0),
+                    QtCore.QPointF(5.0, 10.3),
+                ]
+            )
+
+    class _AnimatedHeightFrame(QtWidgets.QFrame):
+        def __init__(self):
+            super().__init__()
+            self._animated_height = 0
+            self.setAutoFillBackground(False)
+            clipped_attr = getattr(QtCore.Qt.WidgetAttribute, "WA_Clipped", None)
+            if clipped_attr is not None:
+                self.setAttribute(clipped_attr, True)
+            clip_attr = getattr(QtCore.Qt.WidgetAttribute, "WA_ClipChildren", None)
+            if clip_attr is not None:
+                self.setAttribute(clip_attr, True)
+
+        def resizeEvent(self, event):
+            super().resizeEvent(event)
+            for child in self.findChildren(QtWidgets.QWidget, options=QtCore.Qt.FindChildOption.FindDirectChildrenOnly):
+                child.resize(self.width(), child.sizeHint().height())
+
+        def getAnimatedHeight(self):
+            return self._animated_height
+
+        def setAnimatedHeight(self, value):
+            self._animated_height = max(0, int(round(value)))
+            self.setFixedHeight(self._animated_height)
+            self.update()
+            self.updateGeometry()
+
+        animatedHeight = QtCore.Property(int, getAnimatedHeight, setAnimatedHeight)
+
+    group = QtWidgets.QFrame(parent)
+    group.setObjectName("RizumCollapsibleGroup")
+    group.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+    group.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+    group_layout = QtWidgets.QVBoxLayout(group)
+    group_layout.setContentsMargins(0, 2, 0, 2)
+    group_layout.setSpacing(0)
+
+    header = QtWidgets.QFrame()
+    header.setObjectName("RizumCollapsibleHeader")
+    header.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+    header.setFixedHeight(36)
+    header_layout = QtWidgets.QHBoxLayout(header)
+    header_layout.setContentsMargins(8, 4, 8, 4)
+    header_layout.setSpacing(10)
+
+    chevron = None
+    if show_chevron:
+        chevron = _CollapsibleChevron(expanded)
+        header_layout.addWidget(chevron)
+
+    if leading_widget is not None:
+        header_layout.addWidget(leading_widget)
+
+    if subtitle:
+        title_layout = QtWidgets.QHBoxLayout()
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout.setSpacing(4)
+        title_label = QtWidgets.QLabel(title)
+        title_label.setObjectName("RizumCollapsibleTitle")
+        subtitle_label = QtWidgets.QLabel(subtitle)
+        subtitle_label.setObjectName("RizumCollapsibleSubtitle")
+        title_layout.addWidget(title_label)
+        title_layout.addWidget(subtitle_label)
+        title_layout.addStretch(1)
+        header_layout.addLayout(title_layout)
+    else:
+        title_label = QtWidgets.QLabel(title)
+        title_label.setObjectName("RizumCollapsibleTitle")
+        header_layout.addWidget(title_label)
+
+    header_layout.addStretch(1)
+    if trailing_widget is not None:
+        header_layout.addWidget(trailing_widget)
+    group_layout.addWidget(header)
+
+    content = _AnimatedHeightFrame()
+    content.setObjectName("RizumCollapsibleContent")
+    content.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+    content.setSizePolicy(
+        QtWidgets.QSizePolicy.Policy.Expanding,
+        QtWidgets.QSizePolicy.Policy.Fixed,
+    )
+    content_inner = QtWidgets.QWidget(content)
+    content_inner.setObjectName("RizumCollapsibleContentInner")
+    content_inner.setAutoFillBackground(False)
+    content_layout = QtWidgets.QVBoxLayout(content_inner)
+    content_layout.setContentsMargins(0, 0, 0, 0)
+    content_layout.setSpacing(2)
+    for child in children or []:
+        content_layout.addWidget(child)
+    group_layout.addWidget(content)
+
+    def content_height():
+        content_inner.adjustSize()
+        return content_inner.sizeHint().height()
+
+    def sync_inner_size():
+        content_inner.resize(content.width(), content_inner.sizeHint().height())
+
+    content.setVisible(True)
+    sync_inner_size()
+    if expanded:
+        initial_height = content_height()
+        content.setAnimatedHeight(initial_height)
+    else:
+        content.setAnimatedHeight(0)
+        content_inner.move(0, 0)
+    content_inner.setVisible(bool(expanded))
+
+    def update_chevron(next_expanded):
+        if chevron is None:
+            return
+        chevron.setAngle(90.0 if next_expanded else 0.0)
+
+    def set_expanded(next_expanded):
+        next_expanded = bool(next_expanded)
+        if group._rizum_expanded == next_expanded:
+            return
+        group._rizum_expanded = next_expanded
+        group._rizum_animation_token += 1
+        animation_token = group._rizum_animation_token
+        content.setVisible(True)
+        content.updateGeometry()
+        target_height = content_height() if next_expanded else 0
+        start_height = content.getAnimatedHeight()
+        sync_inner_size()
+        content_inner.move(0, 0)
+        content_inner.setVisible(True)
+
+        old_animation = getattr(group, "_rizum_collapse_animation", None)
+        if old_animation is not None:
+            old_animation.stop()
+
+        height_animation = QtCore.QPropertyAnimation(content, b"animatedHeight", group)
+        height_animation.setDuration(duration)
+        height_animation.setStartValue(start_height)
+        height_animation.setEndValue(target_height)
+        height_animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+
+        animation_group = QtCore.QParallelAnimationGroup(group)
+        animation_group.addAnimation(height_animation)
+        if chevron is not None:
+            chevron_animation = QtCore.QPropertyAnimation(chevron, b"angle", group)
+            chevron_animation.setDuration(duration)
+            chevron_animation.setStartValue(chevron.getAngle())
+            chevron_animation.setEndValue(90.0 if next_expanded else 0.0)
+            chevron_animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+            animation_group.addAnimation(chevron_animation)
+
+        def finish():
+            if animation_token != group._rizum_animation_token:
+                return
+            content.setAnimatedHeight(target_height)
+            content_inner.setVisible(next_expanded)
+            update_chevron(next_expanded)
+
+        animation_group.finished.connect(finish)
+        group._rizum_collapse_animation = animation_group
+        animation_group.start()
+
+    def toggle():
+        set_expanded(not group._rizum_expanded)
+
+    group._rizum_expanded = bool(expanded)
+    group._rizum_animation_token = 0
+    group._rizum_header = header
+    group._rizum_content = content
+    group._rizum_content_inner = content_inner
+    group._rizum_content_layout = content_layout
+    group.setExpanded = set_expanded
+    group.isExpanded = lambda: group._rizum_expanded
+    group.toggle = toggle
+    header.mousePressEvent = lambda event: toggle() if event.button() == QtCore.Qt.MouseButton.LeftButton else None
+    return group
+
+
 def make_inset_separator(inset, thickness=2):
     """Create an inset separator with left/right breathing room."""
     from PySide6 import QtWidgets
@@ -235,16 +591,139 @@ def make_inset_separator(inset, thickness=2):
     return wrapper
 
 
-def make_icon_button(icon_name, tooltip="", size=14, compact=True):
+def make_icon_button(icon_name, tooltip="", size=16, compact=True):
     """Create a themed icon button from the shared icons folder."""
-    from PySide6 import QtCore, QtGui
+    from PySide6 import QtCore, QtGui, QtWidgets
 
-    button = ActionButton.create("", "icon")
+    try:
+        from PySide6 import QtSvg
+    except Exception:
+        QtSvg = None
+
+    class _AnimatedIconButton(QtWidgets.QPushButton):
+        def __init__(self, icon_path):
+            super().__init__("")
+            self._icon_path = icon_path
+            self._icon = QtGui.QIcon(str(icon_path))
+            self._icon_source = ""
+            try:
+                self._icon_source = icon_path.read_text(encoding="utf-8")
+            except Exception:
+                pass
+            self._pixmap_cache = {}
+            self._visual_scale = 1.0
+            self._visual_opacity = 1.0
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+        def getVisualScale(self):
+            return self._visual_scale
+
+        def setVisualScale(self, value):
+            self._visual_scale = float(value)
+            self.update()
+
+        def getVisualOpacity(self):
+            return self._visual_opacity
+
+        def setVisualOpacity(self, value):
+            self._visual_opacity = float(value)
+            self.update()
+
+        visualScale = QtCore.Property(float, getVisualScale, setVisualScale)
+        visualOpacity = QtCore.Property(float, getVisualOpacity, setVisualOpacity)
+
+        def enterEvent(self, event):
+            super().enterEvent(event)
+            self.update()
+
+        def leaveEvent(self, event):
+            super().leaveEvent(event)
+            if not self.isDown():
+                self._animate_icon(1.0, 1.0, 160)
+            self.update()
+
+        def mousePressEvent(self, event):
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                self._animate_icon(0.85, 0.7, 80)
+            super().mousePressEvent(event)
+
+        def mouseReleaseEvent(self, event):
+            super().mouseReleaseEvent(event)
+            self._animate_icon(1.0, 1.0, 180)
+
+        def _animate_icon(self, scale, opacity, duration):
+            old_animation = getattr(self, "_rizum_icon_animation", None)
+            if old_animation is not None:
+                old_animation.stop()
+            easing = QtCore.QEasingCurve.Type.OutCubic
+            scale_animation = QtCore.QPropertyAnimation(self, b"visualScale", self)
+            scale_animation.setDuration(duration)
+            scale_animation.setStartValue(self._visual_scale)
+            scale_animation.setEndValue(scale)
+            scale_animation.setEasingCurve(easing)
+            opacity_animation = QtCore.QPropertyAnimation(self, b"visualOpacity", self)
+            opacity_animation.setDuration(duration)
+            opacity_animation.setStartValue(self._visual_opacity)
+            opacity_animation.setEndValue(opacity)
+            opacity_animation.setEasingCurve(easing)
+            animation_group = QtCore.QParallelAnimationGroup(self)
+            animation_group.addAnimation(scale_animation)
+            animation_group.addAnimation(opacity_animation)
+            self._rizum_icon_animation = animation_group
+            animation_group.start()
+
+        def _rendered_pixmap(self, color):
+            dpr = self.devicePixelRatioF()
+            key = (color, round(dpr, 2), size)
+            if key in self._pixmap_cache:
+                return self._pixmap_cache[key]
+            pixel_size = max(1, int(round(size * dpr)))
+            pixmap = QtGui.QPixmap(pixel_size, pixel_size)
+            pixmap.setDevicePixelRatio(dpr)
+            pixmap.fill(QtCore.Qt.GlobalColor.transparent)
+            if QtSvg is not None and self._icon_source:
+                source = self._icon_source
+                for old_color in ("#9E9E9E", "#9e9e9e", "#E0E0E0", "#e0e0e0"):
+                    source = source.replace(old_color, color)
+                source = source.replace('viewBox="0 0 24 24"', 'viewBox="-1 -1 26 26"')
+                renderer = QtSvg.QSvgRenderer(QtCore.QByteArray(source.encode("utf-8")))
+                painter = QtGui.QPainter(pixmap)
+                renderer.render(painter, QtCore.QRectF(0, 0, size, size))
+                painter.end()
+            else:
+                base = self._icon.pixmap(QtCore.QSize(pixel_size, pixel_size))
+                painter = QtGui.QPainter(pixmap)
+                painter.drawPixmap(QtCore.QRectF(0, 0, size, size), base, QtCore.QRectF(base.rect()))
+                painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_SourceIn)
+                painter.fillRect(QtCore.QRectF(0, 0, size, size), QtGui.QColor(color))
+                painter.end()
+            self._pixmap_cache[key] = pixmap
+            return pixmap
+
+        def paintEvent(self, event):
+            super().paintEvent(event)
+            color = "#ffffff" if self.underMouse() else "#9e9e9e"
+            pixmap = self._rendered_pixmap(color)
+            visual_size = max(1, int(round(size * self._visual_scale)))
+            target = QtCore.QRect(
+                int((self.width() - visual_size) / 2),
+                int((self.height() - visual_size) / 2),
+                visual_size,
+                visual_size,
+            )
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+            painter.setOpacity(max(0.0, min(1.0, self._visual_opacity)))
+            painter.drawPixmap(target, pixmap)
+            painter.end()
+
+    icon_path = ROOT / "icons" / icon_name
+    button = _AnimatedIconButton(icon_path)
+    button.setProperty("variant", "icon")
     if compact:
         button.setProperty("compact", True)
-    icon_path = ROOT / "icons" / icon_name
-    button.setIcon(QtGui.QIcon(str(icon_path)))
-    button.setIconSize(QtCore.QSize(size, size))
+    button.setMinimumHeight(32)
     if tooltip:
         button.setToolTip(tooltip)
     return button
@@ -255,9 +734,12 @@ def make_svg_label(icon_name, size):
     from PySide6 import QtCore, QtGui, QtWidgets
 
     label = QtWidgets.QLabel()
+    label.setObjectName("RizumSvgLabel")
     label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+    label.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
     label.setPixmap(QtGui.QIcon(str(ROOT / "icons" / icon_name)).pixmap(QtCore.QSize(size, size)))
     label.setFixedSize(size, size)
+    label.setStyleSheet("background: transparent; border: 0;")
     return label
 
 
@@ -349,6 +831,9 @@ def make_combo_input(options=None):
             self.setFixedHeight(32)
             self._items = []
             self._current_index = -1
+            self._menu = None
+            self._last_menu_close_ms = 0
+            self._fit_to_contents = True
 
             layout = QtWidgets.QHBoxLayout(self)
             layout.setContentsMargins(8, 6, 8, 6)
@@ -362,14 +847,15 @@ def make_combo_input(options=None):
                 QtWidgets.QSizePolicy.Policy.Preferred,
             )
             layout.addWidget(self._label, 1)
-            layout.addWidget(CompactChevronDown())
+            self._arrow = CompactChevronDown()
+            layout.addWidget(self._arrow)
 
             for item in options or []:
                 if isinstance(item, tuple):
                     self.addItem(item[0], item[1])
                 else:
                     self.addItem(item, item)
-            self.setMinimumWidth(self.sizeHint().width())
+            self.fitToContents()
 
         def clear(self):
             self._items = []
@@ -380,6 +866,24 @@ def make_combo_input(options=None):
             self._items.append((text, userData))
             if self._current_index < 0:
                 self.setCurrentIndex(0)
+            self.fitToContents()
+
+        def setFitToContents(self, enabled):
+            self._fit_to_contents = bool(enabled)
+            if self._fit_to_contents:
+                self.fitToContents()
+            else:
+                self.setMinimumWidth(0)
+                self.setMaximumWidth(16777215)
+
+        def fitToContents(self):
+            if not self._fit_to_contents or not self._items:
+                return
+            metrics = self.fontMetrics()
+            text_width = max(metrics.horizontalAdvance(item[0]) for item in self._items)
+            margins = self.layout().contentsMargins()
+            width = text_width + margins.left() + margins.right() + self.layout().spacing() + self._arrow.width()
+            self.setFixedWidth(width)
 
         def findData(self, data):
             for index, item in enumerate(self._items):
@@ -414,12 +918,26 @@ def make_combo_input(options=None):
                 return
             if not self._items:
                 return
+            now = QtCore.QDateTime.currentMSecsSinceEpoch()
+            if now - self._last_menu_close_ms < 180:
+                return
+            if self._menu is not None and self._menu.isVisible():
+                self._menu.close()
+                return
             menu = QtWidgets.QMenu(self)
             menu.setObjectName("RizumPopupMenu")
             for index, item in enumerate(self._items):
                 action = menu.addAction(item[0])
                 action.triggered.connect(lambda checked=False, i=index: self.setCurrentIndex(i))
-            menu.exec(self.mapToGlobal(QtCore.QPoint(0, self.height() + 4)))
+            self._menu = menu
+            menu.aboutToHide.connect(self._close_menu)
+            self._arrow.setOpen(True)
+            menu.popup(self.mapToGlobal(QtCore.QPoint(0, self.height() + 4)))
+
+        def _close_menu(self):
+            self._arrow.setOpen(False)
+            self._last_menu_close_ms = QtCore.QDateTime.currentMSecsSinceEpoch()
+            self._menu = None
 
     return _ComboInput()
 
@@ -519,14 +1037,41 @@ class CompactChevronDown:
         class _ChevronDown(QtWidgets.QWidget):
             def __init__(self):
                 super().__init__()
-                self.setObjectName("RizumMockIcon")
+                self.setObjectName("RizumChevronIcon")
                 self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
+                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, False)
+                self.setAutoFillBackground(False)
                 self.setFixedSize(10, 10)
+                self.setStyleSheet("background: transparent; border: 0;")
+                self._angle = 0.0
+
+            def getAngle(self):
+                return self._angle
+
+            def setAngle(self, angle):
+                self._angle = float(angle)
+                self.update()
+
+            angle = QtCore.Property(float, getAngle, setAngle)
+
+            def setOpen(self, is_open):
+                old_animation = getattr(self, "_rizum_arrow_animation", None)
+                if old_animation is not None:
+                    old_animation.stop()
+                animation = QtCore.QPropertyAnimation(self, b"angle", self)
+                animation.setDuration(400)
+                animation.setStartValue(self._angle)
+                animation.setEndValue(180.0 if is_open else 0.0)
+                animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+                self._rizum_arrow_animation = animation
+                animation.start()
 
             def paintEvent(self, event):
                 painter = QtGui.QPainter(self)
                 painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+                painter.translate(self.width() / 2, self.height() / 2)
+                painter.rotate(self._angle)
+                painter.translate(-self.width() / 2, -self.height() / 2)
                 pen = QtGui.QPen(QtGui.QColor("#9e9e9e"))
                 pen.setWidthF(1.4)
                 pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
@@ -543,7 +1088,7 @@ class CompactChevronDown:
         return _ChevronDown()
 
 
-def make_mock_checkbox():
+def make_mock_checkbox(checked=True):
     """Create the filled/outline checkbox used by compact Rizum panels."""
     from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -554,22 +1099,40 @@ def make_mock_checkbox():
             self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
             self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             self.setFixedSize(14, 14)
-            self._checked = True
-            self.setProperty("checked", True)
+            self._checked = bool(checked)
+            self._indeterminate = False
+            self.setProperty("checked", self._checked)
+            self.setProperty("indeterminate", False)
 
         def toggle(self):
             self.set_checked(not self._checked)
 
         def set_checked(self, checked):
             self._checked = checked
+            self._indeterminate = False
             self.setProperty("checked", checked)
+            self.setProperty("indeterminate", False)
             self.update()
 
+        def set_indeterminate(self, indeterminate):
+            self._indeterminate = bool(indeterminate)
+            if self._indeterminate:
+                self._checked = False
+            self.setProperty("checked", self._checked)
+            self.setProperty("indeterminate", self._indeterminate)
+            self.update()
+
+        def is_indeterminate(self):
+            return self._indeterminate
+
         def isChecked(self):
-            return self._checked
+            return self._checked and not self._indeterminate
 
         def setChecked(self, checked):
             self.set_checked(bool(checked))
+
+        def setIndeterminate(self, indeterminate):
+            self.set_indeterminate(bool(indeterminate))
 
         def mousePressEvent(self, event):
             if event.button() == QtCore.Qt.MouseButton.LeftButton:
@@ -579,7 +1142,7 @@ def make_mock_checkbox():
             painter = QtGui.QPainter(self)
             painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
 
-            if self._checked:
+            if self._checked or self._indeterminate:
                 painter.setPen(QtCore.Qt.PenStyle.NoPen)
                 painter.setBrush(QtGui.QColor("#ffffff"))
                 painter.drawRoundedRect(QtCore.QRectF(0, 0, 14, 14), 3, 3)
@@ -589,13 +1152,16 @@ def make_mock_checkbox():
                 pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
                 pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
                 painter.setPen(pen)
-                painter.drawPolyline(
-                    [
-                        QtCore.QPointF(4.0, 7.2),
-                        QtCore.QPointF(6.0, 9.2),
-                        QtCore.QPointF(10.0, 4.8),
-                    ]
-                )
+                if self._indeterminate:
+                    painter.drawLine(QtCore.QPointF(3.6, 7.0), QtCore.QPointF(10.4, 7.0))
+                else:
+                    painter.drawPolyline(
+                        [
+                            QtCore.QPointF(4.0, 7.2),
+                            QtCore.QPointF(6.0, 9.2),
+                            QtCore.QPointF(10.0, 4.8),
+                        ]
+                    )
             else:
                 rect = QtCore.QRectF(0.75, 0.75, 12.5, 12.5)
                 pen = QtGui.QPen(QtGui.QColor("#ffffff"))
@@ -628,4 +1194,6 @@ def make_field_row(label_text, control, label_width=50, gap=18, width=None):
         row.addStretch(1)
     else:
         row.addWidget(control, 1)
+    widget._rizum_label = label
+    widget._rizum_control = control
     return widget

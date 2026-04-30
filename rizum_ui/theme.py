@@ -33,7 +33,7 @@ class Theme:
     text_faint: str = "#666666"
     accent: str = "#ffffff"
     accent_hover: str = "#e0e0e0"
-    accent_pressed: str = "#cccccc"
+    accent_pressed: str = "#b8b8b8"
     accent_text: str = "#1b1b1b"
     blue: str = "#1473e6"
     warning: str = "#d69a38"

@@ -174,7 +174,7 @@ QPushButton[variant="dialog-primary"]:hover {{
 }}
 
 QPushButton[variant="dialog-primary"]:pressed {{
-    background: #cccccc;
+    background: {theme.accent_pressed};
 }}
 
 QWidget#RizumActionRow {{
@@ -237,7 +237,55 @@ QLabel#RizumMockText:hover {{
     border: 0;
 }}
 
-QWidget#RizumMockIcon, QWidget#RizumMockIcon:hover {{
+QWidget#RizumMockIcon, QWidget#RizumMockIcon:hover,
+QWidget#RizumChevronIcon, QWidget#RizumChevronIcon:hover,
+QLabel#RizumSvgLabel, QLabel#RizumSvgLabel:hover {{
+    background: transparent;
+    border: 0;
+}}
+
+QFrame#RizumCollapsibleGroup {{
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+}}
+
+QFrame#RizumCollapsibleGroup:hover {{
+    background: rgba(255, 255, 255, 0.04);
+    border: 0;
+}}
+
+QFrame#RizumCollapsibleHeader,
+QFrame#RizumCollapsibleContent,
+QWidget#RizumCollapsibleContentInner,
+QWidget#RizumCollapsibleChevron {{
+    background: transparent;
+    border: 0;
+}}
+
+QFrame#RizumCollapsibleHeader:hover {{
+    background: transparent;
+    border: 0;
+}}
+
+QLabel#RizumCollapsibleTitle {{
+    color: {theme.text};
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+    border: 0;
+}}
+
+QLabel#RizumCollapsibleSubtitle {{
+    color: {theme.text_faint};
+    font-size: 11px;
+    font-weight: 500;
+    background: transparent;
+    border: 0;
+}}
+
+QLabel#RizumCollapsibleTitle:hover,
+QLabel#RizumCollapsibleSubtitle:hover {{
     background: transparent;
     border: 0;
 }}

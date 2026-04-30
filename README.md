@@ -51,6 +51,10 @@ This folder is also a standalone Painter plugin. Enable `rizum-pt-ui-prettier` i
 
 Use it as the final visual check before wiring the component library into another plugin.
 
+## Current Handoff
+
+Before continuing animation or compact-control work, read `analysis.md`, especially `Handoff Notes For Next Session`. It records the live Painter findings for dropdown arrows, icon sharpness, combo sizing, and collapsible row animation so the next session does not repeat failed approaches.
+
 Click `Export Palette` in the Painter dock to write:
 
 ```text

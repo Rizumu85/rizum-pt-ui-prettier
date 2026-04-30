@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Tool Icon Animations</title>
+<style>
+    :root {
+        --bg-app: #111111;
+        --text-secondary: #9E9E9E;
+        --text-primary: #E0E0E0;
+        /* 物理感动画曲线：先快后慢，更有弹性感 */
+        --transition-physics: 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-app);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        gap: 20px;
+    }
+
+    .container {
+        display: flex;
+        gap: 8px;
+        padding: 12px;
+        background: #1b1b1b;
+        border-radius: 8px;
+        border: 1px solid #414141;
+    }
+
+    /* --- 核心 Icon 按钮样式 --- */
+    .icon-btn {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        background: transparent;
+        /* 这里的 transition 是关键 */
+        transition: all var(--transition-physics);
+        position: relative;
+    }
+
+    /* 悬停效果：仅变色和背景亮起，不发生位移 */
+    .icon-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #FFFFFF;
+    }
+
+    /* 点击效果：极致的物理压缩感 (scale) */
+    .icon-btn:active {
+        transform: scale(0.85);
+        opacity: 0.7;
+        /* 点击时背景可以稍微再亮一点点 */
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    .svg-icon {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .label {
+        color: var(--text-secondary);
+        font-size: 12px;
+        margin-top: 10px;
+    }
+</style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Undo -->
+        <div class="icon-btn" title="Undo">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+        </div>
+        
+        <!-- Redo -->
+        <div class="icon-btn" title="Redo">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 3.7"></path></svg>
+        </div>
+        
+        <!-- Refresh -->
+        <div class="icon-btn" title="Refresh">
+            <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+        </div>
+        
+        <div style="width: 1px; height: 16px; background: #414141; align-self: center; margin: 0 4px;"></div>
+        
+        <!-- Folder -->
+        <div class="icon-btn" title="Open Folder">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+        
+        <!-- Settings -->
+        <div class="icon-btn" title="Settings">
+            <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </div>
+    </div>
+
+    <div class="label">Hover and Click to test the micro-interaction</div>
+
+</body>
+</html>

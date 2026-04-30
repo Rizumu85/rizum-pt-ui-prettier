@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+    :root {
+        /* 1. 核心灵魂：张力极强的弹性阻尼曲线 */
+        --transition-spring: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    body {
+        background-color: #111111;
+        display: flex; justify-content: center; align-items: center; height: 100vh;
+        color: #E0E0E0; font-family: -apple-system, sans-serif;
+    }
+
+    /* 按钮基础样式 */
+    .trigger-btn {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 16px; border-radius: 6px;
+        background: #1b1b1b; cursor: pointer;
+        border: 1px solid #414141;
+        user-select: none;
+        transition: background 0.15s;
+    }
+    .trigger-btn:hover { background: rgba(255, 255, 255, 0.05); }
+
+    /* 2. 箭头初始状态：默认向下 */
+    .chevron {
+        width: 14px; height: 14px;
+        opacity: 0.8;
+        /* 绑定物理曲线动画 */
+        transition: transform var(--transition-spring);
+    }
+
+    /* 3. 展开状态：旋转180度，箭头朝上 */
+    .trigger-btn.open .chevron {
+        transform: rotate(180deg);
+    }
+</style>
+</head>
+<body>
+
+    <div class="trigger-btn" onclick="this.classList.toggle('open')">
+        <span>Dropdown</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+    </div>
+
+</body>
+</html>
