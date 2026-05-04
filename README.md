@@ -53,15 +53,9 @@ Use it as the final visual check before wiring the component library into anothe
 
 ## Current Handoff
 
-Before continuing animation or compact-control work, read `analysis.md`, especially `Handoff Notes For Next Session`. It records the live Painter findings for dropdown arrows, icon sharpness, combo sizing, and collapsible row animation so the next session does not repeat failed approaches.
+Before continuing animation, icon, or compact-control work, read `analysis.md`, especially `Handoff Notes For Next Session`. It records the live Painter findings for dropdown arrows, the icon-button rendering standard, combo sizing, and collapsible row animation so the next session does not repeat failed approaches.
 
-Click `Export Palette` in the Painter dock to write:
-
-```text
-preview-host-palette.json
-```
-
-Painter may report a light Qt palette even while the UI is dark, because the real dark look can come from Painter's host stylesheet. The external preview ignores exported light palettes and uses a Painter-like host-control stylesheet instead.
+The standalone preview now uses a fixed Painter-like host baseline instead of reading a palette exported from Painter. Use live Painter checks only as final visual validation before vendoring the shared UI kit into a plugin.
 
 If your normal Python does not have PySide6, run the preview from an environment that does:
 
@@ -94,3 +88,27 @@ apply_theme(self.widget, mode="overlay")
 ```
 
 For broad Painter UI experiments, apply it to the QApplication instance from the `rizum-pt-ui-font` plugin. Keep this optional and reversible because it affects more than one plugin.
+
+## Vendor Into Shareable Plugins
+
+Use this repository as the upstream preview/component lab. After a component pass is approved in live Painter, vendor the approved snapshot into each plugin you want to share so recipients do not need to install this helper plugin separately.
+
+Preview the copy operation:
+
+```powershell
+python tools/sync_vendor.py
+```
+
+Apply it to the known sibling plugins:
+
+```powershell
+python tools/sync_vendor.py --apply
+```
+
+Apply it to one plugin folder:
+
+```powershell
+python tools/sync_vendor.py --target ..\rizum-pt-to-ps-bridge --apply
+```
+
+The sync copies only `rizum_ui/*.py` and `icons/*.svg`, then writes `rizum_ui_vendor_manifest.json` into the target plugin. Stale files are kept by default; pass `--delete-stale` with `--apply` only when you want to remove files that were listed in a previous manifest but are no longer part of the shared snapshot.

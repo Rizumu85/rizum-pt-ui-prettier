@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dock Actions V3 - Pro UI</title>
+<style>
+    :root {
+        --bg-app: #111111;
+        --bg-window: #1b1b1b;
+        --border-color: #414141;
+        
+        --text-primary: #E0E0E0;
+        --text-secondary: #9E9E9E;
+        
+        --hover-overlay: rgba(255, 255, 255, 0.06);
+        --active-overlay: rgba(255, 255, 255, 0.03);
+        
+        --btn-primary-bg: #FFFFFF;
+        --btn-primary-text: #1b1b1b;
+        
+        /* 恢复与参考图完全一致的比例尺寸 */
+        --panel-width: 280px;
+        --radius-window: 16px; /* 面板圆角更大些 */
+        --radius-btn: 12px;    /* 按钮圆角 */
+        
+        --transition-physics: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Light Theme (用于对比查看) */
+    [data-theme="light"] {
+        --bg-app: #F2F2F7;
+        --bg-window: #FFFFFF;
+        --border-color: #E5E5E5;
+        --text-primary: #1D1D1F;
+        --text-secondary: #86868B;
+        --hover-overlay: rgba(0, 0, 0, 0.04);
+        --active-overlay: rgba(0, 0, 0, 0.08);
+        --btn-primary-bg: #1D1D1F;
+        --btn-primary-text: #FFFFFF;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-app);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+        transition: background 0.3s ease;
+    }
+
+    .theme-toggle { margin-bottom: 24px; display: flex; gap: 10px; }
+    .theme-btn {
+        padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border-color);
+        background: var(--bg-window); color: var(--text-primary); cursor: pointer; font-size: 12px; font-weight: 600;
+    }
+
+    .dock-panel {
+        width: var(--panel-width);
+        background: var(--bg-window);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-window);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    [data-theme="light"] .dock-panel {
+        box-shadow: 0 8px 30px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+        border: none;
+    }
+
+    .dock-actions {
+        display: flex;
+        padding: 14px; /* 恢复参考图的内边距 */
+        gap: 8px;
+    }
+
+    .action-btn {
+        flex: 1;
+        height: 48px; /* 恢复参考图的高度 */
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-btn);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: all 0.15s ease, transform var(--transition-physics);
+    }
+
+    .action-btn:hover {
+        background: var(--hover-overlay);
+        color: var(--text-primary);
+        border-color: #555;
+    }
+
+    .action-btn:active {
+        transform: scale(0.92);
+        background: var(--active-overlay);
+    }
+
+    .action-btn.primary {
+        background: var(--btn-primary-bg);
+        color: var(--btn-primary-text);
+        border-color: transparent;
+    }
+
+    .action-btn.primary:hover {
+        opacity: 0.9;
+    }
+
+    .action-icon {
+        width: 18px; /* 配合48px高度，图标稍微放大 */
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .action-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+    }
+</style>
+</head>
+<body data-theme="dark">
+
+    <div class="theme-toggle">
+        <button class="theme-btn" onclick="document.body.setAttribute('data-theme', 'light')">Apple Light</button>
+        <button class="theme-btn" onclick="document.body.setAttribute('data-theme', 'dark')">Pro Dark</button>
+    </div>
+
+    <div class="dock-panel">
+        <div class="dock-actions">
+            <!-- Primary Export -->
+            <button class="action-btn primary" title="Export selected">
+                <svg class="action-icon" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span class="action-label">Export</span>
+            </button>
+            
+            <!-- Secondary Bridge -->
+            <button class="action-btn" title="Open bridge app">
+                <svg class="action-icon" viewBox="0 0 24 24">
+                    <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span class="action-label">Bridge</span>
+            </button>
+
+            <!-- Secondary Settings (Sun Icon) -->
+            <button class="action-btn" title="Settings">
+                <svg class="action-icon" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <span class="action-label">Settings</span>
+            </button>
+        </div>
+    </div>
+
+</body>
+</html>

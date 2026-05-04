@@ -11,31 +11,40 @@ from rizum_ui import (
     ActionButton,
     Card,
     SectionHeader,
-    StatusPill,
     COMPACT_DOCK_DEFAULT_HEIGHT,
     COMPACT_DOCK_DEFAULT_WIDTH,
     COMPACT_DOCK_MIN_WIDTH,
-    apply_palette_file,
+    animate_drag_tree_item_added,
     apply_compact_dock_surface,
     apply_painter_like_base,
     build_painter_host_preview_stylesheet,
     build_stylesheet,
+    compact_action_bar_width,
     compact_footer_button_width,
     compact_label_width,
+    compact_progress_width,
     compact_text_width,
+    make_compact_action_bar,
     make_compact_dock_card,
     make_compact_dock_layout,
+    make_compact_icon_toolbar,
     make_combo_input,
     make_collapsible_group,
+    make_drag_collapsible_group,
+    make_drag_tree_item,
+    make_dock_actions_panel,
+    make_export_tree_item,
     make_field_row,
     make_icon_button,
     make_inset_separator,
     make_inline_checkbox_row,
     make_mock_checkbox,
+    make_progress_panel,
     make_spin_input,
     make_svg_label,
     set_compact_footer_button_width,
     update_compact_field_row,
+    update_export_tree_item,
     update_inline_checkbox_row,
 )
 from rizum_ui.animation import fade_in
@@ -56,6 +65,49 @@ WATCHED_FILES = sorted(
     + list((ROOT / "icons").glob("*.svg"))
 )
 PREVIEW_FLAGS = {"--full", "--no-watch", "--scale-1x"}
+PREVIEW_CANVAS_STYLESHEET = """
+QWidget#RizumSurface {
+    background: #2b2b2b;
+}
+
+QTabWidget#RizumPreviewTabs::pane {
+    background: transparent;
+    border: 0;
+}
+
+QTabWidget#RizumPreviewTabs QStackedWidget#qt_tabwidget_stackedwidget {
+    background: transparent;
+    border: 0;
+}
+
+QTabBar::base {
+    background: transparent;
+    border: 0;
+}
+
+QTabBar::tab {
+    background: #2b2b2b;
+    color: #e0e0e0;
+    border: 0;
+    border-top: 2px solid #414141;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    padding: 4px 12px 4px 12px;
+    margin: 2px 2px 0 0;
+}
+
+QTabBar::tab:selected,
+QTabBar::tab:hover {
+    background: #2b2b2b;
+    border: 0;
+    border-top: 2px solid #414141;
+}
+
+QTabBar::tab:selected {
+    padding: 8px 16px 6px 16px;
+    margin-top: 0;
+}
+"""
 
 
 def configure_preview_scaling():
@@ -78,31 +130,40 @@ def reload_ui_kit():
     global ActionButton
     global Card
     global SectionHeader
-    global StatusPill
     global COMPACT_DOCK_DEFAULT_HEIGHT
     global COMPACT_DOCK_DEFAULT_WIDTH
     global COMPACT_DOCK_MIN_WIDTH
+    global animate_drag_tree_item_added
     global apply_compact_dock_surface
     global apply_painter_like_base
-    global apply_palette_file
     global build_painter_host_preview_stylesheet
     global build_stylesheet
+    global compact_action_bar_width
     global compact_footer_button_width
     global compact_label_width
+    global compact_progress_width
     global compact_text_width
+    global make_compact_action_bar
     global make_compact_dock_card
     global make_compact_dock_layout
+    global make_compact_icon_toolbar
     global make_combo_input
     global make_collapsible_group
+    global make_drag_collapsible_group
+    global make_drag_tree_item
+    global make_dock_actions_panel
+    global make_export_tree_item
     global make_field_row
     global make_icon_button
     global make_inset_separator
     global make_inline_checkbox_row
     global make_mock_checkbox
+    global make_progress_panel
     global make_spin_input
     global make_svg_label
     global set_compact_footer_button_width
     global update_compact_field_row
+    global update_export_tree_item
     global update_inline_checkbox_row
     global fade_in
 
@@ -116,31 +177,40 @@ def reload_ui_kit():
     ActionButton = rizum_ui.ActionButton
     Card = rizum_ui.Card
     SectionHeader = rizum_ui.SectionHeader
-    StatusPill = rizum_ui.StatusPill
     COMPACT_DOCK_DEFAULT_HEIGHT = rizum_ui.COMPACT_DOCK_DEFAULT_HEIGHT
     COMPACT_DOCK_DEFAULT_WIDTH = rizum_ui.COMPACT_DOCK_DEFAULT_WIDTH
     COMPACT_DOCK_MIN_WIDTH = rizum_ui.COMPACT_DOCK_MIN_WIDTH
+    animate_drag_tree_item_added = rizum_ui.animate_drag_tree_item_added
     apply_compact_dock_surface = rizum_ui.apply_compact_dock_surface
     apply_painter_like_base = rizum_ui.apply_painter_like_base
-    apply_palette_file = rizum_ui.apply_palette_file
     build_painter_host_preview_stylesheet = rizum_ui.build_painter_host_preview_stylesheet
     build_stylesheet = rizum_ui.build_stylesheet
+    compact_action_bar_width = rizum_ui.compact_action_bar_width
     compact_footer_button_width = rizum_ui.compact_footer_button_width
     compact_label_width = rizum_ui.compact_label_width
+    compact_progress_width = rizum_ui.compact_progress_width
     compact_text_width = rizum_ui.compact_text_width
+    make_compact_action_bar = rizum_ui.make_compact_action_bar
     make_compact_dock_card = rizum_ui.make_compact_dock_card
     make_compact_dock_layout = rizum_ui.make_compact_dock_layout
+    make_compact_icon_toolbar = rizum_ui.make_compact_icon_toolbar
     make_combo_input = rizum_ui.make_combo_input
     make_collapsible_group = rizum_ui.make_collapsible_group
+    make_drag_collapsible_group = rizum_ui.make_drag_collapsible_group
+    make_drag_tree_item = rizum_ui.make_drag_tree_item
+    make_dock_actions_panel = rizum_ui.make_dock_actions_panel
+    make_export_tree_item = rizum_ui.make_export_tree_item
     make_field_row = rizum_ui.make_field_row
     make_icon_button = rizum_ui.make_icon_button
     make_inset_separator = rizum_ui.make_inset_separator
     make_inline_checkbox_row = rizum_ui.make_inline_checkbox_row
     make_mock_checkbox = rizum_ui.make_mock_checkbox
+    make_progress_panel = rizum_ui.make_progress_panel
     make_spin_input = rizum_ui.make_spin_input
     make_svg_label = rizum_ui.make_svg_label
     set_compact_footer_button_width = rizum_ui.set_compact_footer_button_width
     update_compact_field_row = rizum_ui.update_compact_field_row
+    update_export_tree_item = rizum_ui.update_export_tree_item
     update_inline_checkbox_row = rizum_ui.update_inline_checkbox_row
     fade_in = rizum_ui.animation.fade_in
 
@@ -167,7 +237,7 @@ def build_bridge_preview(QtWidgets):
 
     window = QtWidgets.QFrame()
     window.setObjectName("RizumExportWindow")
-    window.setFixedSize(284, 263)
+    window.setFixedSize(260, 263)
     window.setSizePolicy(
         QtWidgets.QSizePolicy.Policy.Fixed,
         QtWidgets.QSizePolicy.Policy.Fixed,
@@ -184,12 +254,12 @@ def build_bridge_preview(QtWidgets):
         """
 QFrame#RizumExportWindow {
     background: #1b1b1b;
-    border: 1px solid #414141;
+    border: 0;
     border-radius: 10px;
     font-family: "__EXPORT_FAMILY__", "Segoe UI", Arial, sans-serif;
 }
 QFrame#RizumExportHeader,
-QFrame#RizumExportTopControls,
+QWidget#RizumExportTopControls,
 QFrame#RizumExportFooter {
     background: transparent;
     border: 0;
@@ -197,7 +267,7 @@ QFrame#RizumExportFooter {
 QLabel#RizumExportTitle {
     color: #e0e0e0;
     font-size: 10pt;
-    font-weight: bold;
+    font-weight: 400;
     background: transparent;
     border: 0;
 }
@@ -207,35 +277,35 @@ QFrame#RizumExportWindow QLabel:hover {
 }
 QFrame#RizumExportWindow QLabel#RizumMockText {
     font-size: 9pt;
-    font-weight: bold;
+    font-weight: 400;
     background: transparent;
     border: 0;
 }
 QLabel#RizumExportItemName {
     color: #e0e0e0;
     font-size: 9pt;
-    font-weight: bold;
+    font-weight: 400;
     background: transparent;
     border: 0;
 }
 QFrame#RizumExportWindow QLabel#RizumCollapsibleTitle {
     color: #e0e0e0;
     font-size: 9pt;
-    font-weight: bold;
+    font-weight: 400;
     background: transparent;
     border: 0;
 }
 QFrame#RizumExportWindow QLabel#RizumCollapsibleSubtitle {
     color: #666666;
     font-size: 8pt;
-    font-weight: 500;
+    font-weight: 400;
     background: transparent;
     border: 0;
 }
 QLabel#RizumExportMeta {
     color: #666666;
     font-size: 8pt;
-    font-weight: 500;
+    font-weight: 400;
     background: transparent;
     border: 0;
 }
@@ -261,11 +331,15 @@ QFrame#RizumExportTreeItemHost {
     background: transparent;
     border: 0;
 }
-QFrame#RizumExportTreeItem[child="true"]:hover {
+QFrame#RizumExportTreeItem:hover {
+    background: transparent;
+    border: 0;
+}
+QFrame#RizumExportTreeItem[hovered="true"][child="true"] {
     background: rgba(255, 255, 255, 0.06);
     border: 0;
 }
-QFrame#RizumExportTreeItem[child="false"]:hover {
+QFrame#RizumExportTreeItem[hovered="true"][child="false"] {
     background: transparent;
     border: 0;
 }
@@ -276,7 +350,7 @@ QFrame#RizumExportWindow QLabel#RizumSvgLabel:hover {
 }
 QFrame#RizumExportWindow QPushButton[variant="dialog-secondary"],
 QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
-    font-weight: bold;
+    font-weight: 400;
 }
 """.replace("__EXPORT_FAMILY__", export_family.replace('"', '\\"'))
     )
@@ -297,44 +371,31 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     header_layout.addStretch(1)
     header_layout.addWidget(make_svg_label("x.svg", 14))
     layout.addWidget(header)
-    layout.addWidget(make_inset_separator(12, thickness=1))
+    layout.addWidget(make_inset_separator(12, thickness=2))
 
-    top_controls = QtWidgets.QFrame()
-    top_controls.setObjectName("RizumExportTopControls")
-    top_controls.setFixedHeight(40)
-    top_layout = QtWidgets.QHBoxLayout(top_controls)
-    top_layout.setContentsMargins(16, 0, 16, 0)
-    top_layout.setSpacing(12)
     mode_combo = make_combo_input(["All Sets", "Current Set"])
-    mode_combo.setFixedHeight(26)
-    top_layout.addWidget(mode_combo)
-    separator = QtWidgets.QFrame()
-    separator.setFixedSize(1, 14)
-    separator.setStyleSheet("background: #414141; border: 0;")
-    top_layout.addWidget(separator)
-    top_layout.addStretch(1)
+    mode_combo.setCompactHeight(26)
     expand_btn = make_icon_button("chevrons-down.svg", "Expand all")
     collapse_btn = make_icon_button("chevrons-up.svg", "Collapse all")
     select_all_btn = make_icon_button("circle-dot.svg", "Select all")
     select_none_btn = make_icon_button("circle-slash.svg", "Select none")
-    icon_bar = QtWidgets.QWidget()
-    icon_bar.setObjectName("RizumTransparent")
-    icon_layout = QtWidgets.QHBoxLayout(icon_bar)
-    icon_layout.setContentsMargins(0, 0, 0, 0)
-    icon_layout.setSpacing(4)
-    icon_layout.addWidget(expand_btn)
-    icon_layout.addWidget(collapse_btn)
-    spacer_line = QtWidgets.QFrame()
-    spacer_line.setFixedSize(1, 14)
-    spacer_line.setStyleSheet("background: #333333; border: 0;")
-    icon_layout.addSpacing(4)
-    icon_layout.addWidget(spacer_line)
-    icon_layout.addSpacing(4)
-    icon_layout.addWidget(select_all_btn)
-    icon_layout.addWidget(select_none_btn)
-    top_layout.addWidget(icon_bar)
+    for button in (expand_btn, collapse_btn, select_all_btn, select_none_btn):
+        button.setProperty("accent", True)
+    icon_bar = make_compact_icon_toolbar(
+        expand_btn,
+        collapse_btn,
+        None,
+        select_all_btn,
+        select_none_btn,
+    )
+    top_controls = make_compact_action_bar(
+        [mode_combo],
+        icon_bar,
+        object_name="RizumExportTopControls",
+        spacing=0,
+    )
     layout.addWidget(top_controls)
-    layout.addWidget(make_inset_separator(12, thickness=1))
+    layout.addWidget(make_inset_separator(12, thickness=2))
 
     tree = QtWidgets.QFrame()
     tree.setObjectName("RizumExportTree")
@@ -346,57 +407,7 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     groups = []
 
     def make_tree_item(name, checkbox, meta="", child=False):
-        if child:
-            host = QtWidgets.QFrame()
-            host.setObjectName("RizumExportTreeItemHost")
-            host.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            host.setFixedHeight(32)
-            host_layout = QtWidgets.QHBoxLayout(host)
-            host_layout.setContentsMargins(24, 0, 4, 0)
-            host_layout.setSpacing(0)
-
-            row = QtWidgets.QFrame()
-            row.setObjectName("RizumExportTreeItem")
-            row.setProperty("child", "true")
-            row.setFixedHeight(32)
-            row_layout = QtWidgets.QHBoxLayout(row)
-            row_layout.setContentsMargins(8, 4, 4, 4)
-            row_layout.setSpacing(10)
-            row_layout.addSpacing(0)
-
-            label = QtWidgets.QLabel(name)
-            label.setObjectName("RizumExportItemName")
-            row_layout.addWidget(label)
-            row_layout.addStretch(1)
-            row_layout.addWidget(checkbox)
-            host_layout.addWidget(row)
-            return host
-
-        row = QtWidgets.QFrame()
-        row.setObjectName("RizumExportTreeItem")
-        row.setProperty("child", "false")
-        row.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-        row.setFixedHeight(36)
-        row_layout = QtWidgets.QHBoxLayout(row)
-        row_layout.setContentsMargins(8, 4, 8, 4)
-        row_layout.setSpacing(10)
-        row_layout.addWidget(make_svg_label("chevron-down.svg", 14))
-
-        if meta:
-            text_stack = QtWidgets.QHBoxLayout()
-            text_stack.setContentsMargins(0, 0, 0, 0)
-            text_stack.setSpacing(4)
-            label = QtWidgets.QLabel(name)
-            label.setObjectName("RizumExportItemName")
-            meta_label = QtWidgets.QLabel(meta)
-            meta_label.setObjectName("RizumExportMeta")
-            text_stack.addWidget(label)
-            text_stack.addWidget(meta_label)
-            text_stack.addStretch(1)
-            row_layout.addLayout(text_stack)
-        row_layout.addStretch(1)
-        row_layout.addWidget(checkbox)
-        return row
+        return make_export_tree_item(name, checkbox, meta=meta, child=child)
 
     def update_parent(group):
         checked_count = sum(1 for child in group["children"] if child.isChecked())
@@ -410,7 +421,7 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     def add_group(name, meta, children):
         parent_cb = make_mock_checkbox(True)
         child_cbs = [make_mock_checkbox(True) for _ in children]
-        group = {"parent": parent_cb, "children": child_cbs}
+        group = {"parent": parent_cb, "children": child_cbs, "rows": []}
         child_rows = []
 
         for child_name, child_cb in zip(children, child_cbs):
@@ -427,6 +438,7 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
 
             child_cb.mousePressEvent = child_mouse
             child_rows.append(child_row)
+            group["rows"].append(child_row)
 
         old_parent_mouse = parent_cb.mousePressEvent
 
@@ -459,11 +471,9 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     footer_layout.addStretch(1)
     cancel = ActionButton.create("Cancel", "dialog-secondary")
     export = ActionButton.create("Export", "dialog-primary")
-    set_compact_footer_button_width(cancel, 78)
-    set_compact_footer_button_width(export, 82)
     footer_layout.addWidget(cancel)
     footer_layout.addWidget(export)
-    layout.addWidget(make_inset_separator(12, thickness=1))
+    layout.addWidget(make_inset_separator(12, thickness=2))
     layout.addWidget(footer)
 
     expand_btn.clicked.connect(lambda: [group["widget"].setExpanded(True) for group in groups])
@@ -482,6 +492,21 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
             for checkbox in [group["parent"], *group["children"]]
         ]
     )
+
+    def refresh_layout():
+        top_controls.refreshLayout()
+        window.setFixedWidth(
+            compact_action_bar_width([mode_combo], icon_bar, minimum=260, spacing_budget=4)
+        )
+        for group in groups:
+            for row in group["rows"]:
+                row.refreshLayout()
+            group["widget"].refreshLayout()
+        cancel.refreshLayout(minimum=78, maximum=140)
+        export.refreshLayout(minimum=82, maximum=140)
+
+    window.refreshLayout = refresh_layout
+    refresh_layout()
     return window
 
 
@@ -570,8 +595,12 @@ def build_font_preview(QtWidgets):
     icon_group = QtWidgets.QHBoxLayout()
     icon_group.setContentsMargins(0, 0, 0, 0)
     icon_group.setSpacing(4)
-    icon_group.addWidget(make_icon_button("folder.svg", "Open fonts folder"))
-    icon_group.addWidget(make_icon_button("refresh.svg", "Refresh font list"))
+    folder_btn = make_icon_button("folder.svg", "Open fonts folder")
+    refresh_btn = make_icon_button("refresh.svg", "Refresh font list")
+    folder_btn.setProperty("accent", True)
+    refresh_btn.setProperty("accent", True)
+    icon_group.addWidget(folder_btn)
+    icon_group.addWidget(refresh_btn)
     tool_row.addLayout(icon_group)
     tool_row.addStretch(1)
     no_hinting = make_mock_checkbox()
@@ -632,14 +661,8 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
         )
         update_compact_field_row(font_row, label_width=next_label_width)
         update_inline_checkbox_row(hint_widget, "No hinting", minimum=88, maximum=150)
-        set_compact_footer_button_width(
-            reset_button,
-            compact_footer_button_width(reset_button, minimum=68, maximum=118),
-        )
-        set_compact_footer_button_width(
-            apply_button,
-            compact_footer_button_width(apply_button, minimum=72, maximum=112),
-        )
+        reset_button.refreshLayout(minimum=68, maximum=118)
+        apply_button.refreshLayout(minimum=72, maximum=112)
         panel.setMinimumWidth(0)
         panel.setMinimumWidth(max(COMPACT_DOCK_MIN_WIDTH, panel.minimumSizeHint().width()))
         panel.setFixedWidth(panel.minimumWidth())
@@ -650,7 +673,29 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
 
 
 def build_lab(QtWidgets):
+    from PySide6 import QtCore
+
     card = Card.create()
+    card.setStyleSheet(
+        card.styleSheet()
+        + """
+QWidget#RizumSectionHeader {
+    background: transparent;
+    border: 0;
+}
+QPlainTextEdit#RizumLabOutput {
+    background: #222222;
+    border: 0;
+    border-radius: 8px;
+    color: #e0e0e0;
+    padding: 8px;
+}
+QPlainTextEdit#RizumLabOutput QAbstractScrollArea::corner {
+    background: #222222;
+    border: 0;
+}
+"""
+    )
     layout = card.layout()
     layout.addWidget(SectionHeader("Component Lab", "Quick controls for visual tuning."))
 
@@ -666,52 +711,1157 @@ def build_lab(QtWidgets):
     text_layout.addStretch(1)
     layout.addWidget(text)
 
-    progress = QtWidgets.QProgressBar()
-    progress.setObjectName("RizumLabProgress")
-    progress.setRange(0, 100)
-    progress.setValue(62)
-    progress.setFixedHeight(28)
-    progress.setStyleSheet(
-        """
-QProgressBar#RizumLabProgress {
-    background: #222222;
-    border: 1px solid #333333;
-    border-radius: 0;
-    color: #1b1b1b;
-    text-align: center;
-}
-QProgressBar#RizumLabProgress::chunk {
-    background: #ffffff;
-    border-radius: 0;
-}
-"""
+    progress = make_progress_panel(
+        "Exporting Textures",
+        62,
+        "12 of 28 maps remaining",
     )
     layout.addWidget(progress)
+
+    progress_controls = QtWidgets.QHBoxLayout()
+    progress_controls.setContentsMargins(0, 0, 0, 0)
+    progress_controls.setSpacing(6)
+
+    def make_progress_button(text, value, status, meta):
+        button = ActionButton.create(text, "dialog-secondary")
+        set_compact_footer_button_width(button, 54)
+        button.clicked.connect(lambda: progress.setProgress(value, status, meta))
+        return button
+
+    progress_controls.addWidget(
+        make_progress_button("10%", 10, "Preparing...", "Processing assets...")
+    )
+    progress_controls.addWidget(
+        make_progress_button("75%", 75, "Exporting...", "Processing assets...")
+    )
+    progress_controls.addWidget(
+        make_progress_button("100%", 100, "Complete", "Task completed successfully.")
+    )
+    loop_button = ActionButton.create("Loop", "dialog-secondary")
+    set_compact_footer_button_width(loop_button, 58)
+
+    def play_progress_loop():
+        progress.setProgress(10, "Preparing...", "Processing assets...")
+        QtCore.QTimer.singleShot(
+            520,
+            lambda: progress.setProgress(75, "Exporting...", "Processing assets..."),
+        )
+        QtCore.QTimer.singleShot(
+            1040,
+            lambda: progress.setProgress(100, "Complete", "Task completed successfully."),
+        )
+
+    loop_button.clicked.connect(play_progress_loop)
+    progress_controls.addWidget(loop_button)
+    progress_controls.addStretch(1)
+    layout.addLayout(progress_controls)
 
     output = QtWidgets.QPlainTextEdit()
     output.setObjectName("RizumLabOutput")
     output.setPlainText("Preview changes here before copying them into Painter.")
     output.setMinimumHeight(90)
-    output.setStyleSheet(
-        """
-QPlainTextEdit#RizumLabOutput {
-    background: #222222;
+    layout.addWidget(output)
+
+    return card
+
+
+def build_dock_actions_preview(QtWidgets):
+    """Build the dock actions reference panel from dock_actions_pro_v3.html."""
+    from PySide6 import QtCore
+
+    page = QtWidgets.QWidget()
+    page.setObjectName("RizumDockActionsPreview")
+    layout = QtWidgets.QVBoxLayout(page)
+    layout.setContentsMargins(0, 12, 0, 0)
+    layout.setSpacing(0)
+    layout.addWidget(
+        make_dock_actions_panel(),
+        0,
+        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+    )
+    layout.addStretch(1)
+    return page
+
+
+def build_settings_preview(QtWidgets):
+    """Build the PT Bridge settings reference panel from pt-bridge-settings-gemini.html."""
+    from PySide6 import QtCore, QtGui, QtWidgets as _QtWidgets
+
+    themes = {
+        "dark": {
+            "window_bg": "#1b1b1b",
+            "border": "#414141",
+            "text": "#e0e0e0",
+            "muted": "#9e9e9e",
+            "faint": "#666666",
+            "primary_bg": "#ffffff",
+            "primary_text": "#1b1b1b",
+            "secondary": "#343434",
+            "hover": "rgba(255, 255, 255, 0.04)",
+            "toggle_off": QtGui.QColor(255, 255, 255, 26),
+            "toggle_border": QtGui.QColor(0, 0, 0, 0),
+            "toggle_knob_off": QtGui.QColor("#9e9e9e"),
+            "toggle_knob_on": QtGui.QColor("#1b1b1b"),
+            "window_border_css": "0",
+            "segment_bg": QtGui.QColor(255, 255, 255, 8),
+        },
+        "light": {
+            "window_bg": "#ffffff",
+            "border": "#e5e5e5",
+            "text": "#1d1d1f",
+            "muted": "#86868b",
+            "faint": "#999999",
+            "primary_bg": "#1d1d1f",
+            "primary_text": "#ffffff",
+            "secondary": "#e5e5e7",
+            "hover": "rgba(0, 0, 0, 0.03)",
+            "toggle_off": QtGui.QColor("#e5e5e5"),
+            "toggle_border": QtGui.QColor("#d1d1d6"),
+            "toggle_knob_off": QtGui.QColor("#ffffff"),
+            "toggle_knob_on": QtGui.QColor("#ffffff"),
+            "window_border_css": "0",
+            "segment_bg": QtGui.QColor(0, 0, 0, 8),
+        },
+    }
+
+    class ThemeSegmentControl(_QtWidgets.QFrame):
+        def __init__(self):
+            super().__init__()
+            self._options = ["Light", "Dark", "System"]
+            self._widths = [55.0, 53.0, 68.0]
+            self._positions = [2.0, 57.0, 110.0]
+            self._active = 1
+            self._slider_x = self._positions[self._active]
+            self._slider_width = self._widths[self._active]
+            self._theme = themes["dark"]
+            self._animation = None
+            self._callback = None
+            self.setObjectName("RizumSettingsThemeSegment")
+            self.setFixedSize(180, 30)
+            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+
+        def setChangedCallback(self, callback):
+            self._callback = callback
+
+        def setTheme(self, theme):
+            self._theme = theme
+            self.update()
+
+        def getSliderX(self):
+            return self._slider_x
+
+        def setSliderX(self, value):
+            self._slider_x = float(value)
+            self.update()
+
+        def getSliderWidth(self):
+            return self._slider_width
+
+        def setSliderWidth(self, value):
+            self._slider_width = float(value)
+            self.update()
+
+        sliderX = QtCore.Property(float, getSliderX, setSliderX)
+        sliderWidth = QtCore.Property(float, getSliderWidth, setSliderWidth)
+
+        def setActive(self, name, animate=True, emit=False):
+            index = {"light": 0, "dark": 1, "system": 2}.get(str(name).lower(), 1)
+            if index == self._active and not emit:
+                self.update()
+                return
+            self._active = index
+            end_x = self._positions[index]
+            end_width = self._widths[index]
+            if self._animation is not None:
+                self._animation.stop()
+            if animate:
+                group = QtCore.QParallelAnimationGroup(self)
+                for prop, start, end in (
+                    (b"sliderX", self._slider_x, end_x),
+                    (b"sliderWidth", self._slider_width, end_width),
+                ):
+                    animation = QtCore.QPropertyAnimation(self, prop, self)
+                    animation.setDuration(220)
+                    animation.setStartValue(start)
+                    animation.setEndValue(end)
+                    animation.setEasingCurve(QtCore.QEasingCurve.Type.OutBack)
+                    group.addAnimation(animation)
+                self._animation = group
+                group.start()
+            else:
+                self._slider_x = end_x
+                self._slider_width = end_width
+                self.update()
+            if emit and self._callback is not None:
+                self._callback(self._options[index].lower())
+
+        def mousePressEvent(self, event):
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                x = event.position().x()
+                for index, start in enumerate(self._positions):
+                    end = start + self._widths[index]
+                    if start <= x <= end:
+                        self.setActive(self._options[index].lower(), animate=True, emit=True)
+                        break
+            super().mousePressEvent(event)
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(self._theme["segment_bg"])
+            painter.drawRoundedRect(QtCore.QRectF(0, 0, self.width(), self.height()), 6, 6)
+            painter.setBrush(QtGui.QColor(self._theme["primary_bg"]))
+            painter.drawRoundedRect(
+                QtCore.QRectF(self._slider_x, 2, self._slider_width, self.height() - 4),
+                4,
+                4,
+            )
+            font = QtGui.QFont(self.font())
+            font.setPixelSize(12)
+            font.setWeight(QtGui.QFont.Weight.Medium)
+            painter.setFont(font)
+            for index, label in enumerate(self._options):
+                painter.setPen(
+                    QtGui.QColor(self._theme["primary_text"])
+                    if index == self._active
+                    else QtGui.QColor(self._theme["muted"])
+                )
+                painter.drawText(
+                    QtCore.QRectF(
+                        self._positions[index],
+                        2,
+                        self._widths[index],
+                        self.height() - 4,
+                    ),
+                    QtCore.Qt.AlignmentFlag.AlignCenter,
+                    label,
+                )
+            painter.end()
+
+    class ToggleSwitch(_QtWidgets.QFrame):
+        def __init__(self, on=False):
+            super().__init__()
+            self._on = bool(on)
+            self._theme = themes["dark"]
+            self.setFixedSize(36, 20)
+            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+            self._knob_margin = 3.0
+            self._knob_size = 14.0
+            self._offset = self._knob_travel() if self._on else 0.0
+            self._animation = None
+
+        def _knob_travel(self):
+            return float(self.width()) - self._knob_size - self._knob_margin * 2
+
+        def setTheme(self, theme):
+            self._theme = theme
+            self.update()
+
+        def getOffset(self):
+            return self._offset
+
+        def setOffset(self, value):
+            self._offset = float(value)
+            self.update()
+
+        offset = QtCore.Property(float, getOffset, setOffset)
+
+        def isOn(self):
+            return self._on
+
+        def setOn(self, enabled):
+            enabled = bool(enabled)
+            if self._on == enabled:
+                return
+            self._on = enabled
+            if self._animation is not None:
+                self._animation.stop()
+            animation = QtCore.QPropertyAnimation(self, b"offset", self)
+            animation.setDuration(300)
+            animation.setStartValue(self._offset)
+            animation.setEndValue(self._knob_travel() if self._on else 0.0)
+            animation.setEasingCurve(QtCore.QEasingCurve.Type.OutBack)
+            self._animation = animation
+            animation.start()
+
+        def mousePressEvent(self, event):
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                self.toggle()
+                event.accept()
+                return
+            super().mousePressEvent(event)
+
+        def toggle(self):
+            self.setOn(not self._on)
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            rect = QtCore.QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
+            painter.setPen(QtGui.QPen(self._theme["toggle_border"], 1))
+            painter.setBrush(QtGui.QColor(self._theme["primary_bg"]) if self._on else self._theme["toggle_off"])
+            painter.drawRoundedRect(rect, 10, 10)
+            knob_x = self._knob_margin + self._offset
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(self._theme["toggle_knob_on"] if self._on else self._theme["toggle_knob_off"])
+            painter.drawEllipse(
+                QtCore.QRectF(
+                    knob_x,
+                    self._knob_margin,
+                    self._knob_size,
+                    self._knob_size,
+                )
+            )
+            painter.end()
+
+    class StepperButton(_QtWidgets.QPushButton):
+        def __init__(self, text):
+            super().__init__("")
+            self._text = text
+            self._theme = themes["dark"]
+            self._visual_scale = 1.0
+            self._visual_opacity = 1.0
+            self._animation = None
+            self.setObjectName("RizumSettingsStepButton")
+            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+            self.setFixedSize(18, 18)
+
+        def setTheme(self, theme):
+            self._theme = theme
+            self.update()
+
+        def getVisualScale(self):
+            return self._visual_scale
+
+        def setVisualScale(self, value):
+            self._visual_scale = float(value)
+            self.update()
+
+        def getVisualOpacity(self):
+            return self._visual_opacity
+
+        def setVisualOpacity(self, value):
+            self._visual_opacity = float(value)
+            self.update()
+
+        visualScale = QtCore.Property(float, getVisualScale, setVisualScale)
+        visualOpacity = QtCore.Property(float, getVisualOpacity, setVisualOpacity)
+
+        def _animate(self, scale, opacity, duration):
+            if self._animation is not None:
+                self._animation.stop()
+            group = QtCore.QParallelAnimationGroup(self)
+            for prop, start, end in (
+                (b"visualScale", self._visual_scale, scale),
+                (b"visualOpacity", self._visual_opacity, opacity),
+            ):
+                animation = QtCore.QPropertyAnimation(self, prop, self)
+                animation.setDuration(duration)
+                animation.setStartValue(start)
+                animation.setEndValue(end)
+                animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+                group.addAnimation(animation)
+            self._animation = group
+            group.start()
+
+        def enterEvent(self, event):
+            super().enterEvent(event)
+            self.update()
+
+        def leaveEvent(self, event):
+            super().leaveEvent(event)
+            if not self.isDown():
+                self._animate(1.0, 1.0, 160)
+            self.update()
+
+        def mousePressEvent(self, event):
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                self._animate(0.85, 0.7, 80)
+            super().mousePressEvent(event)
+
+        def mouseReleaseEvent(self, event):
+            super().mouseReleaseEvent(event)
+            self._animate(1.0, 1.0, 180)
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            visual_rect = QtCore.QRectF(0, 0, self.width(), self.height())
+            if self.underMouse():
+                painter.setPen(QtCore.Qt.PenStyle.NoPen)
+                painter.setBrush(QtGui.QColor(self._theme["hover"]))
+                painter.drawRoundedRect(visual_rect, 4, 4)
+            painter.setOpacity(max(0.0, min(1.0, self._visual_opacity)))
+            pen = QtGui.QPen(
+                QtGui.QColor(self._theme["text"]),
+                1.6,
+            )
+            pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            center = visual_rect.center()
+            half = 3.25 * self._visual_scale
+            painter.drawLine(
+                QtCore.QPointF(center.x() - half, center.y()),
+                QtCore.QPointF(center.x() + half, center.y()),
+            )
+            if self._text == "+":
+                painter.drawLine(
+                    QtCore.QPointF(center.x(), center.y() - half),
+                    QtCore.QPointF(center.x(), center.y() + half),
+                )
+            painter.end()
+
+    class StepperValue(_QtWidgets.QLineEdit):
+        def __init__(self, value="8"):
+            super().__init__(value)
+            self._theme = themes["dark"]
+            self.setObjectName("RizumSettingsStepValue")
+            self.setFixedSize(24, 24)
+            self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            self.setValidator(QtGui.QIntValidator(0, 999, self))
+            self.setCursor(QtCore.Qt.CursorShape.IBeamCursor)
+            self.setFrame(False)
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
+
+        def setTheme(self, theme):
+            self._theme = theme
+            self._refresh_style()
+
+        def _refresh_style(self):
+            self.setStyleSheet(
+                f"""
+QLineEdit#RizumSettingsStepValue {{
+    color: {self._theme["text"]};
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 500;
+}}
+QLineEdit#RizumSettingsStepValue:hover,
+QLineEdit#RizumSettingsStepValue:focus {{
+    background: {self._theme["hover"]};
+    border: 0;
+}}
+"""
+            )
+
+    def make_label(text, object_name, parent=None):
+        label = _QtWidgets.QLabel(text, parent)
+        label.setObjectName(object_name)
+        return label
+
+    def make_section(text, first=False):
+        label = make_label(text.upper(), "RizumSettingsSection")
+        label.setFixedHeight(28 if first else 40)
+        return label
+
+    def make_row(height=40):
+        row = _QtWidgets.QFrame()
+        row.setObjectName("RizumSettingsRow")
+        row.setFixedHeight(height)
+        layout = _QtWidgets.QHBoxLayout(row)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+        return row, layout
+
+    def make_text_block(name, meta=""):
+        widget = _QtWidgets.QWidget()
+        widget.setObjectName("RizumSettingsTexts")
+        layout = _QtWidgets.QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        layout.addWidget(make_label(name, "RizumSettingsItemName"))
+        if meta:
+            layout.addWidget(make_label(meta, "RizumSettingsItemMeta"))
+        return widget
+
+    window = _QtWidgets.QFrame()
+    window.setObjectName("RizumSettingsWindow")
+    window.setFixedSize(342, 537)
+    window.setSizePolicy(
+        _QtWidgets.QSizePolicy.Policy.Fixed,
+        _QtWidgets.QSizePolicy.Policy.Fixed,
+    )
+
+    layout = _QtWidgets.QVBoxLayout(window)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(0)
+
+    header = _QtWidgets.QWidget()
+    header.setObjectName("RizumSettingsHeader")
+    header.setFixedHeight(40)
+    header_outer = _QtWidgets.QVBoxLayout(header)
+    header_outer.setContentsMargins(0, 0, 0, 0)
+    header_outer.setSpacing(0)
+    header_row = _QtWidgets.QWidget()
+    header_row.setObjectName("RizumSettingsHeaderRow")
+    header_layout = _QtWidgets.QHBoxLayout(header_row)
+    header_layout.setContentsMargins(16, 0, 16, 0)
+    header_layout.setSpacing(0)
+    header_layout.addWidget(make_label("Settings", "RizumSettingsTitle"))
+    header_layout.addStretch(1)
+    header_layout.addWidget(make_svg_label("x.svg", 14))
+    header_outer.addWidget(header_row, 1)
+    header_outer.addWidget(make_inset_separator(12, 1))
+    layout.addWidget(header)
+
+    body = _QtWidgets.QWidget()
+    body.setObjectName("RizumSettingsBody")
+    body_layout = _QtWidgets.QVBoxLayout(body)
+    body_layout.setContentsMargins(12, 8, 12, 16)
+    body_layout.setSpacing(2)
+
+    body_layout.addWidget(make_section("Appearance", first=True))
+    theme_row, theme_layout = make_row(40)
+    theme_layout.addWidget(make_label("Theme", "RizumSettingsItemName"))
+    theme_layout.addStretch(1)
+    theme_control = ThemeSegmentControl()
+    theme_layout.addWidget(theme_control)
+    body_layout.addWidget(theme_row)
+
+    body_layout.addWidget(make_section("Export"))
+    padding_row, padding_layout = make_row(51)
+    padding_layout.addWidget(make_text_block("Padding", "Infinite"))
+    padding_layout.addStretch(1)
+    padding_toggle = ToggleSwitch(True)
+    padding_layout.addWidget(padding_toggle)
+    body_layout.addWidget(padding_row)
+
+    dilation_row, dilation_layout = make_row(51)
+    dilation_layout.addWidget(make_text_block("Dilation", "px"))
+    dilation_layout.addStretch(1)
+    stepper = _QtWidgets.QWidget()
+    stepper.setObjectName("RizumSettingsStepper")
+    stepper_layout = _QtWidgets.QHBoxLayout(stepper)
+    stepper_layout.setContentsMargins(0, 0, 0, 0)
+    stepper_layout.setSpacing(4)
+    stepper_buttons = []
+    stepper_value = None
+    for text, object_name in (("-", "RizumSettingsStepButton"), ("8", "RizumSettingsStepValue"), ("+", "RizumSettingsStepButton")):
+        if object_name == "RizumSettingsStepButton":
+            item = StepperButton(text)
+            stepper_buttons.append(item)
+        else:
+            item = StepperValue(text)
+            stepper_value = item
+        item.setObjectName(object_name)
+        stepper_layout.addWidget(item)
+    dilation_layout.addWidget(stepper)
+    body_layout.addWidget(dilation_row)
+
+    auto_row, auto_layout = make_row(36)
+    auto_layout.addWidget(make_label("Auto-open Photoshop", "RizumSettingsItemName"))
+    auto_layout.addStretch(1)
+    auto_toggle = ToggleSwitch(False)
+    auto_layout.addWidget(auto_toggle)
+    body_layout.addWidget(auto_row)
+
+    body_layout.addWidget(make_section("Photoshop"))
+    path_row, path_layout = make_row(45)
+    path_select = _QtWidgets.QFrame()
+    path_select.setObjectName("RizumSettingsMockSelect")
+    path_select_layout = _QtWidgets.QHBoxLayout(path_select)
+    path_select_layout.setContentsMargins(8, 6, 8, 6)
+    path_select_layout.setSpacing(6)
+    path_label = make_label(r"C:\Program Files\Adobe\Photoshop...", "RizumSettingsPath")
+    path_label.setSizePolicy(
+        _QtWidgets.QSizePolicy.Policy.Expanding,
+        _QtWidgets.QSizePolicy.Policy.Preferred,
+    )
+    path_select_layout.addWidget(path_label)
+    path_layout.addWidget(path_select, 1)
+    browse_btn = make_icon_button("folder.svg", "Browse executable", size=14, compact=False)
+    browse_btn.setFixedSize(26, 26)
+    path_layout.addWidget(browse_btn)
+    body_layout.addWidget(path_row)
+
+    body_layout.addWidget(make_section("About"))
+    version_row, version_layout = make_row(34)
+    version_layout.addWidget(make_label("Version", "RizumSettingsItemName"))
+    version_layout.addStretch(1)
+    version_layout.addWidget(make_label("2.0.0", "RizumSettingsItemMeta"))
+    body_layout.addWidget(version_row)
+
+    layout.addWidget(body, 1)
+
+    footer = _QtWidgets.QWidget()
+    footer.setObjectName("RizumSettingsFooter")
+    footer.setFixedHeight(48)
+    footer_outer = _QtWidgets.QVBoxLayout(footer)
+    footer_outer.setContentsMargins(0, 0, 0, 0)
+    footer_outer.setSpacing(0)
+    footer_outer.addWidget(make_inset_separator(12, 1))
+    footer_row = _QtWidgets.QWidget()
+    footer_row.setObjectName("RizumSettingsFooterRow")
+    footer_layout = _QtWidgets.QHBoxLayout(footer_row)
+    footer_layout.setContentsMargins(16, 0, 16, 0)
+    footer_layout.setSpacing(0)
+    footer_layout.addWidget(make_label("Changes save automatically", "RizumSettingsFooterHint"))
+    footer_layout.addStretch(1)
+    done_button = ActionButton.create("Done", "dialog-primary")
+    done_button.refreshLayout(minimum=72, maximum=112)
+    footer_layout.addWidget(done_button)
+    footer_outer.addWidget(footer_row, 1)
+    layout.addWidget(footer)
+
+    toggles = [padding_toggle, auto_toggle]
+
+    def apply_theme(name, update_control=True):
+        theme_name = "dark" if name == "system" else name
+        theme = themes.get(theme_name, themes["dark"])
+        window.setProperty("theme", theme_name)
+        window.setStyleSheet(
+            f"""
+QFrame#RizumSettingsWindow {{
+    background: {theme["window_bg"]};
+    border: {theme["window_border_css"]};
+    border-radius: 10px;
+}}
+QFrame#RizumSettingsWindow QFrame#RizumInsetSeparator {{
+    background: {theme["border"]};
+    border: 0;
+}}
+QWidget#RizumSettingsHeader,
+QWidget#RizumSettingsHeaderRow,
+QWidget#RizumSettingsBody,
+QWidget#RizumSettingsFooter,
+QWidget#RizumSettingsFooterRow,
+QWidget#RizumSettingsTexts,
+QWidget#RizumSettingsStepper {{
+    background: transparent;
+    border: 0;
+}}
+QLabel#RizumSettingsTitle {{
+    color: {theme["text"]};
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+    border: 0;
+}}
+QLabel#RizumSettingsSection {{
+    color: {theme["faint"]};
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: transparent;
+    border: 0;
+}}
+QLabel#RizumSettingsItemName {{
+    color: {theme["text"]};
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+    border: 0;
+}}
+QLabel#RizumSettingsItemMeta,
+QLabel#RizumSettingsPath,
+QLabel#RizumSettingsFooterHint {{
+    color: {theme["faint"]};
+    font-size: 11px;
+    font-weight: 500;
+    background: transparent;
+    border: 0;
+}}
+QFrame#RizumSettingsRow {{
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+}}
+QFrame#RizumSettingsRow:hover {{
+    background: {theme["hover"]};
+    border: 0;
+}}
+QPushButton#RizumSettingsSegment {{
+    min-height: 0;
+    padding: 4px 10px;
+    color: {theme["muted"]};
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}}
+QPushButton#RizumSettingsSegment:hover {{
+    color: {theme["text"]};
+    background: {theme["hover"]};
+}}
+QPushButton#RizumSettingsSegment[active="true"] {{
+    color: {theme["primary_text"]};
+    background: {theme["primary_bg"]};
+    font-weight: 600;
+}}
+QFrame#RizumSettingsMockSelect {{
+    background: transparent;
     border: 1px solid transparent;
     border-radius: 6px;
+}}
+QFrame#RizumSettingsMockSelect:hover {{
+    background: transparent;
+    border: 1px solid transparent;
+}}
+"""
+        )
+        theme_control.setTheme(theme)
+        if update_control:
+            theme_control.setActive(name, animate=False)
+        for button in stepper_buttons:
+            button.setTheme(theme)
+        if stepper_value is not None:
+            stepper_value.setTheme(theme)
+        for toggle in toggles:
+            toggle.setTheme(theme)
+
+    theme_control.setChangedCallback(lambda name: apply_theme(name, update_control=False))
+    def bind_toggle_row(row, toggle):
+        def press(event):
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                toggle.toggle()
+                event.accept()
+                return
+            _QtWidgets.QFrame.mousePressEvent(row, event)
+
+        row.mousePressEvent = press
+
+    bind_toggle_row(padding_row, padding_toggle)
+    bind_toggle_row(auto_row, auto_toggle)
+    apply_theme("dark")
+    window.setTheme = apply_theme
+    return window
+
+
+def build_drag_drop_preview(QtWidgets):
+    from PySide6 import QtCore, QtGui, QtWidgets as _QtWidgets
+
+    class RoundedColumn(_QtWidgets.QFrame):
+        def __init__(self):
+            super().__init__()
+            self.setObjectName("RizumDragColumn")
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            self.setAutoFillBackground(False)
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            rect = QtCore.QRectF(8.5, 4.5, self.width() - 17, self.height() - 13)
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            for offset_y, spread, alpha in ((4, 1, 44), (8, 4, 22), (12, 8, 10)):
+                shadow_rect = rect.adjusted(-spread, -spread, spread, spread).translated(0, offset_y)
+                painter.setBrush(QtGui.QColor(0, 0, 0, alpha))
+                painter.drawRoundedRect(shadow_rect, 8 + spread, 8 + spread)
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(QtGui.QColor("#222222"))
+            painter.drawRoundedRect(rect, 8, 8)
+
+    class RoundedDragWindow(_QtWidgets.QFrame):
+        def __init__(self):
+            super().__init__()
+            self.setObjectName("RizumDragWindow")
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            self.setAutoFillBackground(False)
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            rect = QtCore.QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(QtGui.QColor("#1b1b1b"))
+            painter.drawRoundedRect(rect, 10, 10)
+            painter.end()
+
+    class DropColumn(RoundedColumn):
+        def __init__(self, source_group):
+            super().__init__()
+            self.source_group = source_group
+            self.setAcceptDrops(True)
+            layout = _QtWidgets.QVBoxLayout(self)
+            layout.setContentsMargins(9, 5, 9, 9)
+            layout.setSpacing(0)
+            self.header = _QtWidgets.QWidget()
+            self.header.setObjectName("RizumDragColumnHeader")
+            header_layout = _QtWidgets.QVBoxLayout(self.header)
+            header_layout.setContentsMargins(16, 12, 16, 10)
+            header_layout.setSpacing(2)
+            title = _QtWidgets.QLabel("TARGET: PAINTER")
+            title.setObjectName("RizumDragColumnTitle")
+            subtitle = _QtWidgets.QLabel("M_Body - BaseColor")
+            subtitle.setObjectName("RizumDragColumnSub")
+            header_layout.addWidget(title)
+            header_layout.addWidget(subtitle)
+            layout.addWidget(self.header)
+            layout.addWidget(make_inset_separator(12, 1))
+            self.tree = _QtWidgets.QWidget()
+            self.tree.setObjectName("RizumDragTree")
+            self.tree_layout = _QtWidgets.QVBoxLayout(self.tree)
+            self.tree_layout.setContentsMargins(8, 8, 8, 8)
+            self.tree_layout.setSpacing(4)
+            first_item = make_drag_tree_item(
+                "Dirt_Overlay",
+                draggable=True,
+                removable=True,
+                on_remove=self._return_to_source,
+                masked=True,
+            )
+            self.target_group = make_drag_collapsible_group(
+                "Target Group",
+                "",
+                children=[first_item],
+                draggable=False,
+                expanded=True,
+            )
+            self.drop_line = _QtWidgets.QFrame()
+            self.drop_line.setObjectName("RizumDragDropLine")
+            self.drop_line.setFixedHeight(2)
+            self.drop_line.setVisible(False)
+            self.tree_layout.addWidget(self.target_group)
+            self.tree_layout.addStretch(1)
+            layout.addWidget(self.tree, 1)
+
+        def dragEnterEvent(self, event):
+            if event.mimeData().hasText():
+                self.setProperty("dragOver", True)
+                self.style().unpolish(self)
+                self.style().polish(self)
+                self.update()
+                event.acceptProposedAction()
+
+        def dragMoveEvent(self, event):
+            self._show_drop_line(self._drop_index(event.position().toPoint()))
+            event.acceptProposedAction()
+
+        def dragLeaveEvent(self, event):
+            self._hide_drop_line()
+            self.setProperty("dragOver", False)
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.update()
+
+        def dropEvent(self, event):
+            name = event.mimeData().text()
+            kind = bytes(event.mimeData().data("application/x-rizum-layer-kind")).decode("utf-8")
+            masked = bytes(event.mimeData().data("application/x-rizum-layer-masked")).decode("utf-8") == "1"
+            index = self._drop_line_index()
+            self._hide_drop_line()
+            if not self.target_group.isExpanded():
+                self.target_group.setExpanded(True)
+            source = event.source()
+            source_host = getattr(source, "_rizum_host", None)
+            if source_host in self._drop_widgets():
+                widgets = self._drop_widgets()
+                old_index = widgets.index(source_host)
+                if old_index < index:
+                    index -= 1
+                self.target_group._rizum_content_layout.removeWidget(source_host)
+                self.target_group._rizum_content_layout.insertWidget(index, source_host)
+                self.target_group.refreshLayout()
+                self.setProperty("dragOver", False)
+                self.style().unpolish(self)
+                self.style().polish(self)
+                self.update()
+                event.acceptProposedAction()
+                return
+            item = make_drag_tree_item(
+                name,
+                "folder-filled.svg" if kind == "folder" else "layers.svg",
+                folder=(kind == "folder"),
+                draggable=True,
+                removable=True,
+                on_remove=self._return_to_source,
+                masked=masked,
+            )
+            item._rizum_parent_group = self.target_group
+            self.target_group._rizum_content_layout.insertWidget(index, item)
+            animate_drag_tree_item_added(item, self.target_group)
+            if source_host is not None:
+                self._remove_source_widget(source_host)
+            self.setProperty("dragOver", False)
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.update()
+            event.acceptProposedAction()
+
+        def _remove_source_widget(self, source_host):
+            if source_host is self.target_group or source_host in self._drop_widgets():
+                return
+            parent_widget = source_host.parentWidget()
+            parent_layout = parent_widget.layout() if parent_widget is not None else None
+            if parent_layout is not None:
+                parent_layout.removeWidget(source_host)
+            source_group = getattr(source_host, "_rizum_parent_group", None)
+            source_host.deleteLater()
+            if source_group is not None:
+                source_group.refreshLayout()
+            elif parent_widget is not None:
+                try:
+                    parent_widget.updateGeometry()
+                except Exception:
+                    pass
+
+        def _return_to_source(self, target_host):
+            name = getattr(target_host, "_rizum_name", "")
+            folder = bool(getattr(target_host, "_rizum_folder", False))
+            masked = bool(getattr(target_host, "_rizum_masked", False))
+            source_item = make_drag_tree_item(
+                name,
+                "folder-filled.svg" if folder else "layers.svg",
+                folder=folder,
+                draggable=True,
+                masked=masked,
+            )
+            source_item._rizum_parent_group = self.source_group
+            source_row = getattr(source_item, "_rizum_row", source_item)
+            source_item._rizum_added_final_host_height = max(
+                1, source_item.sizeHint().height() or 36
+            )
+            source_row._rizum_added_final_row_height = max(
+                1, source_row.sizeHint().height() or 34
+            )
+            source_item.setFixedHeight(0)
+            source_row.setFixedHeight(0)
+            self.source_group._rizum_content_layout.addWidget(source_item)
+            self.source_group.refreshLayout()
+
+            self.target_group._rizum_content_layout.removeWidget(target_host)
+            self.target_group.refreshLayout()
+            target_host.deleteLater()
+
+            animate_drag_tree_item_added(source_item, self.source_group)
+
+        def _drop_widgets(self):
+            layout = self.target_group._rizum_content_layout
+            widgets = []
+            for index in range(layout.count()):
+                widget = layout.itemAt(index).widget()
+                if widget is not None and widget is not self.drop_line:
+                    widgets.append(widget)
+            return widgets
+
+        def _drop_index(self, point):
+            inner = self.target_group._rizum_content_inner
+            local = inner.mapFrom(self, point)
+            for index, widget in enumerate(self._drop_widgets()):
+                if local.y() < widget.y() + widget.height() / 2:
+                    return index
+            return len(self._drop_widgets())
+
+        def _drop_line_index(self):
+            if not self.drop_line.isVisible():
+                return len(self._drop_widgets())
+            layout = self.target_group._rizum_content_layout
+            index = layout.indexOf(self.drop_line)
+            if index < 0:
+                return len(self._drop_widgets())
+            return index
+
+        def _show_drop_line(self, index):
+            layout = self.target_group._rizum_content_layout
+            layout.removeWidget(self.drop_line)
+            layout.insertWidget(index, self.drop_line)
+            self.drop_line.setVisible(True)
+            self.target_group.refreshLayout()
+
+        def _hide_drop_line(self):
+            self.drop_line.setVisible(False)
+            self.target_group.refreshLayout()
+
+    def make_column(title_text, subtitle_text, items):
+        column = RoundedColumn()
+        layout = _QtWidgets.QVBoxLayout(column)
+        layout.setContentsMargins(9, 5, 9, 9)
+        layout.setSpacing(0)
+        header = _QtWidgets.QWidget()
+        header.setObjectName("RizumDragColumnHeader")
+        header_layout = _QtWidgets.QVBoxLayout(header)
+        header_layout.setContentsMargins(16, 12, 16, 10)
+        header_layout.setSpacing(2)
+        title = _QtWidgets.QLabel(title_text.upper())
+        title.setObjectName("RizumDragColumnTitle")
+        subtitle = _QtWidgets.QLabel(subtitle_text)
+        subtitle.setObjectName("RizumDragColumnSub")
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+        layout.addWidget(header)
+        layout.addWidget(make_inset_separator(12, 1))
+        tree = _QtWidgets.QWidget()
+        tree.setObjectName("RizumDragTree")
+        tree_layout = _QtWidgets.QVBoxLayout(tree)
+        tree_layout.setContentsMargins(8, 8, 8, 8)
+        tree_layout.setSpacing(4)
+        group_rows = [
+            make_drag_tree_item(
+                item[0],
+                "folder-filled.svg" if item[1] else "layers.svg",
+                folder=item[1],
+                draggable=True,
+                masked=item[2] if len(item) > 2 else False,
+            )
+            for item in items
+        ]
+        group = make_drag_collapsible_group(
+            "Body Textures",
+            "",
+            children=group_rows,
+            draggable=True,
+            expanded=True,
+        )
+        column._rizum_group = group
+        tree_layout.addWidget(group)
+        tree_layout.addStretch(1)
+        layout.addWidget(tree, 1)
+        return column
+
+    window = RoundedDragWindow()
+    window.setFixedSize(580, 430)
+    window.setStyleSheet(
+        """
+QFrame#RizumDragWindow {
+    background: transparent;
+    border: 0;
+}
+QWidget#RizumDragHeader, QWidget#RizumDragActionBar {
+    background: transparent;
+    border: 0;
+}
+QWidget#RizumDragContent {
+    background: transparent;
+    border: 0;
+}
+QWidget#RizumDragColumnHeader,
+QWidget#RizumDragTree {
+    background: transparent;
+    border: 0;
+}
+QLabel#RizumDragTitle {
     color: #e0e0e0;
-    padding: 8px;
+    font-size: 13px;
+    font-weight: 400;
+    background: transparent;
+}
+QLabel#RizumDragColumnTitle {
+    color: #e0e0e0;
+    font-size: 12px;
+    font-weight: 400;
+    background: transparent;
+}
+QLabel#RizumDragColumnSub {
+    color: #666666;
+    font-size: 11px;
+    font-weight: 400;
+    background: transparent;
+}
+QFrame#RizumDragDropLine {
+    background: #ffffff;
+    border: 0;
+    border-radius: 1px;
+}
+QPushButton#RizumRemoveButton {
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    color: transparent;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 400;
+    text-align: center;
+}
+QFrame#RizumDragTreeItem:hover QPushButton#RizumRemoveButton {
+    color: transparent;
+}
+QFrame#RizumDragTreeItem[hovered="true"] QPushButton#RizumRemoveButton {
+    color: transparent;
+}
+QPushButton#RizumRemoveButton:hover {
+    color: #ff453a;
+    background: rgba(255, 69, 58, 44);
+    border: 0;
 }
 """
     )
-    layout.addWidget(output)
+    layout = _QtWidgets.QVBoxLayout(window)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(0)
 
-    row = QtWidgets.QHBoxLayout()
-    row.addWidget(StatusPill("Synced", "good"))
-    row.addWidget(StatusPill("Preview", "info"))
-    row.addWidget(StatusPill("Needs SP reload", "warn"))
-    row.addStretch(1)
-    layout.addLayout(row)
-    return card
+    header = _QtWidgets.QWidget()
+    header.setObjectName("RizumDragHeader")
+    header.setFixedHeight(40)
+    header_layout = _QtWidgets.QHBoxLayout(header)
+    header_layout.setContentsMargins(16, 0, 16, 0)
+    title = _QtWidgets.QLabel("Pt Bridge")
+    title.setObjectName("RizumDragTitle")
+    header_layout.addWidget(title)
+    header_layout.addStretch(1)
+    header_layout.addWidget(make_svg_label("x.svg", 14))
+    layout.addWidget(header)
+    layout.addWidget(make_inset_separator(12, 1))
+
+    texture_combo = make_combo_input([("M_Body", "M_Body")])
+    channel_combo = make_combo_input([("BaseColor", "BaseColor")])
+    texture_combo.setDisplayParts("Texture Set:", "M_Body")
+    channel_combo.setDisplayParts("Channel:", "BaseColor")
+    texture_combo.setCompactHeight(26)
+    channel_combo.setCompactHeight(26)
+    texture_combo.setPopupAlignment("right")
+    channel_combo.setPopupAlignment("right")
+    reset_btn = make_icon_button("reset.svg", "Reset transfer", compact=False)
+    settings_btn = make_icon_button("settings.svg", "Transfer settings", compact=False)
+    undo_btn = make_icon_button("undo.svg", "Undo", compact=False)
+    redo_btn = make_icon_button("redo.svg", "Redo", compact=False)
+    apply_btn = make_icon_button("checkmark.svg", "Apply transfer", compact=False)
+    reset_btn.setProperty("accent", True)
+    settings_btn.setProperty("accent", True)
+    undo_btn.setProperty("accent", True)
+    redo_btn.setProperty("accent", True)
+    apply_btn.setProperty("accent", True)
+    drag_icon_bar = make_compact_icon_toolbar(
+        reset_btn,
+        settings_btn,
+        None,
+        undo_btn,
+        redo_btn,
+        None,
+        apply_btn,
+    )
+    action_bar = make_compact_action_bar(
+        [texture_combo, channel_combo],
+        drag_icon_bar,
+        object_name="RizumDragActionBar",
+        spacing=8,
+    )
+    layout.addWidget(action_bar)
+    layout.addWidget(make_inset_separator(12, 1))
+
+    content = _QtWidgets.QWidget()
+    content.setObjectName("RizumDragContent")
+    content_layout = _QtWidgets.QHBoxLayout(content)
+    content_layout.setContentsMargins(16, 16, 16, 16)
+    content_layout.setSpacing(16)
+    source = make_column(
+        "Source: Photoshop",
+        "BaseColor.psd",
+        [("Main_Layer", False, True), ("Details_Pass", False, False), ("Effects_Group", True, True)],
+    )
+    target = DropColumn(source._rizum_group)
+    content_layout.addWidget(source)
+    content_layout.addWidget(target)
+    layout.addWidget(content, 1)
+
+    def refresh_layout():
+        action_bar.refreshLayout()
+        source._rizum_group.refreshLayout()
+        target.target_group.refreshLayout()
+
+    window.refreshLayout = refresh_layout
+    refresh_layout()
+    return window
 
 
 def clear_layout(layout):
@@ -747,25 +1897,68 @@ def build_preview(window, QtWidgets, watch_enabled):
 
     reload_button = ActionButton.create("Reload", "ghost")
     title_row.addWidget(reload_button)
-    watch_label = StatusPill("Watching", "good") if watch_enabled else StatusPill("Manual", "warn")
-    title_row.addWidget(watch_label)
     layout.addLayout(title_row)
 
+    tabs = QtWidgets.QTabWidget()
+    tabs.setObjectName("RizumPreviewTabs")
+    tabs.setDocumentMode(True)
+    tabs.tabBar().setDrawBase(False)
+
+    overview = QtWidgets.QWidget()
+    overview_layout = QtWidgets.QVBoxLayout(overview)
+    overview_layout.setContentsMargins(0, 0, 0, 0)
+    overview_layout.setSpacing(0)
     grid = QtWidgets.QGridLayout()
     grid.setSpacing(12)
-    grid.addWidget(
+    overview_left = QtWidgets.QWidget()
+    overview_left.setObjectName("RizumOverviewLeft")
+    overview_left_layout = QtWidgets.QVBoxLayout(overview_left)
+    overview_left_layout.setContentsMargins(0, 0, 0, 0)
+    overview_left_layout.setSpacing(16)
+    overview_left_layout.addWidget(
         build_bridge_preview(QtWidgets),
         0,
-        0,
-        2,
-        1,
         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
     )
+    overview_left_layout.addWidget(
+        make_dock_actions_panel(),
+        0,
+        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+    )
+    overview_left_layout.addStretch(1)
+    grid.addWidget(overview_left, 0, 0, 2, 1, QtCore.Qt.AlignmentFlag.AlignTop)
     grid.addWidget(build_font_preview(QtWidgets), 0, 1)
     grid.addWidget(build_lab(QtWidgets), 1, 1)
     grid.setColumnStretch(0, 0)
     grid.setColumnStretch(1, 1)
-    layout.addLayout(grid, 1)
+    overview_layout.addLayout(grid, 1)
+    tabs.addTab(overview, "Overview")
+
+    drag_page = QtWidgets.QWidget()
+    drag_layout = QtWidgets.QVBoxLayout(drag_page)
+    drag_layout.setContentsMargins(0, 12, 0, 0)
+    drag_layout.setSpacing(0)
+    drag_layout.addWidget(
+        build_drag_drop_preview(QtWidgets),
+        0,
+        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+    )
+    drag_layout.addStretch(1)
+    tabs.addTab(drag_page, "Drag Drop")
+
+    settings_page = QtWidgets.QWidget()
+    settings_layout = QtWidgets.QVBoxLayout(settings_page)
+    settings_layout.setContentsMargins(0, 12, 0, 0)
+    settings_layout.setSpacing(0)
+    settings_layout.addWidget(
+        build_settings_preview(QtWidgets),
+        0,
+        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+    )
+    settings_layout.addStretch(1)
+    tabs.addTab(settings_page, "Settings")
+
+    layout.addWidget(tabs, 1)
 
     return reload_button
 
@@ -777,12 +1970,11 @@ def main():
     app = QtWidgets.QApplication(qt_argv())
     full_mode = "--full" in sys.argv
     watch_enabled = "--no-watch" not in sys.argv
-    palette_path = ROOT / "preview-host-palette.json"
-    if not apply_palette_file(app, palette_path):
-        apply_painter_like_base(app)
+    apply_painter_like_base(app)
     app.setStyleSheet(
         build_painter_host_preview_stylesheet()
         + build_stylesheet(mode="full" if full_mode else "overlay")
+        + PREVIEW_CANVAS_STYLESHEET
     )
 
     window = QtWidgets.QWidget()
@@ -801,11 +1993,11 @@ def main():
             restart_preview(app)
             return
         reload_ui_kit()
-        if not apply_palette_file(app, palette_path):
-            apply_painter_like_base(app)
+        apply_painter_like_base(app)
         app.setStyleSheet(
             build_painter_host_preview_stylesheet()
             + build_stylesheet(mode="full" if full_mode else "overlay")
+            + PREVIEW_CANVAS_STYLESHEET
         )
         reload_button = build_preview(window, QtWidgets, watch_enabled)
         reload_button.clicked.connect(refresh_preview)

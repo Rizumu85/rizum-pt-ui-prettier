@@ -18,6 +18,13 @@ Create a modern, fluid, beautiful PySide6 component library that Rizum Painter p
 - Keep previews close to real plugin layouts so visual decisions transfer into Painter.
 - Provide theme application as a reversible layer.
 
+## Packaging Direction
+
+- Use this project as the upstream component lab and preview surface.
+- Shared Painter plugins should vendor an approved snapshot of the needed `rizum_ui` package and icon files so they can be shared as standalone plugin folders.
+- Keep plugin-window chrome and plugin-specific behavior owned by each plugin; share primitives, controls, icons, styling, and relayout helpers.
+- Public GitHub material should present the generic PySide6 component library first. Substance Painter integration should be documented as an optional adapter/example path, not the default mental model.
+
 ## UI Font Reference Match
 
 - Treat `pt-ui-font-gemini.html` as the current north-star for the UI Font panel.

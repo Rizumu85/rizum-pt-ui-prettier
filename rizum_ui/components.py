@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from html import escape
 from pathlib import Path
 
 
@@ -16,6 +17,13 @@ COMPACT_DOCK_CARD_BG = "#1b1b1b"
 COMPACT_DOCK_CARD_RADIUS = 10
 FOOTER_BUTTON_HEIGHT = 26
 FOOTER_BUTTON_PADDING_X = 8
+
+
+def _svg_with_breathing_room(source):
+    """Give 24px stroke icons a small viewBox margin so strokes are not clipped."""
+    source = source.replace('viewBox="0 0 24 24"', 'viewBox="-2 -2 28 28"')
+    source = source.replace("viewBox='0 0 24 24'", "viewBox='-2 -2 28 28'")
+    return source
 
 
 class Card:
@@ -81,6 +89,14 @@ class ActionButton:
         if variant != "secondary":
             button.setProperty("variant", variant)
         button.setMinimumHeight(32)
+
+        def refresh_layout(minimum=68, maximum=140):
+            set_compact_footer_button_width(
+                button,
+                compact_footer_button_width(button, minimum=minimum, maximum=maximum),
+            )
+
+        button.refreshLayout = refresh_layout
         return button
 
 
@@ -117,6 +133,422 @@ class StatusPill:
             f"background: {bg}; color: {fg}; border-radius: 8px; padding: 5px 10px;"
         )
         return label
+
+
+def make_dock_action_button(label, icon_name, primary=False, tooltip="", parent=None):
+    """Create the compact vertical dock action button from the pro dock reference."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    class _DockActionButton(QtWidgets.QPushButton):
+        def __init__(self):
+            super().__init__("", parent)
+            self.setObjectName("RizumDockActionButton")
+            self.setProperty("primary", bool(primary))
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            self.setFixedHeight(48)
+            self.setMinimumWidth(70)
+            self.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Expanding,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+            )
+            self._visual_scale = 1.0
+            self._animation = None
+            if tooltip:
+                self.setToolTip(tooltip)
+
+        def getVisualScale(self):
+            return self._visual_scale
+
+        def setVisualScale(self, value):
+            self._visual_scale = float(value)
+            self.update()
+
+        visualScale = QtCore.Property(float, getVisualScale, setVisualScale)
+
+        def mousePressEvent(self, event):
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                self._animate_scale(0.92, 120)
+            super().mousePressEvent(event)
+
+        def mouseReleaseEvent(self, event):
+            super().mouseReleaseEvent(event)
+            self._animate_scale(1.0, 280)
+
+        def leaveEvent(self, event):
+            super().leaveEvent(event)
+            if not self.isDown():
+                self._animate_scale(1.0, 220)
+
+        def _animate_scale(self, scale, duration):
+            if self._animation is not None:
+                self._animation.stop()
+            animation = QtCore.QPropertyAnimation(self, b"visualScale", self)
+            animation.setDuration(duration)
+            animation.setStartValue(self._visual_scale)
+            animation.setEndValue(float(scale))
+            animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+            self._animation = animation
+            animation.start()
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+
+            base_rect = QtCore.QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
+            scale = max(0.1, min(1.0, self._visual_scale))
+            rect = QtCore.QRectF(
+                base_rect.center().x() - base_rect.width() * scale / 2,
+                base_rect.center().y() - base_rect.height() * scale / 2,
+                base_rect.width() * scale,
+                base_rect.height() * scale,
+            )
+
+            is_primary = bool(self.property("primary"))
+            is_hovered = self.underMouse()
+            if is_primary:
+                fill = QtGui.QColor("#ffffff")
+                if is_hovered:
+                    fill = QtGui.QColor("#ffffff")
+                    fill.setAlphaF(0.9)
+                border = QtGui.QColor(0, 0, 0, 0)
+                text_color = QtGui.QColor("#1b1b1b")
+            else:
+                fill = QtGui.QColor("#262626" if is_hovered else "#222222")
+                border = QtGui.QColor(0, 0, 0, 0)
+                text_color = QtGui.QColor("#e0e0e0" if is_hovered else "#9e9e9e")
+
+            if self.isDown():
+                fill = QtGui.QColor(255, 255, 255, 8) if not is_primary else QtGui.QColor("#dedede")
+
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            for offset_y, spread, alpha in ((3, 1, 34), (7, 4, 18), (10, 7, 8)):
+                shadow_rect = rect.adjusted(-spread, -spread, spread, spread).translated(0, offset_y)
+                painter.setBrush(QtGui.QColor(0, 0, 0, alpha))
+                painter.drawRoundedRect(shadow_rect, 12 + spread, 12 + spread)
+
+            painter.setPen(QtGui.QPen(border, 1))
+            painter.setBrush(fill)
+            painter.drawRoundedRect(rect, 12, 12)
+
+            icon_size = max(14, min(20, int(round(18 * scale))))
+            icon_gap = max(3, int(round(4 * scale)))
+            label_height = 12
+            content_height = icon_size + icon_gap + label_height
+            content_top = rect.top() + (rect.height() - content_height) / 2 - 1
+            icon_pixmap = _render_svg_pixmap(
+                QtCore,
+                QtGui,
+                QtWidgets,
+                icon_name,
+                icon_size,
+                text_color.name(),
+            )
+            icon_x = int(rect.center().x() - icon_size / 2)
+            icon_y = int(round(content_top))
+            painter.drawPixmap(QtCore.QPoint(icon_x, icon_y), icon_pixmap)
+
+            font = QtGui.QFont(self.font())
+            font.setFamilies(["Segoe UI", "Arial", "sans-serif"])
+            font.setPixelSize(max(8, int(round(10 * scale))))
+            font.setWeight(QtGui.QFont.Weight.DemiBold)
+            painter.setFont(font)
+            painter.setPen(text_color)
+            scaled_label_height = max(10, int(round(label_height * scale)))
+            text_rect = QtCore.QRectF(
+                rect.left() + 5,
+                icon_y + icon_size + icon_gap,
+                rect.width() - 10,
+                scaled_label_height,
+            )
+            painter.drawText(
+                text_rect,
+                QtCore.Qt.AlignmentFlag.AlignHCenter | QtCore.Qt.AlignmentFlag.AlignVCenter,
+                label,
+            )
+            painter.end()
+
+    return _DockActionButton()
+
+
+def make_dock_actions_panel(actions=None, width=260, parent=None):
+    """Create the three-action dock panel matching `dock_actions_pro_v3.html`."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    class _DockActionsPanel(QtWidgets.QFrame):
+        def __init__(self):
+            super().__init__(parent)
+            self.setObjectName("RizumDockActionsPanel")
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            self.setAutoFillBackground(False)
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            rect = QtCore.QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(QtGui.QColor("#1b1b1b"))
+            painter.drawRoundedRect(rect, 10, 10)
+            painter.end()
+
+    panel = _DockActionsPanel()
+    panel.setFixedSize(width, 78)
+    panel.setSizePolicy(
+        QtWidgets.QSizePolicy.Policy.Fixed,
+        QtWidgets.QSizePolicy.Policy.Fixed,
+    )
+    panel.setStyleSheet(
+        """
+QPushButton#RizumDockActionButton {
+    background: transparent;
+    border: 0;
+}
+"""
+    )
+    layout = QtWidgets.QHBoxLayout(panel)
+    layout.setContentsMargins(15, 15, 15, 15)
+    layout.setSpacing(8)
+
+    action_items = actions or [
+        {
+            "label": "Export",
+            "icon": "action-export.svg",
+            "primary": True,
+            "tooltip": "Export selected",
+        },
+        {
+            "label": "Bridge",
+            "icon": "action-bridge.svg",
+            "primary": False,
+            "tooltip": "Open bridge app",
+        },
+        {
+            "label": "Settings",
+            "icon": "action-sun.svg",
+            "primary": False,
+            "tooltip": "Settings",
+        },
+    ]
+
+    buttons = []
+    for action in action_items:
+        button = make_dock_action_button(
+            action.get("label", ""),
+            action.get("icon", ""),
+            primary=bool(action.get("primary", False)),
+            tooltip=action.get("tooltip", ""),
+        )
+        buttons.append(button)
+        layout.addWidget(button)
+
+    panel._rizum_action_buttons = buttons
+    panel.actionButtons = lambda: list(buttons)
+    panel.refreshLayout = lambda: panel.updateGeometry()
+    return panel
+
+
+def compact_progress_width(status_text="", meta_text="", widget=None, minimum=320, maximum=None):
+    """Return a progress panel width that survives localized status/meta text."""
+    width = max(
+        compact_text_width(status_text, widget=widget, minimum=0, padding=92),
+        compact_text_width(meta_text, widget=widget, minimum=0, padding=32),
+        minimum,
+    )
+    if maximum is not None:
+        width = min(width, maximum)
+    return int(width)
+
+
+def make_progress_panel(
+    status_text="Exporting Textures",
+    value=0,
+    meta_text="",
+    cancel_button=None,
+    show_cancel=False,
+    minimum_width=320,
+    maximum_width=420,
+    parent=None,
+):
+    """Create a compact pro progress body for plugin-owned panels."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    class _ProgressTrack(QtWidgets.QWidget):
+        def __init__(self):
+            super().__init__()
+            self.setObjectName("RizumProgressTrack")
+            self.setFixedHeight(4)
+            self.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Expanding,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+            )
+            self._value = 0.0
+            self._animation = None
+
+        def getValue(self):
+            return self._value
+
+        def setValue(self, next_value):
+            self._value = max(0.0, min(100.0, float(next_value)))
+            self.update()
+
+        progressValue = QtCore.Property(float, getValue, setValue)
+
+        def setProgress(self, next_value, animated=True):
+            next_value = max(0.0, min(100.0, float(next_value)))
+            if self._animation is not None:
+                self._animation.stop()
+                self._animation = None
+            if not animated:
+                self.setValue(next_value)
+                return
+            animation = QtCore.QPropertyAnimation(self, b"progressValue", self)
+            animation.setDuration(400)
+            animation.setStartValue(self._value)
+            animation.setEndValue(next_value)
+            animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+            self._animation = animation
+            animation.start()
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            rect = QtCore.QRectF(0, 0, self.width(), self.height())
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(QtGui.QColor(255, 255, 255, 20))
+            painter.drawRoundedRect(rect, 2, 2)
+
+            fill_width = rect.width() * (self._value / 100.0)
+            if fill_width <= 0:
+                painter.end()
+                return
+            fill_rect = QtCore.QRectF(0, 0, fill_width, rect.height())
+            painter.setBrush(QtGui.QColor("#ffffff"))
+            painter.drawRoundedRect(fill_rect, 2, 2)
+            painter.setBrush(QtGui.QColor(255, 255, 255, 38))
+            glow_width = min(fill_width, 8)
+            glow_rect = QtCore.QRectF(max(0.0, fill_width - glow_width), 0, glow_width, rect.height())
+            painter.drawRoundedRect(glow_rect, 2, 2)
+            painter.end()
+
+    panel = QtWidgets.QWidget(parent)
+    panel.setObjectName("RizumProgressPanel")
+    panel.setStyleSheet(
+        """
+QWidget#RizumProgressPanel,
+QWidget#RizumProgressPanel QWidget {
+    background: transparent;
+    border: 0;
+}
+QLabel#RizumProgressStatus {
+    color: #e0e0e0;
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+    border: 0;
+}
+QLabel#RizumProgressPercent {
+    color: #666666;
+    font-size: 11px;
+    font-weight: 700;
+    background: transparent;
+    border: 0;
+}
+QLabel#RizumProgressMeta {
+    color: #666666;
+    font-size: 11px;
+    font-weight: 500;
+    background: transparent;
+    border: 0;
+}
+"""
+    )
+    layout = QtWidgets.QVBoxLayout(panel)
+    layout.setContentsMargins(16, 20, 16, 20 if not show_cancel else 0)
+    layout.setSpacing(12)
+
+    status_row = QtWidgets.QWidget()
+    status_layout = QtWidgets.QHBoxLayout(status_row)
+    status_layout.setContentsMargins(0, 0, 0, 0)
+    status_layout.setSpacing(10)
+
+    status_label = QtWidgets.QLabel(status_text)
+    status_label.setObjectName("RizumProgressStatus")
+    status_label.setWordWrap(True)
+    status_label.setSizePolicy(
+        QtWidgets.QSizePolicy.Policy.Expanding,
+        QtWidgets.QSizePolicy.Policy.Preferred,
+    )
+    percent_label = QtWidgets.QLabel()
+    percent_label.setObjectName("RizumProgressPercent")
+    percent_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+    status_layout.addWidget(status_label, 1)
+    status_layout.addWidget(percent_label)
+    layout.addWidget(status_row)
+
+    track = _ProgressTrack()
+    layout.addWidget(track)
+
+    meta_label = QtWidgets.QLabel(meta_text)
+    meta_label.setObjectName("RizumProgressMeta")
+    meta_label.setWordWrap(True)
+    layout.addWidget(meta_label)
+
+    if show_cancel:
+        footer = QtWidgets.QWidget()
+        footer.setObjectName("RizumTransparent")
+        footer_layout = QtWidgets.QHBoxLayout(footer)
+        footer_layout.setContentsMargins(0, 8, 0, 0)
+        footer_layout.setSpacing(0)
+        footer_layout.addStretch(1)
+        if cancel_button is None:
+            cancel_button = ActionButton.create("Cancel", "dialog-secondary")
+            set_compact_footer_button_width(cancel_button, compact_footer_button_width(cancel_button, minimum=72))
+        footer_layout.addWidget(cancel_button)
+        layout.addWidget(footer)
+
+    def update_percent(next_value):
+        percent_label.setText(f"{int(round(max(0.0, min(100.0, float(next_value)))))}%")
+
+    def refresh_layout(next_status=None, next_meta=None):
+        if next_status is not None:
+            status_label.setText(next_status)
+        if next_meta is not None:
+            meta_label.setText(next_meta)
+        percent_label.setMinimumWidth(compact_text_width("100%", widget=percent_label, minimum=32, padding=2))
+        panel.setMinimumWidth(
+            compact_progress_width(
+                status_label.text(),
+                meta_label.text(),
+                widget=panel,
+                minimum=minimum_width,
+                maximum=maximum_width,
+            )
+        )
+        try:
+            panel.updateGeometry()
+        except Exception:
+            pass
+
+    def set_progress(next_value, next_status=None, next_meta=None, animated=True):
+        update_percent(next_value)
+        if next_status is not None:
+            status_label.setText(next_status)
+        if next_meta is not None:
+            meta_label.setText(next_meta)
+        refresh_layout()
+        track.setProgress(next_value, animated=animated)
+
+    panel._rizum_status_label = status_label
+    panel._rizum_percent_label = percent_label
+    panel._rizum_meta_label = meta_label
+    panel._rizum_progress_track = track
+    panel.setProgress = set_progress
+    panel.refreshLayout = refresh_layout
+    panel.value = track.getValue
+    set_progress(value, status_text, meta_text, animated=False)
+    return panel
 
 
 def make_action_row(*buttons, parent=None):
@@ -343,6 +775,311 @@ def update_inline_checkbox_row(widget, label_text=None, minimum=None, maximum=No
         pass
 
 
+def make_compact_separator(color="#414141", height=14):
+    """Create a small vertical separator for compact toolbar rows."""
+    from PySide6 import QtWidgets
+
+    separator = QtWidgets.QFrame()
+    separator.setFixedSize(1, height)
+    separator.setStyleSheet(f"background: {color}; border: 0;")
+    return separator
+
+
+def make_compact_icon_toolbar(*items, spacing=4, separator_gap=4, parent=None):
+    """Create a compact toolbar that keeps icon spacing stable across panels."""
+    from PySide6 import QtWidgets
+
+    toolbar = QtWidgets.QWidget(parent)
+    toolbar.setObjectName("RizumTransparent")
+    layout = QtWidgets.QHBoxLayout(toolbar)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(spacing)
+    for item in items:
+        if item is None:
+            layout.addSpacing(separator_gap)
+            layout.addWidget(make_compact_separator("#333333"))
+            layout.addSpacing(separator_gap)
+        else:
+            layout.addWidget(item)
+    return toolbar
+
+
+def _stable_widget_width(widget):
+    minimum = widget.minimumWidth()
+    maximum = widget.maximumWidth()
+    if minimum > 0 and minimum == maximum:
+        return minimum
+    return max(0, widget.sizeHint().width())
+
+
+def make_compact_action_bar(
+    left_controls=None,
+    right_toolbar=None,
+    object_name="RizumCompactActionBar",
+    height=40,
+    margins=(16, 0, 16, 0),
+    spacing=8,
+    parent=None,
+):
+    """Create the shared compact left-controls/right-toolbar row."""
+    from PySide6 import QtWidgets
+
+    bar = QtWidgets.QWidget(parent)
+    bar.setObjectName(object_name)
+    bar.setFixedHeight(height)
+    layout = QtWidgets.QHBoxLayout(bar)
+    layout.setContentsMargins(*margins)
+    layout.setSpacing(spacing)
+    controls = list(left_controls or [])
+    for control in controls:
+        layout.addWidget(control)
+    layout.addStretch(1)
+    if right_toolbar is not None:
+        layout.addWidget(right_toolbar)
+
+    def refresh_layout():
+        for control in controls:
+            refresh = getattr(control, "refreshMetrics", None)
+            if refresh is not None:
+                refresh()
+        refresh = getattr(right_toolbar, "refreshMetrics", None)
+        if refresh is not None:
+            refresh()
+        bar.updateGeometry()
+
+    bar._rizum_left_controls = controls
+    bar._rizum_right_toolbar = right_toolbar
+    bar.refreshLayout = refresh_layout
+    return bar
+
+
+def compact_action_bar_width(
+    left_controls,
+    right_toolbar,
+    minimum=284,
+    horizontal_margins=32,
+    spacing=8,
+    spacing_budget=16,
+):
+    """Return the minimum panel width for a compact action bar."""
+    controls = list(left_controls or [])
+    left_width = sum(_stable_widget_width(control) for control in controls)
+    if len(controls) > 1:
+        left_width += spacing * (len(controls) - 1)
+    right_width = _stable_widget_width(right_toolbar) if right_toolbar is not None else 0
+    return max(
+        int(minimum),
+        int(left_width + right_width + horizontal_margins + spacing_budget),
+    )
+
+
+def compact_top_controls_width(
+    left_control,
+    right_toolbar,
+    minimum=284,
+    horizontal_margins=32,
+    separator_width=1,
+    spacing_budget=26,
+):
+    """Return a compact top-control width that survives localized labels."""
+    return compact_action_bar_width(
+        [left_control],
+        right_toolbar,
+        minimum=minimum,
+        horizontal_margins=horizontal_margins,
+        spacing_budget=separator_width + spacing_budget,
+    )
+
+
+def bind_hover_state(host, row, *widgets, property_name="hovered"):
+    """Keep a row hover property stable while moving across child widgets."""
+    from PySide6 import QtCore
+
+    watched = [widget for widget in (host, row, *widgets) if widget is not None]
+
+    class _TreeHoverFilter(QtCore.QObject):
+        def __init__(self):
+            super().__init__(host)
+
+        def set_hovered(self, is_hovered):
+            if row.property(property_name) == is_hovered:
+                return
+            row.setProperty(property_name, is_hovered)
+            row.style().unpolish(row)
+            row.style().polish(row)
+            row.update()
+
+        def refresh_hovered(self):
+            self.set_hovered(any(widget.underMouse() for widget in watched))
+
+        def eventFilter(self, obj, event):
+            event_type = event.type()
+            if event_type == QtCore.QEvent.Type.Enter:
+                self.set_hovered(True)
+            elif event_type == QtCore.QEvent.Type.Leave:
+                QtCore.QTimer.singleShot(0, self.refresh_hovered)
+            return False
+
+    for widget in watched:
+        widget.setMouseTracking(True)
+    hover_filter = _TreeHoverFilter()
+    for widget in watched:
+        widget.installEventFilter(hover_filter)
+    host._rizum_hover_filter = hover_filter
+    return hover_filter
+
+
+def _make_control_slot(widget, size=24, align_right=False):
+    """Center a small control in the same square slot used by hover action icons."""
+    from PySide6 import QtCore, QtWidgets
+
+    slot = QtWidgets.QWidget()
+    slot.setObjectName("RizumControlSlot")
+    slot.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+    slot.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, False)
+    slot.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
+    slot.setAutoFillBackground(False)
+    slot.setCursor(widget.cursor())
+    slot.setFixedSize(size, size)
+    layout = QtWidgets.QHBoxLayout(slot)
+    layout.setContentsMargins(0, 0, 3 if align_right else 0, 0)
+    layout.setSpacing(0)
+    alignment = QtCore.Qt.AlignmentFlag.AlignVCenter
+    alignment |= (
+        QtCore.Qt.AlignmentFlag.AlignRight
+        if align_right
+        else QtCore.Qt.AlignmentFlag.AlignHCenter
+    )
+    layout.addWidget(widget, 0, alignment)
+
+    def press(event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            widget.mousePressEvent(event)
+
+    slot.mousePressEvent = press
+    return slot
+
+
+def make_export_tree_item(name, checkbox, meta="", child=False, parent=None):
+    """Create the compact export tree row used inside plugin-owned panels."""
+    from PySide6 import QtCore, QtWidgets
+
+    if child:
+        host = QtWidgets.QFrame(parent)
+        host.setObjectName("RizumExportTreeItemHost")
+        host.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        host.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        host_layout = QtWidgets.QHBoxLayout(host)
+        host_layout.setContentsMargins(24, 0, 0, 0)
+        host_layout.setSpacing(0)
+
+        row = QtWidgets.QFrame()
+        row.setObjectName("RizumExportTreeItem")
+        row.setProperty("child", "true")
+        row.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        row_layout = QtWidgets.QHBoxLayout(row)
+        row_layout.setContentsMargins(8, 4, 8, 4)
+        row_layout.setSpacing(10)
+        row_layout.addSpacing(0)
+
+        label = QtWidgets.QLabel(name)
+        label.setObjectName("RizumExportItemName")
+        label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        row_layout.addWidget(label)
+        row_layout.addStretch(1)
+        checkbox_slot = _make_control_slot(checkbox, align_right=True)
+        row_layout.addWidget(checkbox_slot)
+        host_layout.addWidget(row)
+        bind_hover_state(host, row, label, checkbox_slot, checkbox)
+        host._rizum_label = label
+        host._rizum_row = row
+        host._rizum_checkbox = checkbox
+        host._rizum_checkbox_slot = checkbox_slot
+        host._rizum_child = True
+        update_export_tree_item(host, name)
+        def refresh_host(name_text=None, meta_text=None):
+            update_export_tree_item(host, name_text, meta_text)
+
+        host.refreshLayout = refresh_host
+        return host
+
+    row = QtWidgets.QFrame(parent)
+    row.setObjectName("RizumExportTreeItem")
+    row.setProperty("child", "false")
+    row.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+    row.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+    row.setMouseTracking(True)
+    row_layout = QtWidgets.QHBoxLayout(row)
+    row_layout.setContentsMargins(8, 4, 8, 4)
+    row_layout.setSpacing(10)
+    row_layout.addWidget(make_svg_label("chevron-down.svg", 14))
+
+    label = QtWidgets.QLabel(name)
+    label.setObjectName("RizumExportItemName")
+    label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+    meta_label = None
+    if meta:
+        text_stack = QtWidgets.QHBoxLayout()
+        text_stack.setContentsMargins(0, 0, 0, 0)
+        text_stack.setSpacing(4)
+        meta_label = QtWidgets.QLabel(meta)
+        meta_label.setObjectName("RizumExportMeta")
+        meta_label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        text_stack.addWidget(label)
+        text_stack.addWidget(meta_label)
+        text_stack.addStretch(1)
+        row_layout.addLayout(text_stack)
+    else:
+        row_layout.addWidget(label)
+    row_layout.addStretch(1)
+    checkbox_slot = _make_control_slot(checkbox, align_right=True)
+    row_layout.addWidget(checkbox_slot)
+    row._rizum_label = label
+    row._rizum_meta_label = meta_label
+    row._rizum_checkbox = checkbox
+    row._rizum_checkbox_slot = checkbox_slot
+    row._rizum_child = False
+    bind_hover_state(row, row, label, meta_label, checkbox_slot, checkbox)
+    update_export_tree_item(row, name, meta)
+    def refresh_row(name_text=None, meta_text=None):
+        update_export_tree_item(row, name_text, meta_text)
+
+    row.refreshLayout = refresh_row
+    return row
+
+
+def update_export_tree_item(widget, name=None, meta=None, minimum_height=None):
+    """Refresh export tree row text and height after i18n or font-scale changes."""
+    label = getattr(widget, "_rizum_label", None)
+    meta_label = getattr(widget, "_rizum_meta_label", None)
+    row = getattr(widget, "_rizum_row", widget)
+    is_child = bool(getattr(widget, "_rizum_child", False))
+
+    if label is not None and name is not None:
+        label.setText(name)
+        widget._rizum_name = name
+    if meta_label is not None and meta is not None:
+        meta_label.setText(meta)
+        widget._rizum_meta = meta
+
+    base_height = 32 if is_child else 36
+    minimum_height = int(minimum_height if minimum_height is not None else base_height)
+    metrics_widgets = [candidate for candidate in (label, meta_label) if candidate is not None]
+    text_height = 0
+    for candidate in metrics_widgets:
+        text_height = max(text_height, candidate.fontMetrics().height())
+    height = max(minimum_height, text_height + 14)
+
+    row.setFixedHeight(height)
+    if row is not widget:
+        widget.setFixedHeight(height)
+    try:
+        row.updateGeometry()
+        widget.updateGeometry()
+    except Exception:
+        pass
+
+
 def make_collapsible_group(
     title,
     subtitle="",
@@ -461,6 +1198,7 @@ def make_collapsible_group(
     group.setObjectName("RizumCollapsibleGroup")
     group.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
     group.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+    group.setMouseTracking(True)
     group_layout = QtWidgets.QVBoxLayout(group)
     group_layout.setContentsMargins(0, 2, 0, 2)
     group_layout.setSpacing(0)
@@ -468,6 +1206,7 @@ def make_collapsible_group(
     header = QtWidgets.QFrame()
     header.setObjectName("RizumCollapsibleHeader")
     header.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+    header.setMouseTracking(True)
     header.setFixedHeight(36)
     header_layout = QtWidgets.QHBoxLayout(header)
     header_layout.setContentsMargins(8, 4, 8, 4)
@@ -481,31 +1220,30 @@ def make_collapsible_group(
     if leading_widget is not None:
         header_layout.addWidget(leading_widget)
 
-    if subtitle:
-        title_layout = QtWidgets.QHBoxLayout()
-        title_layout.setContentsMargins(0, 0, 0, 0)
-        title_layout.setSpacing(4)
-        title_label = QtWidgets.QLabel(title)
-        title_label.setObjectName("RizumCollapsibleTitle")
-        subtitle_label = QtWidgets.QLabel(subtitle)
-        subtitle_label.setObjectName("RizumCollapsibleSubtitle")
-        title_layout.addWidget(title_label)
-        title_layout.addWidget(subtitle_label)
-        title_layout.addStretch(1)
-        header_layout.addLayout(title_layout)
-    else:
-        title_label = QtWidgets.QLabel(title)
-        title_label.setObjectName("RizumCollapsibleTitle")
-        header_layout.addWidget(title_label)
+    title_label = QtWidgets.QLabel(title)
+    title_label.setObjectName("RizumCollapsibleTitle")
+    header_layout.addWidget(title_label)
 
     header_layout.addStretch(1)
+    subtitle_label = None
+    if subtitle:
+        subtitle_label = QtWidgets.QLabel(subtitle)
+        subtitle_label.setObjectName("RizumCollapsibleSubtitle")
+        subtitle_label.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        header_layout.addWidget(subtitle_label)
     if trailing_widget is not None:
+        if trailing_widget.objectName() == "RizumMockCheckbox":
+            trailing_widget = _make_control_slot(trailing_widget, align_right=True)
+            header_layout.setContentsMargins(8, 4, 8, 4)
         header_layout.addWidget(trailing_widget)
     group_layout.addWidget(header)
 
     content = _AnimatedHeightFrame()
     content.setObjectName("RizumCollapsibleContent")
     content.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+    content.setMouseTracking(True)
     content.setSizePolicy(
         QtWidgets.QSizePolicy.Policy.Expanding,
         QtWidgets.QSizePolicy.Policy.Fixed,
@@ -563,6 +1301,20 @@ def make_collapsible_group(
         update_chevron(next_expanded)
         group._rizum_animating = False
         group._rizum_collapse_animation = None
+
+    def refresh_layout(title_text=None, subtitle_text=None):
+        if title_text is not None:
+            title_label.setText(title_text)
+        if subtitle_text is not None and subtitle_label is not None:
+            subtitle_label.setText(subtitle_text)
+        next_height = content_height() if group._rizum_expanded else 0
+        content.setAnimatedHeight(next_height)
+        content_inner.setVisible(group._rizum_expanded)
+        update_chevron(group._rizum_expanded)
+        try:
+            group.updateGeometry()
+        except Exception:
+            pass
 
     def set_expanded(next_expanded):
         next_expanded = bool(next_expanded)
@@ -623,7 +1375,115 @@ def make_collapsible_group(
     group.setExpanded = set_expanded
     group.isExpanded = lambda: group._rizum_expanded
     group.toggle = toggle
+    group.refreshLayout = refresh_layout
     header.mousePressEvent = lambda event: toggle() if event.button() == QtCore.Qt.MouseButton.LeftButton else None
+    return group
+
+
+def make_drag_collapsible_group(
+    title,
+    subtitle="",
+    children=None,
+    draggable=True,
+    expanded=True,
+    parent=None,
+):
+    """Create the drag/drop variant whose folder icon is the only disclosure marker."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    group = make_collapsible_group(
+        title,
+        subtitle,
+        children=children,
+        leading_widget=make_svg_label("folder-filled.svg", 14, color="#ffffff"),
+        expanded=expanded,
+        show_chevron=False,
+        parent=parent,
+    )
+    group.setProperty("variant", "drag")
+    group.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+    group._rizum_drag_name = title
+    group._rizum_drag_folder = True
+    for child in children or []:
+        child._rizum_parent_group = group
+
+    def set_group_hovered(is_hovered):
+        if group.property("hovered") == is_hovered:
+            return
+        group.setProperty("hovered", is_hovered)
+        group.style().unpolish(group)
+        group.style().polish(group)
+
+    header = group._rizum_header
+    header.setCursor(
+        QtCore.Qt.CursorShape.OpenHandCursor
+        if draggable
+        else QtCore.Qt.CursorShape.PointingHandCursor
+    )
+    header.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+    header._rizum_press_pos = None
+    header._rizum_drag_started = False
+    header._rizum_host = group
+
+    def press(event):
+        set_group_hovered(True)
+        if event.button() != QtCore.Qt.MouseButton.LeftButton:
+            return
+        header._rizum_press_pos = event.position().toPoint()
+        header._rizum_drag_started = False
+
+    def move(event):
+        set_group_hovered(True)
+        if not draggable or header._rizum_press_pos is None:
+            return
+        distance = (event.position().toPoint() - header._rizum_press_pos).manhattanLength()
+        if distance < QtWidgets.QApplication.startDragDistance():
+            return
+        header._rizum_drag_started = True
+        header._rizum_press_pos = None
+        was_expanded = group.isExpanded()
+        child_count = sum(
+            1
+            for index in range(group._rizum_content_layout.count())
+            if group._rizum_content_layout.itemAt(index).widget() is not None
+        )
+        if was_expanded:
+            group.setExpanded(False)
+        group.setProperty("dragging", True)
+        group.style().unpolish(group)
+        group.style().polish(group)
+        result = _start_drag(
+            QtCore,
+            QtGui,
+            QtWidgets,
+            header,
+            title,
+            folder=True,
+            child_count=child_count,
+            masked=False,
+        )
+        group.setProperty("dragging", False)
+        group.style().unpolish(group)
+        group.style().polish(group)
+        if result == QtCore.Qt.DropAction.IgnoreAction and was_expanded:
+            group.setExpanded(True)
+
+    def release(event):
+        set_group_hovered(True)
+        if event.button() != QtCore.Qt.MouseButton.LeftButton:
+            return
+        if not header._rizum_drag_started:
+            group.toggle()
+        header._rizum_press_pos = None
+        header._rizum_drag_started = False
+
+    header.mousePressEvent = press
+    header.mouseMoveEvent = move
+    header.mouseReleaseEvent = release
+    group.enterEvent = lambda event: set_group_hovered(True)
+    group.leaveEvent = lambda event: set_group_hovered(False)
+    header.enterEvent = lambda event: set_group_hovered(True)
+    header.leaveEvent = lambda event: set_group_hovered(False)
     return group
 
 
@@ -742,12 +1602,13 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
             pixmap.fill(QtCore.Qt.GlobalColor.transparent)
             if QtSvg is not None and self._icon_source:
                 source = self._icon_source
-                for old_color in ("#9E9E9E", "#9e9e9e", "#E0E0E0", "#e0e0e0"):
-                    source = source.replace(old_color, color)
-                source = source.replace('viewBox="0 0 24 24"', 'viewBox="-1 -1 26 26"')
+                source = source.replace("currentColor", color)
+                source = _svg_with_breathing_room(source)
                 renderer = QtSvg.QSvgRenderer(QtCore.QByteArray(source.encode("utf-8")))
                 painter = QtGui.QPainter(pixmap)
                 renderer.render(painter, QtCore.QRectF(0, 0, size, size))
+                painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_SourceIn)
+                painter.fillRect(QtCore.QRectF(0, 0, size, size), QtGui.QColor(color))
                 painter.end()
             else:
                 base = self._icon.pixmap(QtCore.QSize(pixel_size, pixel_size))
@@ -761,7 +1622,7 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
 
         def paintEvent(self, event):
             super().paintEvent(event)
-            color = "#ffffff" if self.underMouse() else "#9e9e9e"
+            color = "#ffffff" if self.property("accent") or self.underMouse() else "#9e9e9e"
             pixmap = self._rendered_pixmap(color)
             visual_size = max(1, int(round(size * self._visual_scale)))
             target = QtCore.QRect(
@@ -781,13 +1642,50 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
     button.setProperty("variant", "icon")
     if compact:
         button.setProperty("compact", True)
-    button.setMinimumHeight(32)
+        button.setFixedSize(22, 22)
+    else:
+        button.setMinimumHeight(32)
     if tooltip:
         button.setToolTip(tooltip)
     return button
 
 
-def make_svg_label(icon_name, size):
+def _render_svg_pixmap(QtCore, QtGui, QtWidgets, icon_name, size, color=None):
+    try:
+        from PySide6 import QtSvg
+    except Exception:
+        QtSvg = None
+
+    icon_path = ROOT / "icons" / icon_name
+    if QtSvg is not None:
+        dpr = _screen_dpr(QtWidgets)
+        pixel_size = max(1, int(round(size * dpr)))
+        source = icon_path.read_text(encoding="utf-8")
+        if color is not None:
+            source = source.replace("currentColor", color)
+        source = _svg_with_breathing_room(source)
+        pixmap = QtGui.QPixmap(pixel_size, pixel_size)
+        pixmap.setDevicePixelRatio(dpr)
+        pixmap.fill(QtCore.Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(pixmap)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+        renderer = QtSvg.QSvgRenderer(QtCore.QByteArray(source.encode("utf-8")))
+        renderer.render(painter, QtCore.QRectF(0, 0, size, size))
+        if color is not None:
+            painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_SourceIn)
+            painter.fillRect(QtCore.QRectF(0, 0, size, size), QtGui.QColor(color))
+        painter.end()
+        return pixmap
+
+    dpr = _screen_dpr(QtWidgets)
+    pixel_size = max(1, int(round(size * dpr)))
+    pixmap = QtGui.QIcon(str(icon_path)).pixmap(QtCore.QSize(pixel_size, pixel_size))
+    pixmap.setDevicePixelRatio(dpr)
+    return pixmap
+
+
+def make_svg_label(icon_name, size, color=None):
     """Create a passive SVG label that does not take its own hover state."""
     from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -795,10 +1693,487 @@ def make_svg_label(icon_name, size):
     label.setObjectName("RizumSvgLabel")
     label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
     label.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
-    label.setPixmap(QtGui.QIcon(str(ROOT / "icons" / icon_name)).pixmap(QtCore.QSize(size, size)))
+    label.setPixmap(_render_svg_pixmap(QtCore, QtGui, QtWidgets, icon_name, size, color))
     label.setFixedSize(size, size)
     label.setStyleSheet("background: transparent; border: 0;")
     return label
+
+
+def make_masked_svg_label(icon_name, size, color=None):
+    """Create a passive SVG label with a compact mask-state badge."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    class _MaskedSvgLabel(QtWidgets.QWidget):
+        def __init__(self):
+            super().__init__()
+            self.setObjectName("RizumSvgLabel")
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
+            self.setFixedSize(size, size)
+            self.setStyleSheet("background: transparent; border: 0;")
+            self._pixmap = _render_svg_pixmap(QtCore, QtGui, QtWidgets, icon_name, size, color)
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+            painter.drawPixmap(QtCore.QPoint(0, 0), self._pixmap)
+
+            badge_color = QtGui.QColor(color or "#9E9E9E")
+            badge_size = max(6, int(round(size * 0.48)))
+            badge_rect = QtCore.QRectF(
+                self.width() - badge_size - 1.0,
+                self.height() - badge_size - 1.0,
+                badge_size,
+                badge_size,
+            )
+            radius = max(1.5, badge_size * 0.22)
+            painter.setPen(QtGui.QPen(badge_color, 1.0))
+            painter.setBrush(QtGui.QColor("#1b1b1b"))
+            painter.drawRoundedRect(badge_rect, radius, radius)
+
+            clip_path = QtGui.QPainterPath()
+            clip_path.addRoundedRect(badge_rect.adjusted(1, 1, -1, -1), max(1.0, radius - 0.5), max(1.0, radius - 0.5))
+            painter.save()
+            painter.setClipPath(clip_path)
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(badge_color)
+            painter.drawRect(
+                QtCore.QRectF(
+                    badge_rect.center().x(),
+                    badge_rect.top() + 1,
+                    badge_rect.width() / 2,
+                    badge_rect.height() - 2,
+                )
+            )
+            painter.restore()
+            painter.end()
+
+    return _MaskedSvgLabel()
+
+
+def make_tree_icon_label(icon_name, size=None, folder=False, masked=False, color=None):
+    """Create the standard passive tree icon, including folder and mask variants."""
+    display_icon_name = "folder-filled.svg" if folder else icon_name
+    icon_size = int(size if size is not None else (16 if display_icon_name == "layers.svg" else 14))
+    if masked:
+        return make_masked_svg_label(display_icon_name, icon_size, color=color)
+    return make_svg_label(display_icon_name, icon_size, color=color)
+
+
+def _screen_dpr(QtWidgets, source=None):
+    if source is not None:
+        try:
+            return max(1.0, float(source.devicePixelRatioF()))
+        except Exception:
+            pass
+    screen = QtWidgets.QApplication.primaryScreen()
+    if screen is None:
+        return 1.0
+    return max(1.0, float(screen.devicePixelRatio()))
+
+
+_DRAG_GHOST_SHADOW_MARGIN = 36
+
+
+def _paint_blurred_shadow(QtCore, QtGui, QtWidgets, painter, logical_size, dpr, card_rect, offset_y, blur_radius, alpha):
+    shadow_pixmap = QtGui.QPixmap(
+        max(1, int(round(logical_size.width() * dpr))),
+        max(1, int(round(logical_size.height() * dpr))),
+    )
+    shadow_pixmap.setDevicePixelRatio(dpr)
+    shadow_pixmap.fill(QtCore.Qt.GlobalColor.transparent)
+
+    shadow_painter = QtGui.QPainter(shadow_pixmap)
+    shadow_painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+    shadow_painter.setPen(QtCore.Qt.PenStyle.NoPen)
+    shadow_painter.setBrush(QtGui.QColor(0, 0, 0, alpha))
+    shadow_painter.drawRoundedRect(card_rect.translated(0, offset_y), 8, 8)
+    shadow_painter.end()
+
+    scene = QtWidgets.QGraphicsScene()
+    scene.setSceneRect(QtCore.QRectF(0, 0, logical_size.width(), logical_size.height()))
+    item = QtWidgets.QGraphicsPixmapItem(shadow_pixmap)
+    blur = QtWidgets.QGraphicsBlurEffect()
+    blur.setBlurRadius(blur_radius)
+    blur.setBlurHints(QtWidgets.QGraphicsBlurEffect.BlurHint.QualityHint)
+    item.setGraphicsEffect(blur)
+    scene.addItem(item)
+    scene.render(
+        painter,
+        QtCore.QRectF(0, 0, logical_size.width(), logical_size.height()),
+        QtCore.QRectF(0, 0, logical_size.width(), logical_size.height()),
+    )
+
+
+def _make_drag_pixmap(QtCore, QtGui, QtWidgets, name, icon_name, folder=False, child_count=0, masked=False, source=None):
+    ghost = QtWidgets.QFrame()
+    ghost.setObjectName("RizumDragGhost")
+    ghost.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+    ghost.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
+    ghost.setAutoFillBackground(False)
+    ghost.setStyleSheet(
+        """
+QFrame#RizumDragGhost {
+    background: transparent;
+    border: 0;
+    color: #8f8f8f;
+}
+QFrame#RizumDragGhost QLabel,
+QFrame#RizumDragGhost QLabel:hover {
+    color: #8f8f8f;
+    background: transparent;
+    border: 0;
+}
+"""
+    )
+    layout = QtWidgets.QVBoxLayout(ghost) if folder and child_count else QtWidgets.QHBoxLayout(ghost)
+    layout.setContentsMargins(12, 8, 16, 8)
+    layout.setSpacing(4 if folder and child_count else 10)
+    header = QtWidgets.QHBoxLayout()
+    header.setContentsMargins(0, 0, 0, 0)
+    header.setSpacing(10)
+    icon_widget = make_tree_icon_label(
+        icon_name,
+        folder=folder,
+        masked=masked,
+        color="#ffffff" if folder else None,
+    )
+    header.addWidget(icon_widget)
+    label = QtWidgets.QLabel(name)
+    label.setObjectName("RizumDragGhostName")
+    label.setStyleSheet("color: #8f8f8f; font-weight: 400; background: transparent; border: 0;")
+    header.addWidget(label)
+    if isinstance(layout, QtWidgets.QVBoxLayout):
+        layout.addLayout(header)
+        meta = QtWidgets.QLabel(f"{child_count} item{'s' if child_count != 1 else ''}")
+        meta.setStyleSheet("color: #777777; font-size: 11px; background: transparent; border: 0; padding-left: 24px;")
+        layout.addWidget(meta)
+    else:
+        layout.addLayout(header)
+    layout.activate()
+    ghost.adjustSize()
+    ghost.resize(ghost.sizeHint())
+    ghost.ensurePolished()
+
+    dpr = _screen_dpr(QtWidgets, source)
+    logical_size = ghost.size()
+    shadow_margin = _DRAG_GHOST_SHADOW_MARGIN
+    pixmap = QtGui.QPixmap(
+        max(1, int(round((logical_size.width() + shadow_margin * 2) * dpr))),
+        max(1, int(round((logical_size.height() + shadow_margin * 2) * dpr))),
+    )
+    pixmap.setDevicePixelRatio(dpr)
+    pixmap.fill(QtCore.Qt.GlobalColor.transparent)
+    painter = QtGui.QPainter(pixmap)
+    painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+    card_rect = QtCore.QRectF(
+        shadow_margin + 0.5,
+        shadow_margin + 0.5,
+        ghost.width() - 1,
+        ghost.height() - 1,
+    )
+    pixmap_logical_size = QtCore.QSizeF(pixmap.deviceIndependentSize())
+    _paint_blurred_shadow(
+        QtCore, QtGui, QtWidgets, painter, pixmap_logical_size, dpr, card_rect, 15, 35, 96
+    )
+    _paint_blurred_shadow(
+        QtCore, QtGui, QtWidgets, painter, pixmap_logical_size, dpr, card_rect, 5, 15, 58
+    )
+    card_path = QtGui.QPainterPath()
+    card_path.addRoundedRect(card_rect, 8, 8)
+    painter.setPen(QtCore.Qt.PenStyle.NoPen)
+    fill_gradient = QtGui.QLinearGradient(card_rect.topLeft(), card_rect.topRight())
+    fill_gradient.setColorAt(0.0, QtGui.QColor(42, 42, 42, 166))
+    fill_gradient.setColorAt(0.68, QtGui.QColor(42, 42, 42, 132))
+    fill_gradient.setColorAt(1.0, QtGui.QColor(42, 42, 42, 52))
+    painter.setBrush(fill_gradient)
+    painter.drawPath(card_path)
+
+    painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+    stroke_gradient = QtGui.QLinearGradient(card_rect.topLeft(), card_rect.topRight())
+    stroke_gradient.setColorAt(0.0, QtGui.QColor(85, 85, 85, 92))
+    stroke_gradient.setColorAt(0.68, QtGui.QColor(85, 85, 85, 66))
+    stroke_gradient.setColorAt(1.0, QtGui.QColor(85, 85, 85, 16))
+    painter.setPen(QtGui.QPen(QtGui.QBrush(stroke_gradient), 1))
+    painter.drawPath(card_path)
+
+    content_pixmap = QtGui.QPixmap(pixmap.size())
+    content_pixmap.setDevicePixelRatio(dpr)
+    content_pixmap.fill(QtCore.Qt.GlobalColor.transparent)
+    content_painter = QtGui.QPainter(content_pixmap)
+    content_painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+    ghost.render(
+        content_painter,
+        QtCore.QPoint(shadow_margin, shadow_margin),
+        QtGui.QRegion(),
+        QtWidgets.QWidget.RenderFlag.DrawChildren,
+    )
+    content_painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_DestinationIn)
+    content_fade = QtGui.QLinearGradient(card_rect.topLeft(), card_rect.topRight())
+    content_fade.setColorAt(0.0, QtGui.QColor(255, 255, 255, 170))
+    content_fade.setColorAt(0.68, QtGui.QColor(255, 255, 255, 132))
+    content_fade.setColorAt(1.0, QtGui.QColor(255, 255, 255, 48))
+    content_painter.fillRect(QtCore.QRectF(0, 0, pixmap_logical_size.width(), pixmap_logical_size.height()), content_fade)
+    content_painter.end()
+
+    painter.setPen(QtCore.Qt.PenStyle.NoPen)
+    painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+    painter.drawPixmap(QtCore.QPoint(0, 0), content_pixmap)
+    painter.end()
+    return pixmap
+
+
+def _start_drag(QtCore, QtGui, QtWidgets, source, name, folder=False, child_count=0, masked=False):
+    drag = QtGui.QDrag(source)
+    mime = QtCore.QMimeData()
+    mime.setText(name)
+    mime.setData("application/x-rizum-layer-kind", b"folder" if folder else b"layer")
+    mime.setData("application/x-rizum-layer-masked", b"1" if masked else b"0")
+    drag.setMimeData(mime)
+    drag.setPixmap(
+        _make_drag_pixmap(
+            QtCore,
+            QtGui,
+            QtWidgets,
+            name,
+            "folder-filled.svg" if folder else "layers.svg",
+            folder=folder,
+            child_count=child_count,
+            masked=masked,
+            source=source,
+        )
+    )
+    drag.setHotSpot(QtCore.QPoint(15 + _DRAG_GHOST_SHADOW_MARGIN, 15 + _DRAG_GHOST_SHADOW_MARGIN))
+    return drag.exec(QtCore.Qt.DropAction.CopyAction)
+
+
+def make_drag_tree_item(
+    name,
+    icon_name="layers.svg",
+    folder=False,
+    draggable=False,
+    removable=False,
+    on_remove=None,
+    masked=False,
+    child=True,
+    parent=None,
+):
+    """Create the shared PT Bridge drag/drop tree row."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    class _DragRow(QtWidgets.QFrame):
+        def __init__(self):
+            super().__init__()
+            self._press_pos = None
+            self._drag_started = False
+            self.setObjectName("RizumDragTreeItem")
+            self.setProperty("child", "true" if child else "false")
+            self.setProperty("folder", bool(folder))
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+            self.setMouseTracking(True)
+            self.setCursor(
+                QtCore.Qt.CursorShape.OpenHandCursor
+                if draggable
+                else QtCore.Qt.CursorShape.PointingHandCursor
+            )
+            self.setFixedHeight(34)
+
+        def _set_hovered(self, is_hovered):
+            if self.property("hovered") == is_hovered:
+                return
+            self.setProperty("hovered", is_hovered)
+            self.style().unpolish(self)
+            self.style().polish(self)
+
+        def mousePressEvent(self, event):
+            self._set_hovered(True)
+            if draggable and event.button() == QtCore.Qt.MouseButton.LeftButton:
+                self._press_pos = event.position().toPoint()
+                self._drag_started = False
+            super().mousePressEvent(event)
+
+        def mouseMoveEvent(self, event):
+            self._set_hovered(True)
+            if not draggable or self._press_pos is None:
+                super().mouseMoveEvent(event)
+                return
+            distance = (event.position().toPoint() - self._press_pos).manhattanLength()
+            if distance < QtWidgets.QApplication.startDragDistance():
+                return
+            self._drag_started = True
+            self._press_pos = None
+            self.setProperty("dragging", True)
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
+            _start_drag(QtCore, QtGui, QtWidgets, self, name, folder, masked=masked)
+            self.setProperty("dragging", False)
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.setCursor(
+                QtCore.Qt.CursorShape.OpenHandCursor
+                if draggable
+                else QtCore.Qt.CursorShape.PointingHandCursor
+            )
+
+        def enterEvent(self, event):
+            super().enterEvent(event)
+            self._set_hovered(True)
+
+        def leaveEvent(self, event):
+            super().leaveEvent(event)
+            self._set_hovered(False)
+
+    class _RemoveButton(QtWidgets.QPushButton):
+        def __init__(self):
+            super().__init__("")
+            self.setObjectName("RizumRemoveButton")
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            self.setFixedSize(24, 24)
+
+        def paintEvent(self, event):
+            super().paintEvent(event)
+            if not self.underMouse():
+                return
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            pen = QtGui.QPen(QtGui.QColor("#ff453a"), 1.25)
+            pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            center = QtCore.QPointF(self.width() / 2, self.height() / 2)
+            half = 3.25
+            painter.drawLine(
+                QtCore.QPointF(center.x() - half, center.y() - half),
+                QtCore.QPointF(center.x() + half, center.y() + half),
+            )
+            painter.drawLine(
+                QtCore.QPointF(center.x() - half, center.y() + half),
+                QtCore.QPointF(center.x() + half, center.y() - half),
+            )
+            painter.end()
+
+    row = _DragRow()
+    row_layout = QtWidgets.QHBoxLayout(row)
+    row_layout.setContentsMargins(8, 4, 8, 4)
+    row_layout.setSpacing(10)
+    row_layout.addWidget(make_tree_icon_label(icon_name, folder=folder, masked=masked))
+
+    label = QtWidgets.QLabel(name)
+    label.setObjectName("RizumDragItemName")
+    label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+    row_layout.addWidget(label, 1)
+
+    if removable:
+        remove = _RemoveButton()
+        remove.clicked.connect(
+            lambda: on_remove(row._rizum_host)
+            if on_remove is not None
+            else row._rizum_host.deleteLater()
+        )
+        row_layout.addWidget(remove)
+
+    host = QtWidgets.QFrame(parent)
+    host.setObjectName("RizumDragTreeItemHost")
+    host.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+    host.setMouseTracking(True)
+    host.setFixedHeight(36 if child else 34)
+    host_layout = QtWidgets.QHBoxLayout(host)
+    host_layout.setContentsMargins(24 if child else 0, 0, 4 if child else 0, 0)
+    host_layout.setSpacing(0)
+    host_layout.addWidget(row)
+    host._rizum_row = row
+    host._rizum_label = label
+    host._rizum_name = name
+    host._rizum_folder = bool(folder)
+    host._rizum_masked = bool(masked)
+    row._rizum_host = host
+    row._rizum_label = label
+
+    def set_host_hovered(is_hovered):
+        row._set_hovered(is_hovered)
+
+    host.enterEvent = lambda event: set_host_hovered(True)
+    host.leaveEvent = lambda event: set_host_hovered(False)
+    return host
+
+
+def animate_drag_tree_item_added(item, group=None, duration=300):
+    """Reveal a newly dropped row with the PT Bridge slide-in timing."""
+    from PySide6 import QtCore, QtWidgets
+
+    row = getattr(item, "_rizum_row", item)
+    old_animation = getattr(item, "_rizum_added_animation", None)
+    if old_animation is not None:
+        old_animation.stop()
+    final_host_height = max(
+        1,
+        int(getattr(item, "_rizum_added_final_host_height", 0) or 0),
+        item.height() or 0,
+        item.sizeHint().height() or 0,
+        36,
+    )
+    final_row_height = max(
+        1,
+        int(getattr(row, "_rizum_added_final_row_height", 0) or 0),
+        row.height() or 0,
+        row.sizeHint().height() or 0,
+        34,
+    )
+    item.setProperty("added", True)
+    row.setProperty("added", True)
+    row.style().unpolish(row)
+    row.style().polish(row)
+    item.setFixedHeight(0)
+    row.setFixedHeight(0)
+    if group is not None:
+        group.refreshLayout()
+
+    opacity = QtWidgets.QGraphicsOpacityEffect(row)
+    opacity.setOpacity(0.0)
+    row.setGraphicsEffect(opacity)
+
+    height_animation = QtCore.QVariantAnimation(item)
+    height_animation.setStartValue(0)
+    height_animation.setEndValue(final_host_height)
+    height_animation.setDuration(duration)
+    height_animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+
+    def set_height(value):
+        host_height = int(round(value))
+        row_height = int(round(final_row_height * (host_height / final_host_height)))
+        item.setFixedHeight(host_height)
+        row.setFixedHeight(row_height)
+        if group is not None:
+            group.refreshLayout()
+
+    height_animation.valueChanged.connect(set_height)
+
+    opacity_animation = QtCore.QPropertyAnimation(opacity, b"opacity", item)
+    opacity_animation.setStartValue(0.0)
+    opacity_animation.setEndValue(1.0)
+    opacity_animation.setDuration(duration)
+    opacity_animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+
+    animation_group = QtCore.QParallelAnimationGroup(item)
+    animation_group.addAnimation(height_animation)
+    animation_group.addAnimation(opacity_animation)
+
+    def finish():
+        item.setFixedHeight(final_host_height)
+        row.setFixedHeight(final_row_height)
+        row.setGraphicsEffect(None)
+        item.setProperty("added", False)
+        row.setProperty("added", False)
+        row.style().unpolish(row)
+        row.style().polish(row)
+        if group is not None:
+            group.refreshLayout()
+
+    animation_group.finished.connect(finish)
+    item._rizum_added_animation = animation_group
+    animation_group.start()
 
 
 def make_spin_input(value=1.0, minimum=0.75, maximum=2.0, step=0.05, decimals=2):
@@ -892,13 +2267,18 @@ def make_combo_input(options=None):
             self._menu = None
             self._last_menu_close_ms = 0
             self._fit_to_contents = True
+            self._display_prefix = ""
+            self._display_value = ""
+            self._popup_alignment = "left"
 
             layout = QtWidgets.QHBoxLayout(self)
-            layout.setContentsMargins(8, 6, 10, 6)
+            layout.setContentsMargins(8, 4, 10, 4)
             layout.setSpacing(6)
             self._label = QtWidgets.QLabel()
             self._label.setObjectName("RizumMockText")
             self._label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            self._label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+            self._label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self._label.setMinimumWidth(0)
             self._label.setSizePolicy(
                 QtWidgets.QSizePolicy.Policy.Expanding,
@@ -918,6 +2298,8 @@ def make_combo_input(options=None):
         def clear(self):
             self._items = []
             self._current_index = -1
+            self._display_prefix = ""
+            self._display_value = ""
             self._label.setText("")
             if self._fit_to_contents:
                 self.setFixedWidth(0)
@@ -926,6 +2308,26 @@ def make_combo_input(options=None):
             self._items.append((text, userData))
             if self._current_index < 0:
                 self.setCurrentIndex(0)
+            self.fitToContents()
+
+        def setItems(self, items):
+            current_data = self.currentData()
+            self._items = []
+            self._current_index = -1
+            self._label.setText("")
+            for item in items or []:
+                if isinstance(item, tuple):
+                    self._items.append((item[0], item[1]))
+                else:
+                    self._items.append((item, item))
+            next_index = 0
+            if current_data is not None:
+                for index, item in enumerate(self._items):
+                    if item[1] == current_data:
+                        next_index = index
+                        break
+            if self._items:
+                self.setCurrentIndex(next_index)
             self.fitToContents()
 
         def setFitToContents(self, enabled):
@@ -941,7 +2343,10 @@ def make_combo_input(options=None):
             if not self._fit_to_contents or not self._items:
                 return
             metrics = self._label.fontMetrics()
-            text_width = max(metrics.horizontalAdvance(str(item[0])) for item in self._items)
+            display_texts = [str(item[0]) for item in self._items]
+            if self._display_prefix or self._display_value:
+                display_texts.append(f"{self._display_prefix} {self._display_value}".strip())
+            text_width = max(metrics.horizontalAdvance(text) for text in display_texts)
             margins = self.layout().contentsMargins()
             width = (
                 text_width
@@ -953,6 +2358,32 @@ def make_combo_input(options=None):
             )
             self._label.setMinimumWidth(text_width)
             self.setFixedWidth(width)
+
+        def refreshMetrics(self):
+            self.fitToContents()
+
+        def setCompactHeight(self, height):
+            height = int(height)
+            self.setFixedHeight(height)
+            vertical_margin = 3 if height <= 28 else 4
+            self.layout().setContentsMargins(8, vertical_margin, 10, vertical_margin)
+            self._label.setMinimumHeight(max(0, height - vertical_margin * 2))
+            self.fitToContents()
+
+        def setPopupAlignment(self, alignment):
+            self._popup_alignment = "right" if str(alignment).lower() == "right" else "left"
+
+        def setDisplayParts(self, prefix, value):
+            self._display_prefix = str(prefix)
+            self._display_value = str(value)
+            self._label.setText(
+                '<span style="color:#666666; font-weight:400;">'
+                + escape(self._display_prefix)
+                + '</span> <span style="color:#e0e0e0;">'
+                + escape(self._display_value)
+                + "</span>"
+            )
+            self.fitToContents()
 
         def showEvent(self, event):
             super().showEvent(event)
@@ -984,7 +2415,10 @@ def make_combo_input(options=None):
                 return
             changed = index != self._current_index
             self._current_index = index
-            self._label.setText(self._items[index][0])
+            if self._display_prefix:
+                self.setDisplayParts(self._display_prefix, self._items[index][0])
+            else:
+                self._label.setText(self._items[index][0])
             if changed:
                 self.currentIndexChanged.emit(index)
 
@@ -1020,7 +2454,9 @@ def make_combo_input(options=None):
             self._menu = menu
             menu.aboutToHide.connect(self._close_menu)
             self._arrow.setOpen(True)
-            menu.popup(self.mapToGlobal(QtCore.QPoint(0, self.height() + 4)))
+            menu_width = menu.sizeHint().width()
+            popup_x = self.width() - menu_width if self._popup_alignment == "right" else 0
+            menu.popup(self.mapToGlobal(QtCore.QPoint(popup_x, self.height() + 4)))
 
         def _close_menu(self):
             self._arrow.setOpen(False)

@@ -28,7 +28,7 @@ QFrame#RizumCard {{
 }}
 
 QFrame#RizumCard:hover {{
-    border-color: {theme.border_hover};
+    border-color: transparent;
 }}
 
 QFrame#RizumDialogCard {{
@@ -146,7 +146,7 @@ QPushButton[variant="dialog-secondary"] {{
     border: 1px solid transparent;
     border-radius: 13px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 400;
 }}
 
 QPushButton[variant="dialog-secondary"]:hover {{
@@ -166,7 +166,7 @@ QPushButton[variant="dialog-primary"] {{
     border: 1px solid transparent;
     border-radius: 13px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
 }}
 
 QPushButton[variant="dialog-primary"]:hover {{
@@ -255,6 +255,16 @@ QFrame#RizumCollapsibleGroup:hover {{
     border: 0;
 }}
 
+QFrame#RizumCollapsibleGroup[hovered="true"] {{
+    background: rgba(255, 255, 255, 0.04);
+    border: 0;
+}}
+
+QFrame#RizumCollapsibleGroup[variant="drag"][dragging="true"] {{
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid transparent;
+}}
+
 QFrame#RizumCollapsibleHeader,
 QFrame#RizumCollapsibleContent,
 QWidget#RizumCollapsibleContentInner,
@@ -284,8 +294,93 @@ QLabel#RizumCollapsibleSubtitle {{
     border: 0;
 }}
 
+QFrame#RizumCollapsibleGroup[variant="drag"] QLabel#RizumCollapsibleTitle,
+QFrame#RizumCollapsibleGroup[variant="drag"] QLabel#RizumCollapsibleSubtitle {{
+    font-weight: 400;
+}}
+
 QLabel#RizumCollapsibleTitle:hover,
 QLabel#RizumCollapsibleSubtitle:hover {{
+    background: transparent;
+    border: 0;
+}}
+
+QFrame#RizumDragTreeItemHost {{
+    background: transparent;
+    border: 0;
+}}
+
+QFrame#RizumDragTreeItem {{
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+}}
+
+QFrame#RizumDragTreeItem:hover {{
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid transparent;
+}}
+
+QFrame#RizumDragTreeItem[hovered="true"] {{
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid transparent;
+}}
+
+QFrame#RizumDragTreeItem[dragging="true"] {{
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid transparent;
+}}
+
+QFrame#RizumDragTreeItem[dragging="true"] QLabel,
+QFrame#RizumDragTreeItem[dragging="true"] QLabel#RizumSvgLabel {{
+    color: rgba(224, 224, 224, 0.2);
+}}
+
+QFrame#RizumDragTreeItem[added="true"] {{
+    background: rgba(255, 255, 255, 0.12);
+}}
+
+QLabel#RizumDragItemName,
+QLabel#RizumDragItemName:hover,
+QLabel#RizumDragItemName:focus {{
+    color: {theme.text};
+    font-size: 13px;
+    font-weight: 400;
+    background: transparent;
+    border: 0;
+    outline: 0;
+}}
+
+QPushButton#RizumRemoveButton {{
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    color: transparent;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 400;
+    text-align: center;
+}}
+
+QFrame#RizumDragTreeItem:hover QPushButton#RizumRemoveButton {{
+    color: transparent;
+}}
+
+QFrame#RizumDragTreeItem[hovered="true"] QPushButton#RizumRemoveButton {{
+    color: transparent;
+}}
+
+QPushButton#RizumRemoveButton:hover {{
+    color: {theme.danger};
+    background: rgba(255, 69, 58, 44);
+    border: 0;
+}}
+
+QWidget#RizumControlSlot {{
     background: transparent;
     border: 0;
 }}
@@ -349,6 +444,14 @@ QFrame#RizumCard {{
 QLabel {{
     color: {theme.text};
     background: transparent;
+    border: 0;
+}}
+
+QLabel:hover,
+QLabel:focus {{
+    background: transparent;
+    border: 0;
+    outline: 0;
 }}
 
 QLabel[muted="true"] {{
@@ -532,10 +635,13 @@ QScrollBar::handle:hover {{
 
 QToolTip {{
     color: {theme.text};
-    background: {theme.surface_raised};
-    border: 1px solid {theme.border};
-    border-radius: {radius_small}px;
-    padding: 5px 7px;
+    background: {theme.surface};
+    border: 1px solid #414141;
+    border-radius: 5px;
+    padding: 1px 6px;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 400;
 }}
 """ + overlay
 

@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pt Bridge - Card Drag & Drop</title>
+<style>
+    :root {
+        /* Pro Dark Theme */
+        --bg-app: #111111;
+        --bg-window: #1b1b1b;
+        --bg-column: #222222; 
+        --border-color: #414141;
+        --text-primary: #E0E0E0;
+        --text-secondary: #9E9E9E;
+        --text-tertiary: #666666;
+        --accent-blue: #1473E6;
+        
+        --shadow-col: 0 4px 20px rgba(0,0,0,0.3);
+        --hover-overlay: rgba(255, 255, 255, 0.05);
+        --child-hover: rgba(255, 255, 255, 0.08);
+
+        --panel-width: 580px;
+        --top-height: 40px; 
+        
+        --line-margin: 12px;
+        --radius-window: 10px;
+        --radius-item: 6px;
+        --radius-group: 8px;
+        --btn-radius: 100px;
+        
+        --transition: 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    /* Apple Light Theme */
+    [data-theme="light"] {
+        --bg-app: #F2F2F7;
+        --bg-window: #FFFFFF;
+        --bg-column: #FFFFFF; 
+        --border-color: #E5E5E5;
+        --text-primary: #1D1D1F;
+        --text-secondary: #86868B;
+        --text-tertiary: #999999;
+        --shadow-col: 0 8px 30px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04); 
+        --hover-overlay: rgba(0, 0, 0, 0.03);
+        --child-hover: rgba(0, 0, 0, 0.05);
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-app);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        transition: background 0.3s ease;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .theme-toggle { margin-bottom: 20px; display: flex; gap: 10px; }
+    .theme-btn {
+        padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border-color);
+        background: var(--bg-window); color: var(--text-primary); cursor: pointer; font-size: 12px; font-weight: 600;
+    }
+
+    .bridge-window {
+        width: var(--panel-width);
+        background: var(--bg-window);
+        border-radius: var(--radius-window);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        border: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* --- Headers & Action Bar --- */
+    .header, .action-bar {
+        height: var(--top-height);
+        display: flex; align-items: center; padding: 0 16px; position: relative;
+    }
+    .header { font-weight: 600; font-size: 13px; justify-content: space-between; }
+    .header::after, .action-bar::after {
+        content: ''; position: absolute; bottom: 0; left: var(--line-margin); right: var(--line-margin);
+        height: 1px; background: var(--border-color);
+    }
+
+    .action-bar { justify-content: space-between; }
+    .left-actions, .right-actions { display: flex; align-items: center; gap: 4px; }
+
+    .mock-select {
+        display: flex; align-items: center; justify-content: space-between; gap: 4px;
+        width: auto; font-size: 12px; font-weight: 500; cursor: pointer; padding: 4px 8px;
+        border-radius: 6px; transition: 0.15s;
+    }
+    .mock-select:hover { background: var(--hover-overlay); }
+    .mock-select .icon { width: 10px; height: 10px; opacity: 0.6; }
+    
+    .select-label { color: var(--text-tertiary); font-weight: 400; }
+    .select-value { color: var(--text-primary); }
+
+    .icon-btn {
+        width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+        border-radius: 6px; cursor: pointer; color: var(--text-secondary); transition: 0.15s;
+    }
+    .icon-btn:hover { background: var(--hover-overlay); color: var(--text-primary); }
+
+    /* --- Main Content --- */
+    .main-content {
+        display: flex;
+        padding: 16px;
+        gap: 16px;
+        flex: 1;
+    }
+
+    .column {
+        flex: 1;
+        background: var(--bg-column);
+        border-radius: var(--radius-group);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 300px;
+        box-shadow: var(--shadow-col);
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color); 
+    }
+    [data-theme="light"] .column { border: none; }
+
+    .column-header {
+        padding: 12px 16px 10px;
+        display: flex; flex-direction: column; gap: 2px; position: relative;
+    }
+    .column-header::after {
+        content: ''; position: absolute; bottom: 0; left: var(--line-margin); right: var(--line-margin);
+        height: 1px; background: var(--border-color);
+    }
+    
+    .column-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); }
+    .column-sub { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
+
+    /* --- Tree View Area --- */
+    .tree-view { padding: 8px; flex: 1; overflow-y: auto; }
+
+    .group-container {
+        margin-bottom: 4px; border-radius: var(--radius-group); transition: background 0.2s ease; padding: 2px 0;
+    }
+    .group-container:hover { background: var(--hover-overlay); }
+
+    /* ----------------------------------------------------
+       DRAG AND DROP STYLES 
+    ---------------------------------------------------- */
+    
+    .tree-item {
+        display: flex; align-items: center; padding: 8px 10px; border-radius: var(--radius-item);
+        cursor: pointer; gap: 10px; position: relative; transition: all 0.15s;
+    }
+
+    .child-item { 
+        margin-left: 24px; 
+        margin-right: 4px; 
+        margin-bottom: 2px; 
+        transform: translateZ(0);
+    }
+    .child-item:hover { 
+        background: var(--child-hover) !important; 
+        transform: none; 
+    }
+
+    .hover-action {
+        position: absolute; right: 8px; width: 22px; height: 22px;
+        display: flex; align-items: center; justify-content: center; border-radius: 4px;
+        color: var(--text-tertiary); opacity: 0; transition: 0.15s;
+    }
+    .tree-item:hover .hover-action { opacity: 1; }
+    
+    .drag-handle { cursor: grab; }
+    .drag-handle:active { cursor: grabbing; }
+    
+    .remove-btn { font-size: 14px; font-weight: bold; }
+    .remove-btn:hover { background: rgba(255, 69, 58, 0.1); color: #ff453a; }
+
+    /* --- 原本项在拖拽时的占位符样式 (Placeholder) --- */
+    .is-dragging {
+        background: rgba(0, 0, 0, 0.2) !important; /* 变成一个深色的凹槽 */
+        border: 1px dashed var(--border-color);
+        box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
+    }
+    [data-theme="light"] .is-dragging {
+        background: rgba(0, 0, 0, 0.03) !important;
+        box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .is-dragging > * {
+        opacity: 0.2; /* 内部元素极度变暗，表示已被拿走 */
+    }
+
+    /* --- Custom Drag Ghost Card (用于未来多选/文件夹的卡片设计) --- */
+    .drag-card {
+        background: #2a2a2a; 
+        border: 1px solid #555555;
+        border-radius: 8px;
+        padding: 8px 16px 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.8), 0 5px 15px rgba(0,0,0,0.4);
+        color: #E0E0E0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        /* 为了未来多选准备的堆叠层视觉 */
+        position: relative;
+    }
+    .drag-card::after {
+        content: '';
+        position: absolute;
+        top: 3px; left: 3px; right: -3px; bottom: -3px;
+        border: 1px solid #444;
+        border-radius: 8px;
+        z-index: -1;
+        background: #222;
+        display: none; /* 单选时隐藏，多选时可以通过 JS 打开 */
+    }
+    .drag-card.multi-select::after {
+        display: block;
+    }
+    .drag-badge {
+        background: var(--accent-blue);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 10px;
+        margin-left: 4px;
+        display: none;
+    }
+    .drag-card.multi-select .drag-badge {
+        display: block;
+    }
+
+    /* Drop Zone Indicators */
+    .drop-zone { position: relative; }
+    
+    .drag-over-container {
+        background: rgba(255, 255, 255, 0.02);
+        box-shadow: inset 0 0 0 1px var(--accent-blue);
+    }
+    [data-theme="light"] .drag-over-container { background: rgba(0, 0, 0, 0.02); }
+
+    .drag-over-top::before {
+        content: ''; position: absolute; top: -2px; left: 0; right: 0; height: 2px;
+        background: var(--accent-blue); z-index: 10; border-radius: 2px;
+    }
+    .drag-over-bottom::after {
+        content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px;
+        background: var(--accent-blue); z-index: 10; border-radius: 2px;
+    }
+
+    .drag-over-group { background: rgba(20, 115, 230, 0.1) !important; }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .item-added {
+        animation: slideIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        background: rgba(20, 115, 230, 0.15) !important;
+    }
+
+    /* Icons */
+    .icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; }
+    .icon-folder { color: var(--accent-blue); fill: currentColor; fill-opacity: 0.1; }
+    .icon-layer { color: var(--text-secondary); }
+    .chevron { width: 12px; height: 12px; transition: var(--transition); color: var(--text-secondary); }
+    .expanded .chevron { transform: rotate(90deg); }
+    
+    .item-name { font-size: 13px; font-weight: 500; pointer-events: none; }
+
+    /* Accordion */
+    .content-wrapper { display: grid; grid-template-rows: 0fr; transition: var(--transition); }
+    .expanded .content-wrapper { grid-template-rows: 1fr; }
+    .content { overflow: hidden; min-height: 20px; }
+    .svg-icon { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body data-theme="dark">
+
+    <div class="theme-toggle">
+        <button class="theme-btn" onclick="setTheme('light')">Apple Light</button>
+        <button class="theme-btn" onclick="setTheme('dark')">Pro Dark</button>
+    </div>
+
+    <!-- Hidden Drag Ghost Card Container -->
+    <div style="position: absolute; top: -1000px; left: -1000px; pointer-events: none;">
+        <div id="drag-ghost" class="drag-card">
+            <svg class="icon icon-layer" viewBox="0 0 24 24" style="color:#9E9E9E"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon></svg>
+            <span id="ghost-name">Layer Name</span>
+            <div id="ghost-badge" class="drag-badge">3</div>
+        </div>
+    </div>
+
+    <div class="bridge-window">
+        <div class="header">
+            <span>Pt Bridge</span>
+            <svg class="svg-icon" style="cursor:pointer; opacity:0.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </div>
+
+        <div class="action-bar">
+            <div class="left-actions">
+                <div class="mock-select" title="Target Texture Set">
+                    <span class="select-label">Texture Set:</span>
+                    <span class="select-value">M_Body</span>
+                    <svg class="icon" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+                
+                <div class="mock-select" title="Target Channel">
+                    <span class="select-label">Channel:</span>
+                    <span class="select-value">BaseColor</span>
+                    <svg class="icon" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+            </div>
+
+            <div class="right-actions">
+                <div class="icon-btn" title="Undo"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg></div>
+                <div class="icon-btn" title="Redo"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 3.7"></path></svg></div>
+                <div style="width: 1px; height: 14px; background: var(--border-color); margin: 0 4px;"></div>
+                <div class="icon-btn" title="Apply Transfer" style="color: var(--accent-blue);">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Left Column (Source) -->
+            <div class="column">
+                <div class="column-header">
+                    <span class="column-title">Source: Photoshop</span>
+                    <span class="column-sub">BaseColor.psd</span>
+                </div>
+                <div class="tree-view" id="source-tree">
+                    <div class="group-container expanded">
+                        <div class="tree-item" onclick="toggle(this)">
+                            <svg class="icon chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            <svg class="icon icon-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                            <span class="item-name">Body Textures</span>
+                        </div>
+                        <div class="content-wrapper">
+                            <div class="content">
+                                <!-- Draggable Item 1 -->
+                                <div class="tree-item child-item draggable-item" draggable="true">
+                                    <svg class="icon icon-layer" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon></svg>
+                                    <span class="item-name">Main_Layer</span>
+                                    <div class="hover-action drag-handle">
+                                        <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg>
+                                    </div>
+                                </div>
+                                <!-- Draggable Item 2 -->
+                                <div class="tree-item child-item draggable-item" draggable="true">
+                                    <svg class="icon icon-layer" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon></svg>
+                                    <span class="item-name">Details_Pass</span>
+                                    <div class="hover-action drag-handle">
+                                        <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg>
+                                    </div>
+                                </div>
+                                <!-- Draggable Folder Example -->
+                                <div class="tree-item child-item draggable-item" draggable="true" data-type="folder">
+                                    <svg class="icon icon-folder" viewBox="0 0 24 24" style="color:var(--text-secondary); fill:none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                    <span class="item-name">Effects_Group</span>
+                                    <div class="hover-action drag-handle">
+                                        <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column (Target/Dropzone) -->
+            <div class="column drop-target-col" id="target-col">
+                <div class="column-header">
+                    <span class="column-title">Target: Painter</span>
+                    <span class="column-sub">M_Body · BaseColor</span>
+                </div>
+                <div class="tree-view" id="target-tree">
+                    <div class="group-container expanded drop-target-group">
+                        <div class="tree-item" onclick="toggle(this)">
+                            <svg class="icon chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            <svg class="icon icon-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                            <span class="item-name">Target Group</span>
+                        </div>
+                        <div class="content-wrapper">
+                            <div class="content target-content-area">
+                                <!-- Existing Target Item -->
+                                <div class="tree-item child-item drop-zone">
+                                    <svg class="icon icon-layer" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon></svg>
+                                    <span class="item-name">Dirt_Overlay</span>
+                                    <div class="hover-action remove-btn" onclick="this.closest('.tree-item').remove()">×</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function setTheme(theme) { document.body.setAttribute('data-theme', theme); }
+        function toggle(el) { el.closest('.group-container').classList.toggle('expanded'); }
+
+        // --- Drag and Drop Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const draggables = document.querySelectorAll('.draggable-item');
+            const targetCol = document.getElementById('target-col');
+            const targetContentArea = document.querySelector('.target-content-area');
+            const ghostEl = document.getElementById('drag-ghost');
+            const ghostName = document.getElementById('ghost-name');
+            const ghostBadge = document.getElementById('ghost-badge');
+            let draggedElement = null;
+
+            // 1. Setup Draggable Items
+            draggables.forEach(draggable => {
+                draggable.addEventListener('dragstart', (e) => {
+                    draggedElement = draggable;
+                    const name = draggable.querySelector('.item-name').innerText;
+                    const isFolder = draggable.getAttribute('data-type') === 'folder';
+                    
+                    e.dataTransfer.setData('text/plain', name);
+                    e.dataTransfer.effectAllowed = 'copyMove';
+
+                    // --- Build Custom Drag Card ---
+                    ghostName.innerText = name;
+                    
+                    // Modify Ghost icon based on type (Folder vs Layer)
+                    const svgIcon = ghostEl.querySelector('svg');
+                    if(isFolder) {
+                        svgIcon.innerHTML = '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>';
+                        svgIcon.style.color = 'var(--accent-blue)';
+                    } else {
+                        svgIcon.innerHTML = '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>';
+                        svgIcon.style.color = '#9E9E9E';
+                    }
+
+                    // For future multi-select demo, you can toggle this class:
+                    // ghostEl.classList.add('multi-select');
+                    // ghostBadge.innerText = '3';
+
+                    // Attach custom drag image (offset by 15px so cursor sits nicely inside)
+                    e.dataTransfer.setDragImage(ghostEl, 15, 15);
+
+                    // Change original item to a "hollow placeholder" slot
+                    setTimeout(() => draggable.classList.add('is-dragging'), 0);
+                });
+
+                draggable.addEventListener('dragend', () => {
+                    draggable.classList.remove('is-dragging');
+                    draggedElement = null;
+                    clearDropHighlights();
+                });
+            });
+
+            // 2. Setup Drop Zone
+            targetCol.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                e.dataTransfer.dropEffect = 'copy';
+                targetCol.classList.add('drag-over-container');
+
+                const afterElement = getDragAfterElement(targetContentArea, e.clientY);
+                clearDropHighlights();
+
+                if (afterElement) {
+                    afterElement.classList.add('drag-over-top');
+                } else {
+                    const lastItem = targetContentArea.lastElementChild;
+                    if(lastItem) lastItem.classList.add('drag-over-bottom');
+                }
+            });
+
+            targetCol.addEventListener('dragleave', () => {
+                targetCol.classList.remove('drag-over-container');
+                clearDropHighlights();
+            });
+
+            targetCol.addEventListener('drop', (e) => {
+                e.preventDefault();
+                targetCol.classList.remove('drag-over-container');
+                clearDropHighlights();
+
+                const layerName = e.dataTransfer.getData('text/plain');
+                if (!layerName) return;
+
+                // Determine if we dragged a folder or layer (by checking dragged element)
+                const isFolder = draggedElement && draggedElement.getAttribute('data-type') === 'folder';
+
+                const newItem = createTargetItem(layerName, isFolder);
+                
+                const afterElement = getDragAfterElement(targetContentArea, e.clientY);
+                if (afterElement) {
+                    targetContentArea.insertBefore(newItem, afterElement);
+                } else {
+                    targetContentArea.appendChild(newItem);
+                }
+
+                const group = targetContentArea.closest('.group-container');
+                if (!group.classList.contains('expanded')) {
+                    group.classList.add('expanded');
+                }
+
+                setTimeout(() => {
+                    newItem.classList.remove('item-added');
+                    newItem.style.background = '';
+                }, 400);
+            });
+
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('.child-item:not(.is-dragging)')];
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2; 
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            function clearDropHighlights() {
+                document.querySelectorAll('.drag-over-top').forEach(el => el.classList.remove('drag-over-top'));
+                document.querySelectorAll('.drag-over-bottom').forEach(el => el.classList.remove('drag-over-bottom'));
+            }
+
+            function createTargetItem(name, isFolder) {
+                const div = document.createElement('div');
+                div.className = 'tree-item child-item drop-zone item-added';
+                
+                const iconSvg = isFolder 
+                    ? `<svg class="icon icon-folder" viewBox="0 0 24 24" style="color:var(--text-secondary); fill:none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`
+                    : `<svg class="icon icon-layer" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon></svg>`;
+
+                div.innerHTML = `
+                    ${iconSvg}
+                    <span class="item-name">${name}</span>
+                    <div class="hover-action remove-btn" onclick="this.closest('.tree-item').remove()">×</div>
+                `;
+                return div;
+            }
+        });
+    </script>
+</body>
+</html>
