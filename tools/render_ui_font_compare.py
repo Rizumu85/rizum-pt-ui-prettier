@@ -246,16 +246,13 @@ QPushButton#ReferenceApply {{
 def render_preview(QtWidgets):
     import preview
     from rizum_ui import (
-        apply_palette_file,
         apply_painter_like_base,
         build_painter_host_preview_stylesheet,
         build_stylesheet,
     )
 
     app = QtWidgets.QApplication.instance()
-    palette_path = ROOT / "preview-host-palette.json"
-    if not apply_palette_file(app, palette_path):
-        apply_painter_like_base(app)
+    apply_painter_like_base(app)
     app.setStyleSheet(build_painter_host_preview_stylesheet() + build_stylesheet())
 
     return preview.build_font_preview(QtWidgets)

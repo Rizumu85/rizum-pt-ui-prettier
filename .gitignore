@@ -1,3 +1,6 @@
 node_modules/
 __pycache__/
 *.pyc
+tmp/
+visual-diff/
+.pytest_cache/

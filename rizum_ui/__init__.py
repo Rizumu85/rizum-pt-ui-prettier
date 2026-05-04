@@ -3,10 +3,8 @@
 from .theme import Theme, default_theme
 from .stylesheet import build_stylesheet, apply_theme
 from .host_style import (
-    apply_palette_file,
     apply_painter_like_base,
     build_painter_host_preview_stylesheet,
-    save_app_palette,
 )
 from .components import (
     ActionButton,
@@ -83,7 +81,6 @@ __all__ = [
     "bind_hover_state",
     "apply_theme",
     "apply_painter_like_base",
-    "apply_palette_file",
     "build_compact_dock_stylesheet",
     "compact_action_bar_width",
     "compact_footer_button_width",
@@ -92,7 +89,6 @@ __all__ = [
     "compact_text_width",
     "compact_top_controls_width",
     "build_painter_host_preview_stylesheet",
-    "save_app_palette",
     "build_stylesheet",
     "default_theme",
     "make_action_row",

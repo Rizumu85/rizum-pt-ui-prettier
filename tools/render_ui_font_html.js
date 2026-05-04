@@ -1,10 +1,12 @@
 const path = require("path");
+const fs = require("fs");
 const { chromium } = require("playwright");
 
 async function main() {
   const root = path.resolve(__dirname, "..");
-  const htmlPath = path.join(root, "pt-ui-font-gemini.html");
+  const htmlPath = path.join(root, "references", "html", "pt-ui-font-gemini.html");
   const outPath = path.join(root, "visual-diff", "ui-font-html.png");
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({
     viewport: { width: 900, height: 700 },

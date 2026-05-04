@@ -43,6 +43,12 @@ python preview.py --scale-1x
 
 Use `--scale-1x` only for external visual debugging. Painter should keep its normal Qt DPI behavior.
 
+The browser-based visual diff helpers use Playwright. Install the local Node dependencies before running those tools:
+
+```powershell
+npm install
+```
+
 You can keep Substance 3D Painter open while this preview runs. The preview is a separate Python process, so iterating on `theme.py`, `stylesheet.py`, or `components.py` does not require Painter or a Painter plugin reload. Changes to `preview.py` itself still require restarting the preview process.
 
 ## Painter Preview Dock
@@ -53,7 +59,7 @@ Use it as the final visual check before wiring the component library into anothe
 
 ## Current Handoff
 
-Before continuing animation, icon, or compact-control work, read `analysis.md`, especially `Handoff Notes For Next Session`. It records the live Painter findings for dropdown arrows, the icon-button rendering standard, combo sizing, and collapsible row animation so the next session does not repeat failed approaches.
+Before continuing animation, icon, or compact-control work, read `docs/analysis.md`, especially `Handoff Notes For Next Session`. It records the live Painter findings for dropdown arrows, the icon-button rendering standard, combo sizing, and collapsible row animation so the next session does not repeat failed approaches.
 
 The standalone preview now uses a fixed Painter-like host baseline instead of reading a palette exported from Painter. Use live Painter checks only as final visual validation before vendoring the shared UI kit into a plugin.
 
@@ -112,3 +118,12 @@ python tools/sync_vendor.py --target ..\rizum-pt-to-ps-bridge --apply
 ```
 
 The sync copies only `rizum_ui/*.py` and `icons/*.svg`, then writes `rizum_ui_vendor_manifest.json` into the target plugin. Stale files are kept by default; pass `--delete-stale` with `--apply` only when you want to remove files that were listed in a previous manifest but are no longer part of the shared snapshot.
+
+## Directory Map
+
+- `rizum_ui/` and `icons/`: the reusable PySide6 component package and shared SVG assets.
+- `preview.py`: the standalone component preview app.
+- `tools/`: visual comparison and vendoring utilities.
+- `docs/`: project notes, integration guidance, design rationale, and handoff plans.
+- `references/html/` and `references/media/`: source mockups and animation references used while matching the UI.
+- `tmp/` and `visual-diff/`: generated local screenshots; ignored and safe to regenerate.

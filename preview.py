@@ -768,26 +768,8 @@ QPlainTextEdit#RizumLabOutput QAbstractScrollArea::corner {
     return card
 
 
-def build_dock_actions_preview(QtWidgets):
-    """Build the dock actions reference panel from dock_actions_pro_v3.html."""
-    from PySide6 import QtCore
-
-    page = QtWidgets.QWidget()
-    page.setObjectName("RizumDockActionsPreview")
-    layout = QtWidgets.QVBoxLayout(page)
-    layout.setContentsMargins(0, 12, 0, 0)
-    layout.setSpacing(0)
-    layout.addWidget(
-        make_dock_actions_panel(),
-        0,
-        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
-    )
-    layout.addStretch(1)
-    return page
-
-
 def build_settings_preview(QtWidgets):
-    """Build the PT Bridge settings reference panel from pt-bridge-settings-gemini.html."""
+    """Build the PT Bridge settings reference panel from references/html settings mockups."""
     from PySide6 import QtCore, QtGui, QtWidgets as _QtWidgets
 
     themes = {

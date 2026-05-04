@@ -2,25 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
-
-PALETTE_ROLES = [
-    "Window",
-    "WindowText",
-    "Base",
-    "AlternateBase",
-    "ToolTipBase",
-    "ToolTipText",
-    "Text",
-    "Button",
-    "ButtonText",
-    "BrightText",
-    "Highlight",
-    "HighlightedText",
-]
-
 
 def apply_painter_like_base(app):
     """Apply a dark Qt baseline that approximates Painter's host chrome."""
@@ -527,75 +508,3 @@ QProgressBar::chunk {
     background: #1473e6;
 }
 """
-
-
-def capture_app_palette(app):
-    """Return a serializable snapshot of the current QApplication palette."""
-    from PySide6 import QtGui
-
-    palette = app.palette()
-    values = {}
-    for role_name in PALETTE_ROLES:
-        role = getattr(QtGui.QPalette.ColorRole, role_name)
-        values[role_name] = palette.color(role).name()
-    return values
-
-
-def save_app_palette(app, path):
-    """Write the current QApplication palette snapshot to disk."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "schema_version": 1,
-        "palette": capture_app_palette(app),
-    }
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    return path
-
-
-def apply_palette_file(app, path):
-    """Apply a palette JSON exported from the Painter preview plugin."""
-    from PySide6 import QtGui, QtWidgets
-
-    path = Path(path)
-    if not path.exists():
-        return False
-
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    values = payload.get("palette") or {}
-    if not values:
-        return False
-    if not _looks_dark(values):
-        return False
-
-    app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
-    palette = app.palette()
-    for role_name, color_value in values.items():
-        role = getattr(QtGui.QPalette.ColorRole, role_name, None)
-        if role is None:
-            continue
-        palette.setColor(role, QtGui.QColor(color_value))
-    app.setPalette(palette)
-    return True
-
-
-def _looks_dark(values):
-    candidates = [
-        values.get("Window"),
-        values.get("Base"),
-        values.get("Button"),
-    ]
-    colors = [value for value in candidates if value]
-    if not colors:
-        return False
-    return sum(_luminance(value) for value in colors) / len(colors) < 145
-
-
-def _luminance(hex_color):
-    value = hex_color.lstrip("#")
-    if len(value) != 6:
-        return 255
-    red = int(value[0:2], 16)
-    green = int(value[2:4], 16)
-    blue = int(value[4:6], 16)
-    return 0.2126 * red + 0.7152 * green + 0.0722 * blue

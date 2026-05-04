@@ -17,7 +17,6 @@ try:
         SectionHeader,
         StatusPill,
         apply_theme,
-        save_app_palette,
     )
 except Exception as exc:
     _IMPORT_ERROR = exc
@@ -30,10 +29,8 @@ _DOCK = None
 
 class UiPrettierPreviewPanel:
     def __init__(self):
-        from PySide6 import QtGui, QtWidgets
+        from PySide6 import QtWidgets
 
-        self.QtGui = QtGui
-        self.QtWidgets = QtWidgets
         self.widget = QtWidgets.QWidget()
         self.widget.setObjectName("RizumSurface")
         self.widget.setWindowTitle("UI Prettier")
@@ -45,44 +42,12 @@ class UiPrettierPreviewPanel:
         layout.addWidget(
             SectionHeader(
                 "UI Prettier",
-                "Live preview inside Painter using the real host palette.",
+                "Live preview inside Painter using the real host UI.",
             )
         )
 
-        layout.addWidget(self._build_palette_card())
         layout.addWidget(self._build_component_card(), 1)
         layout.addStretch(1)
-
-    def _build_palette_card(self):
-        from PySide6 import QtWidgets
-
-        card = Card.create()
-        layout = card.layout()
-        layout.addWidget(SectionHeader("Host Palette", "Export this palette for external preview matching."))
-
-        row = QtWidgets.QHBoxLayout()
-        app = QtWidgets.QApplication.instance()
-        palette = app.palette()
-        for role_name in ["Window", "Base", "Button", "Text", "Highlight"]:
-            role = getattr(self.QtGui.QPalette.ColorRole, role_name)
-            color = palette.color(role)
-            swatch = QtWidgets.QLabel(role_name)
-            swatch.setMinimumHeight(28)
-            swatch.setStyleSheet(
-                f"background: {color.name()}; border: 1px solid #555; border-radius: 5px; padding: 4px 6px;"
-            )
-            row.addWidget(swatch)
-        layout.addLayout(row)
-
-        export_button = ActionButton.create("Export Palette", "primary")
-        export_button.clicked.connect(self.export_palette)
-        self.status = StatusPill("Not exported", "neutral")
-        action_row = QtWidgets.QHBoxLayout()
-        action_row.addWidget(self.status)
-        action_row.addStretch(1)
-        action_row.addWidget(export_button)
-        layout.addLayout(action_row)
-        return card
 
     def _build_component_card(self):
         from PySide6 import QtWidgets
@@ -120,13 +85,6 @@ class UiPrettierPreviewPanel:
         row.addWidget(ActionButton.create("Primary", "primary"))
         layout.addLayout(row)
         return card
-
-    def export_palette(self):
-        app = self.QtWidgets.QApplication.instance()
-        path = Path(__file__).resolve().parent / "preview-host-palette.json"
-        save_app_palette(app, path)
-        self.status.setText("Exported")
-        self.status.setToolTip(str(path))
 
     def close(self):
         pass
