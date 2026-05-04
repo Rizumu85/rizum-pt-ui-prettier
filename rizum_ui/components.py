@@ -1622,7 +1622,12 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
 
         def paintEvent(self, event):
             super().paintEvent(event)
-            color = "#ffffff" if self.property("accent") or self.underMouse() else "#9e9e9e"
+            if self.property("accent"):
+                color = self.property("iconAccentColor") or "#ffffff"
+            elif self.underMouse():
+                color = self.property("iconHoverColor") or "#ffffff"
+            else:
+                color = self.property("iconColor") or "#9e9e9e"
             pixmap = self._rendered_pixmap(color)
             visual_size = max(1, int(round(size * self._visual_scale)))
             target = QtCore.QRect(

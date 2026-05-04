@@ -802,30 +802,42 @@ def build_settings_preview(QtWidgets):
             "secondary": "#343434",
             "hover": "rgba(255, 255, 255, 0.04)",
             "control_hover": "rgba(255, 255, 255, 0.08)",
-            "toggle_off": QtGui.QColor(255, 255, 255, 26),
+            "segment_slider_bg": "#ffffff",
+            "segment_slider_shadow": None,
+            "segment_active_text": "#1b1b1b",
+            "icon_hover_bg": "rgba(255, 255, 255, 0.04)",
+            "primary_hover_bg": "#e0e0e0",
+            "primary_pressed_bg": "#b8b8b8",
+            "toggle_off": QtGui.QColor("#343434"),
             "toggle_border": QtGui.QColor(0, 0, 0, 0),
-            "toggle_knob_off": QtGui.QColor("#9e9e9e"),
-            "toggle_knob_on": QtGui.QColor("#1b1b1b"),
-            "window_border_css": "0",
-            "segment_bg": QtGui.QColor(255, 255, 255, 8),
+            "toggle_knob_off": QtGui.QColor("#a0a0a0"),
+            "toggle_knob_on": QtGui.QColor("#a0a0a0"),
+            "window_border_css": "1px solid transparent",
+            "segment_bg": QtGui.QColor("#343434"),
         },
         "light": {
             "window_bg": "#ffffff",
             "border": "#e5e5e5",
             "text": "#1d1d1f",
             "muted": "#86868b",
-            "faint": "#999999",
+            "faint": "#a1a1a6",
             "primary_bg": "#1d1d1f",
             "primary_text": "#ffffff",
             "secondary": "#e5e5e7",
             "hover": "rgba(0, 0, 0, 0.03)",
             "control_hover": "rgba(0, 0, 0, 0.07)",
-            "toggle_off": QtGui.QColor("#e5e5e5"),
-            "toggle_border": QtGui.QColor("#d1d1d6"),
+            "segment_slider_bg": "#ffffff",
+            "segment_slider_shadow": None,
+            "segment_active_text": "#1d1d1f",
+            "icon_hover_bg": "rgba(0, 0, 0, 0.03)",
+            "primary_hover_bg": "#323234",
+            "primary_pressed_bg": "#000000",
+            "toggle_off": QtGui.QColor("#e6e6e6"),
+            "toggle_border": QtGui.QColor(0, 0, 0, 0),
             "toggle_knob_off": QtGui.QColor("#ffffff"),
             "toggle_knob_on": QtGui.QColor("#ffffff"),
-            "window_border_css": "0",
-            "segment_bg": QtGui.QColor(0, 0, 0, 8),
+            "window_border_css": "1px solid #e5e5e5",
+            "segment_bg": QtGui.QColor("#eaeaea"),
         },
     }
 
@@ -833,18 +845,19 @@ def build_settings_preview(QtWidgets):
         def __init__(self):
             super().__init__()
             self._options = ["Light", "Dark", "System"]
-            self._widths = [55.0, 53.0, 68.0]
-            self._positions = [2.0, 57.0, 110.0]
+            self._padding = 2.0
+            self._widths = [54.55, 52.50, 67.88]
+            self._positions = [2.0, 56.55, 109.05]
             self._active = 1
-            self._slider_x = self._positions[self._active]
-            self._slider_width = self._widths[self._active]
             self._theme = themes["dark"]
             self._animation = None
             self._callback = None
             self.setObjectName("RizumSettingsThemeSegment")
-            self.setFixedSize(180, 30)
+            self.setFixedSize(179, 30)
             self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+            self._slider_x = self._positions[self._active]
+            self._slider_width = self._widths[self._active]
 
         def setChangedCallback(self, callback):
             self._callback = callback
@@ -916,12 +929,24 @@ def build_settings_preview(QtWidgets):
             painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
             painter.setPen(QtCore.Qt.PenStyle.NoPen)
             painter.setBrush(self._theme["segment_bg"])
-            painter.drawRoundedRect(QtCore.QRectF(0, 0, self.width(), self.height()), 6, 6)
-            painter.setBrush(QtGui.QColor(self._theme["primary_bg"]))
+            painter.drawRoundedRect(QtCore.QRectF(0, 0, self.width(), self.height()), 7, 7)
+            slider_rect = QtCore.QRectF(
+                self._slider_x,
+                self._padding,
+                self._slider_width,
+                self.height() - self._padding * 2.0,
+            )
+            shadow = self._theme.get("segment_slider_shadow")
+            if shadow is not None:
+                painter.setBrush(QtGui.QColor(shadow.red(), shadow.green(), shadow.blue(), 10))
+                painter.drawRoundedRect(slider_rect.translated(0, 2).adjusted(0, 0, 0, 1), 5, 5)
+                painter.setBrush(shadow)
+                painter.drawRoundedRect(slider_rect.translated(0, 1), 4, 4)
+            painter.setBrush(QtGui.QColor(self._theme["segment_slider_bg"]))
             painter.drawRoundedRect(
-                QtCore.QRectF(self._slider_x, 2, self._slider_width, self.height() - 4),
-                4,
-                4,
+                slider_rect,
+                6,
+                6,
             )
             font = QtGui.QFont(self.font())
             font.setPixelSize(12)
@@ -929,16 +954,16 @@ def build_settings_preview(QtWidgets):
             painter.setFont(font)
             for index, label in enumerate(self._options):
                 painter.setPen(
-                    QtGui.QColor(self._theme["primary_text"])
+                    QtGui.QColor(self._theme["segment_active_text"])
                     if index == self._active
                     else QtGui.QColor(self._theme["muted"])
                 )
                 painter.drawText(
                     QtCore.QRectF(
                         self._positions[index],
-                        2,
+                        self._padding,
                         self._widths[index],
-                        self.height() - 4,
+                        self.height() - self._padding * 2.0,
                     ),
                     QtCore.Qt.AlignmentFlag.AlignCenter,
                     label,
@@ -950,6 +975,9 @@ def build_settings_preview(QtWidgets):
             super().__init__()
             self._on = bool(on)
             self._theme = themes["dark"]
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            self.setAutoFillBackground(False)
+            self.setStyleSheet("background: transparent; border: 0;")
             self.setFixedSize(36, 20)
             self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
@@ -957,9 +985,13 @@ def build_settings_preview(QtWidgets):
             self._knob_size = 14.0
             self._offset = self._knob_travel() if self._on else 0.0
             self._animation = None
+            self._callback = None
 
         def _knob_travel(self):
             return float(self.width()) - self._knob_size - self._knob_margin * 2
+
+        def setChangedCallback(self, callback):
+            self._callback = callback
 
         def setTheme(self, theme):
             self._theme = theme
@@ -991,6 +1023,8 @@ def build_settings_preview(QtWidgets):
             animation.setEasingCurve(QtCore.QEasingCurve.Type.OutBack)
             self._animation = animation
             animation.start()
+            if self._callback is not None:
+                self._callback(self._on)
 
         def mousePressEvent(self, event):
             if event.button() == QtCore.Qt.MouseButton.LeftButton:
@@ -1005,10 +1039,11 @@ def build_settings_preview(QtWidgets):
         def paintEvent(self, event):
             painter = QtGui.QPainter(self)
             painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
-            rect = QtCore.QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
-            painter.setPen(QtGui.QPen(self._theme["toggle_border"], 1))
+            rect = QtCore.QRectF(0.5, 0.5, self.width() - 1.0, self.height() - 1.0)
+            radius = rect.height() / 2.0
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
             painter.setBrush(QtGui.QColor(self._theme["primary_bg"]) if self._on else self._theme["toggle_off"])
-            painter.drawRoundedRect(rect, 10, 10)
+            painter.drawRoundedRect(rect, radius, radius)
             knob_x = self._knob_margin + self._offset
             painter.setPen(QtCore.Qt.PenStyle.NoPen)
             painter.setBrush(self._theme["toggle_knob_on"] if self._on else self._theme["toggle_knob_off"])
@@ -1041,6 +1076,79 @@ def build_settings_preview(QtWidgets):
         layout.setSpacing(8)
         return row, layout
 
+    class RevealRow(_QtWidgets.QFrame):
+        def __init__(self, content, expanded_height):
+            super().__init__()
+            self.setObjectName("RizumSettingsRevealRow")
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            self.setAutoFillBackground(False)
+            self.setStyleSheet("background: transparent; border: 0;")
+            self._expanded_height = expanded_height
+            self._progress = 1.0
+            self._gap_layout = None
+            self._geometry_callback = None
+            self._animation = None
+            self._expanded = True
+            layout = _QtWidgets.QVBoxLayout(self)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+            layout.addWidget(content)
+            self.setFixedHeight(expanded_height)
+
+        def setGapLayout(self, layout):
+            self._gap_layout = layout
+            self._syncRevealGeometry()
+
+        def setGeometryCallback(self, callback):
+            self._geometry_callback = callback
+
+        def _syncRevealGeometry(self):
+            progress = max(0.0, min(1.0, self._progress))
+            self.setFixedHeight(round(self._expanded_height * progress))
+            if self._gap_layout is not None:
+                self._gap_layout.setSpacing(int(2.0 * progress + 0.5))
+            if self._geometry_callback is not None:
+                self._geometry_callback(progress)
+
+        def _layoutProgress(self):
+            return max(0.0, min(1.0, self._progress))
+
+        def getRevealProgress(self):
+            return self._progress
+
+        def setRevealProgress(self, value):
+            self._progress = float(value)
+            self._syncRevealGeometry()
+
+        revealProgress = QtCore.Property(float, getRevealProgress, setRevealProgress)
+
+        def setExpanded(self, expanded, animate=True):
+            expanded = bool(expanded)
+            self._expanded = expanded
+            target_progress = 1.0 if expanded else 0.0
+            if animate and abs(self._progress - target_progress) < 0.001:
+                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, not expanded)
+                return
+            if self._animation is not None:
+                self._animation.stop()
+            if not animate:
+                self.setRevealProgress(target_progress)
+                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, not expanded)
+                return
+            self.setVisible(True)
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, not expanded)
+            if expanded and self._progress < 0.25:
+                self.setRevealProgress(0.25)
+            elif not expanded and self._progress > 0.75:
+                self.setRevealProgress(0.75)
+            animation = QtCore.QPropertyAnimation(self, b"revealProgress", self)
+            animation.setDuration(max(120, round(400 * abs(target_progress - self._progress))))
+            animation.setStartValue(self._progress)
+            animation.setEndValue(target_progress)
+            animation.setEasingCurve(QtCore.QEasingCurve.Type.OutQuart)
+            self._animation = animation
+            animation.start()
+
     def make_text_block(name, meta=""):
         widget = _QtWidgets.QWidget()
         widget.setObjectName("RizumSettingsTexts")
@@ -1054,7 +1162,7 @@ def build_settings_preview(QtWidgets):
 
     window = _QtWidgets.QFrame()
     window.setObjectName("RizumSettingsWindow")
-    window.setFixedSize(342, 537)
+    window.setFixedWidth(342)
     window.setSizePolicy(
         _QtWidgets.QSizePolicy.Policy.Fixed,
         _QtWidgets.QSizePolicy.Policy.Fixed,
@@ -1090,6 +1198,7 @@ def build_settings_preview(QtWidgets):
 
     body_layout.addWidget(make_section("Appearance", first=True))
     theme_row, theme_layout = make_row(40)
+    theme_layout.setContentsMargins(8, 5, 8, 5)
     theme_layout.addWidget(make_label("Theme", "RizumSettingsItemName"))
     theme_layout.addStretch(1)
     theme_control = ThemeSegmentControl()
@@ -1097,19 +1206,29 @@ def build_settings_preview(QtWidgets):
     body_layout.addWidget(theme_row)
 
     body_layout.addWidget(make_section("Export"))
+    padding_stack = _QtWidgets.QWidget()
+    padding_stack.setObjectName("RizumSettingsPaddingStack")
+    padding_stack_layout = _QtWidgets.QVBoxLayout(padding_stack)
+    padding_stack_layout.setContentsMargins(0, 0, 0, 0)
+    padding_stack_layout.setSpacing(0)
     padding_row, padding_layout = make_row(51)
-    padding_layout.addWidget(make_text_block("Padding", "Infinite"))
+    padding_texts = make_text_block("Padding", "Infinite")
+    padding_meta = padding_texts.findChild(_QtWidgets.QLabel, "RizumSettingsItemMeta")
+    padding_layout.addWidget(padding_texts)
     padding_layout.addStretch(1)
     padding_toggle = ToggleSwitch(True)
     padding_layout.addWidget(padding_toggle)
-    body_layout.addWidget(padding_row)
+    padding_stack_layout.addWidget(padding_row)
 
     dilation_row, dilation_layout = make_row(51)
     dilation_layout.addWidget(make_text_block("Dilation", "px"))
     dilation_layout.addStretch(1)
     stepper = make_compact_stepper(8, minimum=0, maximum=999, step=1)
     dilation_layout.addWidget(stepper)
-    body_layout.addWidget(dilation_row)
+    dilation_reveal = RevealRow(dilation_row, 51)
+    padding_stack_layout.addWidget(dilation_reveal)
+    dilation_reveal.setGapLayout(padding_stack_layout)
+    body_layout.addWidget(padding_stack)
 
     auto_row, auto_layout = make_row(36)
     auto_layout.addWidget(make_label("Auto-open Photoshop", "RizumSettingsItemName"))
@@ -1120,23 +1239,25 @@ def build_settings_preview(QtWidgets):
 
     body_layout.addWidget(make_section("Photoshop"))
     path_row, path_layout = make_row(45)
+    path_layout.setContentsMargins(8, 5, 8, 5)
     path_select = _QtWidgets.QFrame()
     path_select.setObjectName("RizumSettingsMockSelect")
+    path_select.setFixedHeight(34)
     path_select_layout = _QtWidgets.QHBoxLayout(path_select)
-    path_select_layout.setContentsMargins(8, 6, 8, 6)
+    path_select_layout.setContentsMargins(8, 0, 8, 0)
     path_select_layout.setSpacing(6)
     path_input = _QtWidgets.QLineEdit(r"C:\Program Files\Adobe\Photoshop.exe")
     path_input.setObjectName("RizumSettingsPathInput")
     path_input.setFrame(False)
     path_input.setClearButtonEnabled(False)
     path_input.setCursorPosition(0)
-    path_input.setFixedHeight(22)
+    path_input.setFixedHeight(20)
     path_input.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
     path_input.setSizePolicy(
         _QtWidgets.QSizePolicy.Policy.Expanding,
         _QtWidgets.QSizePolicy.Policy.Fixed,
     )
-    path_select_layout.addWidget(path_input)
+    path_select_layout.addWidget(path_input, 1, QtCore.Qt.AlignmentFlag.AlignVCenter)
     path_layout.addWidget(path_select, 1)
     browse_btn = make_icon_button("folder.svg", "Browse executable", size=14, compact=False)
     browse_btn.setFixedSize(26, 26)
@@ -1150,7 +1271,7 @@ def build_settings_preview(QtWidgets):
     version_layout.addWidget(make_label("2.0.0", "RizumSettingsItemMeta"))
     body_layout.addWidget(version_row)
 
-    layout.addWidget(body, 1)
+    layout.addWidget(body)
 
     footer = _QtWidgets.QWidget()
     footer.setObjectName("RizumSettingsFooter")
@@ -1194,8 +1315,10 @@ QWidget#RizumSettingsHeaderRow,
 QWidget#RizumSettingsBody,
 QWidget#RizumSettingsFooter,
 QWidget#RizumSettingsFooterRow,
+QWidget#RizumSettingsPaddingStack,
 QWidget#RizumSettingsTexts,
-QWidget#RizumSettingsStepper {{
+QWidget#RizumSettingsStepper,
+QFrame#RizumSettingsRevealRow {{
     background: transparent;
     border: 0;
 }}
@@ -1270,7 +1393,7 @@ QLineEdit#RizumSettingsPathInput {{
     color: {theme["faint"]};
     background: transparent;
     border: 0;
-    padding: 1px 0 0 0;
+    padding: 0;
     font-size: 11px;
     font-weight: 500;
     selection-background-color: {theme["control_hover"]};
@@ -1282,6 +1405,33 @@ QLineEdit#RizumSettingsPathInput:focus {{
     background: transparent;
     border: 0;
 }}
+QFrame#RizumSettingsWindow QPushButton[variant="icon"] {{
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}}
+QFrame#RizumSettingsWindow QPushButton[variant="icon"]:hover {{
+    background: {theme["icon_hover_bg"]};
+    border: 1px solid transparent;
+}}
+QFrame#RizumSettingsWindow QPushButton[variant="icon"]:pressed {{
+    background: {theme["control_hover"]};
+    border: 1px solid transparent;
+}}
+QFrame#RizumSettingsWindow QPushButton[variant="dialog-primary"] {{
+    color: {theme["primary_text"]};
+    background: {theme["primary_bg"]};
+    border: 1px solid transparent;
+    border-radius: 13px;
+    font-size: 12px;
+    font-weight: 600;
+}}
+QFrame#RizumSettingsWindow QPushButton[variant="dialog-primary"]:hover {{
+    background: {theme["primary_hover_bg"]};
+}}
+QFrame#RizumSettingsWindow QPushButton[variant="dialog-primary"]:pressed {{
+    background: {theme["primary_pressed_bg"]};
+}}
 """
         )
         theme_control.setTheme(theme)
@@ -1290,8 +1440,22 @@ QLineEdit#RizumSettingsPathInput:focus {{
         stepper.setTheme(theme)
         for toggle in toggles:
             toggle.setTheme(theme)
+        browse_btn.setProperty("iconColor", theme["muted"])
+        browse_btn.setProperty("iconHoverColor", theme["text"])
+        browse_btn.update()
 
     theme_control.setChangedCallback(lambda name: apply_theme(name, update_control=False))
+    base_window_height = None
+
+    def sync_window_height(reveal_progress=0.0):
+        nonlocal base_window_height
+        if base_window_height is None:
+            base_window_height = window.sizeHint().height()
+        window.setFixedHeight(base_window_height + round(53 * reveal_progress))
+        window.updateGeometry()
+
+    dilation_reveal.setGeometryCallback(sync_window_height)
+
     def bind_toggle_row(row, toggle):
         def press(event):
             if event.button() == QtCore.Qt.MouseButton.LeftButton:
@@ -1304,7 +1468,15 @@ QLineEdit#RizumSettingsPathInput:focus {{
 
     bind_toggle_row(padding_row, padding_toggle)
     bind_toggle_row(auto_row, auto_toggle)
+    def sync_padding_dilation(enabled):
+        if padding_meta is not None:
+            padding_meta.setText("Infinite" if enabled else "Custom")
+        dilation_reveal.setExpanded(not enabled)
+
+    padding_toggle.setChangedCallback(sync_padding_dilation)
+    dilation_reveal.setExpanded(not padding_toggle.isOn(), animate=False)
     apply_theme("dark")
+    sync_window_height(0.0)
     window.setTheme = apply_theme
     return window
 
