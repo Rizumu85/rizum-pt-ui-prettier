@@ -28,6 +28,7 @@ from rizum_ui import (
     make_compact_dock_card,
     make_compact_dock_layout,
     make_compact_icon_toolbar,
+    make_compact_stepper,
     make_combo_input,
     make_collapsible_group,
     make_drag_collapsible_group,
@@ -147,6 +148,7 @@ def reload_ui_kit():
     global make_compact_dock_card
     global make_compact_dock_layout
     global make_compact_icon_toolbar
+    global make_compact_stepper
     global make_combo_input
     global make_collapsible_group
     global make_drag_collapsible_group
@@ -194,6 +196,7 @@ def reload_ui_kit():
     make_compact_dock_card = rizum_ui.make_compact_dock_card
     make_compact_dock_layout = rizum_ui.make_compact_dock_layout
     make_compact_icon_toolbar = rizum_ui.make_compact_icon_toolbar
+    make_compact_stepper = rizum_ui.make_compact_stepper
     make_combo_input = rizum_ui.make_combo_input
     make_collapsible_group = rizum_ui.make_collapsible_group
     make_drag_collapsible_group = rizum_ui.make_drag_collapsible_group
@@ -798,6 +801,7 @@ def build_settings_preview(QtWidgets):
             "primary_text": "#1b1b1b",
             "secondary": "#343434",
             "hover": "rgba(255, 255, 255, 0.04)",
+            "control_hover": "rgba(255, 255, 255, 0.08)",
             "toggle_off": QtGui.QColor(255, 255, 255, 26),
             "toggle_border": QtGui.QColor(0, 0, 0, 0),
             "toggle_knob_off": QtGui.QColor("#9e9e9e"),
@@ -815,6 +819,7 @@ def build_settings_preview(QtWidgets):
             "primary_text": "#ffffff",
             "secondary": "#e5e5e7",
             "hover": "rgba(0, 0, 0, 0.03)",
+            "control_hover": "rgba(0, 0, 0, 0.07)",
             "toggle_off": QtGui.QColor("#e5e5e5"),
             "toggle_border": QtGui.QColor("#d1d1d6"),
             "toggle_knob_off": QtGui.QColor("#ffffff"),
@@ -1017,140 +1022,6 @@ def build_settings_preview(QtWidgets):
             )
             painter.end()
 
-    class StepperButton(_QtWidgets.QPushButton):
-        def __init__(self, text):
-            super().__init__("")
-            self._text = text
-            self._theme = themes["dark"]
-            self._visual_scale = 1.0
-            self._visual_opacity = 1.0
-            self._animation = None
-            self.setObjectName("RizumSettingsStepButton")
-            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
-            self.setFixedSize(18, 18)
-
-        def setTheme(self, theme):
-            self._theme = theme
-            self.update()
-
-        def getVisualScale(self):
-            return self._visual_scale
-
-        def setVisualScale(self, value):
-            self._visual_scale = float(value)
-            self.update()
-
-        def getVisualOpacity(self):
-            return self._visual_opacity
-
-        def setVisualOpacity(self, value):
-            self._visual_opacity = float(value)
-            self.update()
-
-        visualScale = QtCore.Property(float, getVisualScale, setVisualScale)
-        visualOpacity = QtCore.Property(float, getVisualOpacity, setVisualOpacity)
-
-        def _animate(self, scale, opacity, duration):
-            if self._animation is not None:
-                self._animation.stop()
-            group = QtCore.QParallelAnimationGroup(self)
-            for prop, start, end in (
-                (b"visualScale", self._visual_scale, scale),
-                (b"visualOpacity", self._visual_opacity, opacity),
-            ):
-                animation = QtCore.QPropertyAnimation(self, prop, self)
-                animation.setDuration(duration)
-                animation.setStartValue(start)
-                animation.setEndValue(end)
-                animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
-                group.addAnimation(animation)
-            self._animation = group
-            group.start()
-
-        def enterEvent(self, event):
-            super().enterEvent(event)
-            self.update()
-
-        def leaveEvent(self, event):
-            super().leaveEvent(event)
-            if not self.isDown():
-                self._animate(1.0, 1.0, 160)
-            self.update()
-
-        def mousePressEvent(self, event):
-            if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                self._animate(0.85, 0.7, 80)
-            super().mousePressEvent(event)
-
-        def mouseReleaseEvent(self, event):
-            super().mouseReleaseEvent(event)
-            self._animate(1.0, 1.0, 180)
-
-        def paintEvent(self, event):
-            painter = QtGui.QPainter(self)
-            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
-            visual_rect = QtCore.QRectF(0, 0, self.width(), self.height())
-            if self.underMouse():
-                painter.setPen(QtCore.Qt.PenStyle.NoPen)
-                painter.setBrush(QtGui.QColor(self._theme["hover"]))
-                painter.drawRoundedRect(visual_rect, 4, 4)
-            painter.setOpacity(max(0.0, min(1.0, self._visual_opacity)))
-            pen = QtGui.QPen(
-                QtGui.QColor(self._theme["text"]),
-                1.6,
-            )
-            pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
-            painter.setPen(pen)
-            center = visual_rect.center()
-            half = 3.25 * self._visual_scale
-            painter.drawLine(
-                QtCore.QPointF(center.x() - half, center.y()),
-                QtCore.QPointF(center.x() + half, center.y()),
-            )
-            if self._text == "+":
-                painter.drawLine(
-                    QtCore.QPointF(center.x(), center.y() - half),
-                    QtCore.QPointF(center.x(), center.y() + half),
-                )
-            painter.end()
-
-    class StepperValue(_QtWidgets.QLineEdit):
-        def __init__(self, value="8"):
-            super().__init__(value)
-            self._theme = themes["dark"]
-            self.setObjectName("RizumSettingsStepValue")
-            self.setFixedSize(24, 24)
-            self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            self.setValidator(QtGui.QIntValidator(0, 999, self))
-            self.setCursor(QtCore.Qt.CursorShape.IBeamCursor)
-            self.setFrame(False)
-            self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
-
-        def setTheme(self, theme):
-            self._theme = theme
-            self._refresh_style()
-
-        def _refresh_style(self):
-            self.setStyleSheet(
-                f"""
-QLineEdit#RizumSettingsStepValue {{
-    color: {self._theme["text"]};
-    background: transparent;
-    border: 0;
-    border-radius: 4px;
-    padding: 0;
-    font-size: 12px;
-    font-weight: 500;
-}}
-QLineEdit#RizumSettingsStepValue:hover,
-QLineEdit#RizumSettingsStepValue:focus {{
-    background: {self._theme["hover"]};
-    border: 0;
-}}
-"""
-            )
-
     def make_label(text, object_name, parent=None):
         label = _QtWidgets.QLabel(text, parent)
         label.setObjectName(object_name)
@@ -1236,22 +1107,7 @@ QLineEdit#RizumSettingsStepValue:focus {{
     dilation_row, dilation_layout = make_row(51)
     dilation_layout.addWidget(make_text_block("Dilation", "px"))
     dilation_layout.addStretch(1)
-    stepper = _QtWidgets.QWidget()
-    stepper.setObjectName("RizumSettingsStepper")
-    stepper_layout = _QtWidgets.QHBoxLayout(stepper)
-    stepper_layout.setContentsMargins(0, 0, 0, 0)
-    stepper_layout.setSpacing(4)
-    stepper_buttons = []
-    stepper_value = None
-    for text, object_name in (("-", "RizumSettingsStepButton"), ("8", "RizumSettingsStepValue"), ("+", "RizumSettingsStepButton")):
-        if object_name == "RizumSettingsStepButton":
-            item = StepperButton(text)
-            stepper_buttons.append(item)
-        else:
-            item = StepperValue(text)
-            stepper_value = item
-        item.setObjectName(object_name)
-        stepper_layout.addWidget(item)
+    stepper = make_compact_stepper(8, minimum=0, maximum=999, step=1)
     dilation_layout.addWidget(stepper)
     body_layout.addWidget(dilation_row)
 
@@ -1269,12 +1125,18 @@ QLineEdit#RizumSettingsStepValue:focus {{
     path_select_layout = _QtWidgets.QHBoxLayout(path_select)
     path_select_layout.setContentsMargins(8, 6, 8, 6)
     path_select_layout.setSpacing(6)
-    path_label = make_label(r"C:\Program Files\Adobe\Photoshop...", "RizumSettingsPath")
-    path_label.setSizePolicy(
+    path_input = _QtWidgets.QLineEdit(r"C:\Program Files\Adobe\Photoshop.exe")
+    path_input.setObjectName("RizumSettingsPathInput")
+    path_input.setFrame(False)
+    path_input.setClearButtonEnabled(False)
+    path_input.setCursorPosition(0)
+    path_input.setFixedHeight(22)
+    path_input.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+    path_input.setSizePolicy(
         _QtWidgets.QSizePolicy.Policy.Expanding,
-        _QtWidgets.QSizePolicy.Policy.Preferred,
+        _QtWidgets.QSizePolicy.Policy.Fixed,
     )
-    path_select_layout.addWidget(path_label)
+    path_select_layout.addWidget(path_input)
     path_layout.addWidget(path_select, 1)
     browse_btn = make_icon_button("folder.svg", "Browse executable", size=14, compact=False)
     browse_btn.setFixedSize(26, 26)
@@ -1360,7 +1222,6 @@ QLabel#RizumSettingsItemName {{
     border: 0;
 }}
 QLabel#RizumSettingsItemMeta,
-QLabel#RizumSettingsPath,
 QLabel#RizumSettingsFooterHint {{
     color: {theme["faint"]};
     font-size: 11px;
@@ -1405,15 +1266,28 @@ QFrame#RizumSettingsMockSelect:hover {{
     background: transparent;
     border: 1px solid transparent;
 }}
+QLineEdit#RizumSettingsPathInput {{
+    color: {theme["faint"]};
+    background: transparent;
+    border: 0;
+    padding: 1px 0 0 0;
+    font-size: 11px;
+    font-weight: 500;
+    selection-background-color: {theme["control_hover"]};
+    selection-color: {theme["text"]};
+}}
+QLineEdit#RizumSettingsPathInput:hover,
+QLineEdit#RizumSettingsPathInput:focus {{
+    color: {theme["text"]};
+    background: transparent;
+    border: 0;
+}}
 """
         )
         theme_control.setTheme(theme)
         if update_control:
             theme_control.setActive(name, animate=False)
-        for button in stepper_buttons:
-            button.setTheme(theme)
-        if stepper_value is not None:
-            stepper_value.setTheme(theme)
+        stepper.setTheme(theme)
         for toggle in toggles:
             toggle.setTheme(theme)
 

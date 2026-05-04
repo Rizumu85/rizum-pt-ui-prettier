@@ -2248,6 +2248,407 @@ def make_spin_input(value=1.0, minimum=0.75, maximum=2.0, step=0.05, decimals=2)
     return _SpinInput()
 
 
+def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
+    """Create a compact three-part numeric stepper with a Painter-style edit value."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    class _CompactStepper(QtWidgets.QWidget):
+        valueChanged = QtCore.Signal(int)
+
+        def __init__(self):
+            super().__init__()
+            self.setObjectName("RizumCompactStepper")
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, False)
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            self.setMouseTracking(True)
+            self.setFixedSize(84, 24)
+            self._value = int(value)
+            self._minimum = int(minimum)
+            self._maximum = int(maximum)
+            self._step = int(step)
+            self._hover_part = None
+            self._pressed_part = None
+            self._animated_part = None
+            self._visual_scale = 1.0
+            self._visual_opacity = 1.0
+            self._animation = None
+            self._editing = False
+            self._edit_text = str(self._value)
+            self._replace_edit_text = False
+            self._theme = {
+                "background": "#1b1b1b",
+                "text": "#e0e0e0",
+                "muted": "#9e9e9e",
+                "hover": "rgba(255, 255, 255, 0.04)",
+            }
+            self.setValue(value, emit=False)
+
+        def setTheme(self, theme):
+            self._theme = {
+                "background": theme.get("window_bg", "#1b1b1b"),
+                "text": theme.get("text", "#e0e0e0"),
+                "muted": theme.get("muted", theme.get("text_secondary", "#9e9e9e")),
+                "hover": theme.get(
+                    "control_hover",
+                    theme.get("hover", "rgba(255, 255, 255, 0.04)"),
+                ),
+            }
+            self.update()
+
+        def value(self):
+            return self._value
+
+        def setValue(self, value, emit=True):
+            next_value = max(self._minimum, min(self._maximum, int(value)))
+            if next_value == self._value:
+                self._edit_text = str(self._value)
+                return
+            self._value = next_value
+            self._edit_text = str(self._value)
+            self.update()
+            if emit:
+                self.valueChanged.emit(self._value)
+
+        def setRange(self, minimum, maximum):
+            self._minimum = int(minimum)
+            self._maximum = int(maximum)
+            self.setValue(self._value)
+
+        def setSingleStep(self, step):
+            self._step = int(step)
+
+        def getVisualScale(self):
+            return self._visual_scale
+
+        def setVisualScale(self, value):
+            self._visual_scale = float(value)
+            self.update()
+
+        def getVisualOpacity(self):
+            return self._visual_opacity
+
+        def setVisualOpacity(self, value):
+            self._visual_opacity = float(value)
+            self.update()
+
+        visualScale = QtCore.Property(float, getVisualScale, setVisualScale)
+        visualOpacity = QtCore.Property(float, getVisualOpacity, setVisualOpacity)
+
+        def _rect_for(self, part):
+            x_positions = {"minus": 0, "value": 30, "plus": 60}
+            return QtCore.QRectF(x_positions[part], 0, 24, 24)
+
+        def _hover_rect_for(self, part):
+            rect = self._rect_for(part)
+            if part == "value":
+                return rect
+            return rect.adjusted(1, 1, -1, -1)
+
+        def _hover_color(self):
+            color = self._theme.get("hover", "rgba(255, 255, 255, 0.04)")
+            if isinstance(color, QtGui.QColor):
+                parsed = QtGui.QColor(color)
+                return self._composited_hover_color(parsed)
+            text = str(color).strip()
+            if text.startswith("rgba(") and text.endswith(")"):
+                values = [part.strip() for part in text[5:-1].split(",")]
+                if len(values) == 4:
+                    red, green, blue = (int(float(value)) for value in values[:3])
+                    alpha_value = float(values[3])
+                    alpha = round(alpha_value * 255) if alpha_value <= 1 else round(alpha_value)
+                    parsed = QtGui.QColor(red, green, blue, max(0, min(255, alpha)))
+                    return self._composited_hover_color(parsed)
+            parsed = QtGui.QColor(text)
+            if parsed.isValid():
+                return self._composited_hover_color(parsed)
+            return self._composited_hover_color(QtGui.QColor(255, 255, 255, 10))
+
+        def _composited_hover_color(self, overlay):
+            if overlay.alpha() >= 255:
+                return overlay
+            base = QtGui.QColor(self._theme.get("background", "#1b1b1b"))
+            if not base.isValid():
+                base = QtGui.QColor("#1b1b1b")
+            alpha = overlay.alphaF()
+            return QtGui.QColor(
+                round(overlay.red() * alpha + base.red() * (1 - alpha)),
+                round(overlay.green() * alpha + base.green() * (1 - alpha)),
+                round(overlay.blue() * alpha + base.blue() * (1 - alpha)),
+            )
+
+        def _part_at(self, pos):
+            for part in ("minus", "value", "plus"):
+                if self._rect_for(part).contains(QtCore.QPointF(pos)):
+                    return part
+            return None
+
+        def _animate_part(self, part, scale, opacity, duration):
+            if self._animation is not None:
+                self._animation.stop()
+            self._animated_part = part
+            group = QtCore.QParallelAnimationGroup(self)
+            for prop, start, end in (
+                (b"visualScale", self._visual_scale, scale),
+                (b"visualOpacity", self._visual_opacity, opacity),
+            ):
+                animation = QtCore.QPropertyAnimation(self, prop, self)
+                animation.setDuration(duration)
+                animation.setStartValue(start)
+                animation.setEndValue(float(end))
+                animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+                group.addAnimation(animation)
+            self._animation = group
+            if scale == 1.0 and opacity == 1.0:
+                group.finished.connect(lambda: self._clear_finished_animation(part))
+            group.start()
+
+        def _clear_finished_animation(self, part):
+            if self._animated_part == part:
+                self._animated_part = None
+                self.update()
+
+        def _step_by(self, direction):
+            self._commit_edit()
+            self.setValue(self._value + direction * self._step)
+
+        def _start_edit(self):
+            self._editing = True
+            self._edit_text = str(self._value)
+            self._replace_edit_text = True
+            self.setFocus(QtCore.Qt.FocusReason.MouseFocusReason)
+            self.update()
+
+        def _commit_edit(self):
+            if not self._editing:
+                return
+            text = self._edit_text.strip()
+            if text:
+                self.setValue(int(text))
+            else:
+                self._edit_text = str(self._value)
+            self._editing = False
+            self._replace_edit_text = False
+            self.update()
+
+        def _cancel_edit(self):
+            if not self._editing:
+                return
+            self._edit_text = str(self._value)
+            self._editing = False
+            self._replace_edit_text = False
+            self.update()
+
+        def enterEvent(self, event):
+            super().enterEvent(event)
+            self._hover_part = self._part_at(event.position().toPoint() if hasattr(event, "position") else event.pos())
+            self.update()
+
+        def event(self, event):
+            if event.type() in (
+                QtCore.QEvent.Type.HoverEnter,
+                QtCore.QEvent.Type.HoverMove,
+            ):
+                position = event.position().toPoint() if hasattr(event, "position") else event.pos()
+                next_part = self._part_at(position)
+                if next_part != self._hover_part:
+                    self._hover_part = next_part
+                    self.update()
+            elif event.type() == QtCore.QEvent.Type.HoverLeave:
+                self._hover_part = None
+                self.update()
+            return super().event(event)
+
+        def leaveEvent(self, event):
+            super().leaveEvent(event)
+            self._hover_part = None
+            self._pressed_part = None
+            if self._animated_part is not None:
+                self._animate_part(self._animated_part, 1.0, 1.0, 160)
+            self.update()
+
+        def mouseMoveEvent(self, event):
+            super().mouseMoveEvent(event)
+            next_part = self._part_at(event.position().toPoint() if hasattr(event, "position") else event.pos())
+            if next_part != self._hover_part:
+                self._hover_part = next_part
+                self.update()
+
+        def mousePressEvent(self, event):
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                self._pressed_part = self._part_at(event.position().toPoint() if hasattr(event, "position") else event.pos())
+                if self._pressed_part in ("minus", "plus"):
+                    self._animate_part(self._pressed_part, 0.85, 0.7, 80)
+                event.accept()
+                return
+            super().mousePressEvent(event)
+
+        def mouseReleaseEvent(self, event):
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                part = self._part_at(event.position().toPoint() if hasattr(event, "position") else event.pos())
+                pressed_part = self._pressed_part
+                if part == self._pressed_part:
+                    if part == "minus":
+                        self._step_by(-1)
+                    elif part == "plus":
+                        self._step_by(1)
+                    elif part == "value":
+                        self._start_edit()
+                elif part != "value":
+                    self._commit_edit()
+                self._pressed_part = None
+                if pressed_part in ("minus", "plus"):
+                    self._animate_part(pressed_part, 1.0, 1.0, 180)
+                event.accept()
+                return
+            super().mouseReleaseEvent(event)
+
+        def keyPressEvent(self, event):
+            if self._editing:
+                if event.key() in (QtCore.Qt.Key.Key_Return, QtCore.Qt.Key.Key_Enter):
+                    self._commit_edit()
+                    event.accept()
+                    return
+                if event.key() == QtCore.Qt.Key.Key_Escape:
+                    self._cancel_edit()
+                    event.accept()
+                    return
+                if event.key() == QtCore.Qt.Key.Key_Backspace:
+                    self._edit_text = "" if self._replace_edit_text else self._edit_text[:-1]
+                    self._replace_edit_text = False
+                    self.update()
+                    event.accept()
+                    return
+                text = event.text()
+                if text and text.isdigit():
+                    seed = "" if self._replace_edit_text else self._edit_text
+                    next_text = (seed + text).lstrip("0") or "0"
+                    if int(next_text) <= self._maximum:
+                        self._edit_text = next_text
+                        self._replace_edit_text = False
+                    self.update()
+                    event.accept()
+                    return
+                event.accept()
+                return
+            if event.key() in (QtCore.Qt.Key.Key_Return, QtCore.Qt.Key.Key_Enter):
+                self._start_edit()
+                event.accept()
+                return
+            if event.key() in (QtCore.Qt.Key.Key_Minus, QtCore.Qt.Key.Key_Left):
+                self._step_by(-1)
+                event.accept()
+                return
+            if event.key() in (QtCore.Qt.Key.Key_Plus, QtCore.Qt.Key.Key_Right):
+                self._step_by(1)
+                event.accept()
+                return
+            super().keyPressEvent(event)
+
+        def focusOutEvent(self, event):
+            self._commit_edit()
+            super().focusOutEvent(event)
+
+        def wheelEvent(self, event):
+            direction = 1 if event.angleDelta().y() > 0 else -1
+            self._step_by(direction)
+            event.accept()
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
+
+            for part in ("minus", "value", "plus"):
+                if part == self._hover_part or (part == "value" and self._editing):
+                    rect = self._hover_rect_for(part)
+                    painter.setPen(QtCore.Qt.PenStyle.NoPen)
+                    painter.setBrush(self._hover_color())
+                    painter.drawRoundedRect(rect, 4, 4)
+
+            symbol_center_y = self._value_visual_center_y()
+            self._draw_step_symbol(painter, "minus", symbol_center_y)
+            self._draw_value_text(painter)
+            if self._editing and self.hasFocus():
+                self._draw_edit_cursor(painter)
+            self._draw_step_symbol(painter, "plus", symbol_center_y)
+            painter.end()
+
+        def _value_font(self):
+            font = QtGui.QFont(self.font())
+            font.setPixelSize(12)
+            font.setWeight(QtGui.QFont.Weight.Medium)
+            return font
+
+        def _value_baseline(self, font):
+            rect = self._rect_for("value")
+            metrics = QtGui.QFontMetricsF(font)
+            return rect.center().y() + (metrics.ascent() - metrics.descent()) / 2
+
+        def _value_visual_center_y(self):
+            font = self._value_font()
+            metrics = QtGui.QFontMetricsF(font)
+            baseline = self._value_baseline(font)
+            bounds = metrics.tightBoundingRect("8")
+            return baseline + bounds.y() + bounds.height() / 2
+
+        def _value_text(self):
+            return self._edit_text if self._editing else str(self._value)
+
+        def _draw_value_text(self, painter):
+            rect = self._rect_for("value")
+            font = self._value_font()
+            painter.setFont(font)
+            painter.setPen(QtGui.QColor(self._theme["text"]))
+            metrics = QtGui.QFontMetricsF(font)
+            text = self._value_text()
+            text_width = metrics.horizontalAdvance(text)
+            baseline = self._value_baseline(font)
+            painter.drawText(
+                QtCore.QPointF(rect.center().x() - text_width / 2, baseline),
+                text,
+            )
+
+        def _draw_edit_cursor(self, painter):
+            rect = self._rect_for("value")
+            font = self._value_font()
+            metrics = QtGui.QFontMetricsF(font)
+            text_width = metrics.horizontalAdvance(self._value_text())
+            cursor_x = rect.center().x() + text_width / 2 + 1
+            cursor_top = rect.center().y() - 6
+            painter.setPen(QtGui.QPen(QtGui.QColor(self._theme["text"]), 1))
+            painter.drawLine(
+                QtCore.QPointF(cursor_x, cursor_top),
+                QtCore.QPointF(cursor_x, cursor_top + 12),
+            )
+
+        def _draw_step_symbol(self, painter, part, center_y):
+            rect = self._rect_for(part)
+            scale = self._visual_scale if part == self._animated_part else 1.0
+            opacity = self._visual_opacity if part == self._animated_part else 1.0
+            color = self._theme["text"] if part == self._hover_part else self._theme["muted"]
+            pen = QtGui.QPen(QtGui.QColor(color), 1.6)
+            pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+            previous_opacity = painter.opacity()
+            painter.setOpacity(previous_opacity * max(0.0, min(1.0, opacity)))
+            painter.setPen(pen)
+            half = 3.6 * scale
+            center = QtCore.QPointF(rect.center().x(), center_y - 0.5)
+            painter.drawLine(
+                QtCore.QPointF(center.x() - half, center.y()),
+                QtCore.QPointF(center.x() + half, center.y()),
+            )
+            if part == "plus":
+                painter.drawLine(
+                    QtCore.QPointF(center.x(), center.y() - half),
+                    QtCore.QPointF(center.x(), center.y() + half),
+                )
+            painter.setOpacity(previous_opacity)
+
+    return _CompactStepper()
+
+
 def make_combo_input(options=None):
     """Create a functional compact combo input backed by a lightweight menu."""
     from PySide6 import QtCore, QtWidgets
