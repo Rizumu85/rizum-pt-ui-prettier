@@ -1136,7 +1136,7 @@ def make_collapsible_group(
             painter.rotate(self._angle)
             painter.translate(-self.width() / 2, -self.height() / 2)
             pen = QtGui.QPen(QtGui.QColor("#9e9e9e"))
-            pen.setWidthF(1.7)
+            pen.setWidthF(1.8)
             pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
             pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
             painter.setPen(pen)
@@ -1546,10 +1546,28 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
             except Exception:
                 pass
             self._pixmap_cache = {}
+            self._icon_size = int(size)
             self._visual_scale = 1.0
             self._visual_opacity = 1.0
             self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
             self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+        def setPaintedIconSize(self, icon_size):
+            """Scale the painted icon (and invalidate the pixmap cache).
+
+            Named setPaintedIconSize (not setIconSize) to avoid clashing with
+            the non-virtual QPushButton.setIconSize(QSize) from QAbstractButton,
+            which PySide6 cannot override from a Python subclass.
+            """
+            new_size = max(8, int(round(icon_size)))
+            if new_size == self._icon_size:
+                return
+            self._icon_size = new_size
+            self._pixmap_cache.clear()
+            self.update()
+
+        def paintedIconSize(self):
+            return self._icon_size
 
         def getVisualScale(self):
             return self._visual_scale
@@ -1610,10 +1628,11 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
 
         def _rendered_pixmap(self, color):
             dpr = self.devicePixelRatioF()
-            key = (color, round(dpr, 2), size)
+            icon_size = self._icon_size
+            key = (color, round(dpr, 2), icon_size)
             if key in self._pixmap_cache:
                 return self._pixmap_cache[key]
-            pixel_size = max(1, int(round(size * dpr)))
+            pixel_size = max(1, int(round(icon_size * dpr)))
             pixmap = QtGui.QPixmap(pixel_size, pixel_size)
             pixmap.setDevicePixelRatio(dpr)
             pixmap.fill(QtCore.Qt.GlobalColor.transparent)
@@ -1623,38 +1642,56 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
                 source = _svg_with_breathing_room(source)
                 renderer = QtSvg.QSvgRenderer(QtCore.QByteArray(source.encode("utf-8")))
                 painter = QtGui.QPainter(pixmap)
-                renderer.render(painter, QtCore.QRectF(0, 0, size, size))
+                renderer.render(painter, QtCore.QRectF(0, 0, icon_size, icon_size))
                 painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_SourceIn)
-                painter.fillRect(QtCore.QRectF(0, 0, size, size), QtGui.QColor(color))
+                painter.fillRect(QtCore.QRectF(0, 0, icon_size, icon_size), QtGui.QColor(color))
                 painter.end()
             else:
                 base = self._icon.pixmap(QtCore.QSize(pixel_size, pixel_size))
                 painter = QtGui.QPainter(pixmap)
-                painter.drawPixmap(QtCore.QRectF(0, 0, size, size), base, QtCore.QRectF(base.rect()))
+                painter.drawPixmap(QtCore.QRectF(0, 0, icon_size, icon_size), base, QtCore.QRectF(base.rect()))
                 painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_SourceIn)
-                painter.fillRect(QtCore.QRectF(0, 0, size, size), QtGui.QColor(color))
+                painter.fillRect(QtCore.QRectF(0, 0, icon_size, icon_size), QtGui.QColor(color))
                 painter.end()
             self._pixmap_cache[key] = pixmap
             return pixmap
 
         def paintEvent(self, event):
-            super().paintEvent(event)
-            if self.property("accent"):
-                color = self.property("iconAccentColor") or "#ffffff"
+            # Don't call super().paintEvent() — we draw our own hover/pressed
+            # background to match CompactStepperButtons (1px inset, 6px radius)
+            # instead of the stylesheet's flat 4px-radius fill that looks bigger.
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+            # Hover/pressed background mirrors the stepper: adjusted(1,1,-1,-1)
+            # so the highlight sits 1px inside the button edge, with 6px corners.
+            if self.isEnabled() and (self.underMouse() or self.isDown()):
+                bg_alpha = 75 if self.isDown() else 30
+                painter.setPen(QtCore.Qt.PenStyle.NoPen)
+                painter.setBrush(QtGui.QColor(255, 255, 255, bg_alpha))
+                rect = QtCore.QRectF(self.rect()).adjusted(1, 1, -1, -1)
+                painter.drawRoundedRect(rect, 6, 6)
+            # Priority: disabled > hover > accent > default. Hover must come
+            # before accent so accent buttons still get a visible hover change
+            # (accent default #e0e0e0 -> hover #ffffff) instead of staying
+            # flat white.
+            if not self.isEnabled():
+                color = self.property("iconDisabledColor") or "#666666"
             elif self.underMouse():
                 color = self.property("iconHoverColor") or "#ffffff"
+            elif self.property("accent"):
+                color = self.property("iconAccentColor") or "#e0e0e0"
             else:
                 color = self.property("iconColor") or "#9e9e9e"
             pixmap = self._rendered_pixmap(color)
-            visual_size = max(1, int(round(size * self._visual_scale)))
+            icon_size = self._icon_size
+            visual_size = max(1, int(round(icon_size * self._visual_scale)))
             target = QtCore.QRect(
                 int((self.width() - visual_size) / 2),
                 int((self.height() - visual_size) / 2),
                 visual_size,
                 visual_size,
             )
-            painter = QtGui.QPainter(self)
-            painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
             painter.setOpacity(max(0.0, min(1.0, self._visual_opacity)))
             painter.drawPixmap(target, pixmap)
             painter.end()
@@ -2219,18 +2256,23 @@ def make_spin_input(value=1.0, minimum=0.75, maximum=2.0, step=0.05, decimals=2)
             self._value = minimum
 
             layout = QtWidgets.QHBoxLayout(self)
-            layout.setContentsMargins(8, 6, 8, 6)
-            layout.setSpacing(4)
+            layout.setContentsMargins(11, 2, 2, 2)
+            layout.setSpacing(8)
             self._label = QtWidgets.QLabel()
             self._label.setObjectName("RizumMockText")
             self._label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            self._label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self._label.setMinimumWidth(0)
             self._label.setSizePolicy(
                 QtWidgets.QSizePolicy.Policy.Expanding,
                 QtWidgets.QSizePolicy.Policy.Preferred,
             )
             layout.addWidget(self._label, 1)
-            layout.addWidget(CompactSpinArrows(self._step_by))
+            self._stepper_buttons = CompactStepperButtons(
+                lambda direction: self._step_by(self._step * direction),
+                size=28,
+            )
+            layout.addWidget(self._stepper_buttons)
 
             self.setValue(value)
             self.setMinimumWidth(self.sizeHint().width())
@@ -2260,6 +2302,20 @@ def make_spin_input(value=1.0, minimum=0.75, maximum=2.0, step=0.05, decimals=2)
             self._decimals = int(decimals)
             self._label.setText(f"{self._value:.{self._decimals}f}")
 
+        def setCompactHeight(self, height):
+            """Scale the spin input height and its internal stepper buttons."""
+            height = int(height)
+            self.setFixedHeight(height)
+            scale = height / 32.0
+            vertical_margin = max(2, int(round(2 * scale)))
+            left_margin = max(4, int(round(11 * scale)))
+            right_margin = max(2, int(round(2 * scale)))
+            self.layout().setContentsMargins(left_margin, vertical_margin, right_margin, vertical_margin)
+            self._label.setMinimumHeight(max(0, height - vertical_margin * 2))
+            # Stepper buttons default to 28 at height 32; scale proportionally.
+            stepper_size = max(21, int(round(28 * scale)))
+            self._stepper_buttons.setButtonSize(stepper_size)
+
         def wheelEvent(self, event):
             direction = 1 if event.angleDelta().y() > 0 else -1
             self._step_by(self._step * direction)
@@ -2285,7 +2341,7 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
             self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             self.setMouseTracking(True)
-            self.setFixedSize(84, 24)
+            self.setFixedSize(120, 32)
             self._value = int(value)
             self._minimum = int(minimum)
             self._maximum = int(maximum)
@@ -2359,8 +2415,13 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
         visualOpacity = QtCore.Property(float, getVisualOpacity, setVisualOpacity)
 
         def _rect_for(self, part):
-            x_positions = {"minus": 0, "value": 30, "plus": 60}
-            return QtCore.QRectF(x_positions[part], 0, 24, 24)
+            # Layout: [value][-][+] with 28x28 buttons centered vertically in
+            # the 32px height. Text starts at x=11 so the left visual gap
+            # matches the + glyph's right visual gap (~11px).
+            if part == "value":
+                return QtCore.QRectF(0, 0, 54, 32)
+            x = 60 if part == "minus" else 90
+            return QtCore.QRectF(x, 2, 28, 28)
 
         def _hover_rect_for(self, part):
             rect = self._rect_for(part)
@@ -2583,11 +2644,18 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
 
             for part in ("minus", "value", "plus"):
-                if part == self._hover_part or (part == "value" and self._editing):
+                is_hovered = part == self._hover_part or (part == "value" and self._editing)
+                is_pressed = part == self._pressed_part
+                if is_pressed and part in ("minus", "plus"):
+                    rect = self._hover_rect_for(part)
+                    painter.setPen(QtCore.Qt.PenStyle.NoPen)
+                    painter.setBrush(QtGui.QColor(255, 255, 255, 75))
+                    painter.drawRoundedRect(rect, 6, 6)
+                elif is_hovered:
                     rect = self._hover_rect_for(part)
                     painter.setPen(QtCore.Qt.PenStyle.NoPen)
                     painter.setBrush(self._hover_color())
-                    painter.drawRoundedRect(rect, 4, 4)
+                    painter.drawRoundedRect(rect, 6, 6)
 
             symbol_center_y = self._value_visual_center_y()
             self._draw_step_symbol(painter, "minus", symbol_center_y)
@@ -2599,7 +2667,7 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
 
         def _value_font(self):
             font = QtGui.QFont(self.font())
-            font.setPixelSize(12)
+            font.setPixelSize(14)
             font.setWeight(QtGui.QFont.Weight.Medium)
             return font
 
@@ -2623,26 +2691,24 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             font = self._value_font()
             painter.setFont(font)
             painter.setPen(QtGui.QColor(self._theme["text"]))
-            metrics = QtGui.QFontMetricsF(font)
-            text = self._value_text()
-            text_width = metrics.horizontalAdvance(text)
             baseline = self._value_baseline(font)
+            # Left-align the number so it lines up with combo input text.
             painter.drawText(
-                QtCore.QPointF(rect.center().x() - text_width / 2, baseline),
-                text,
+                QtCore.QPointF(11, baseline),
+                self._value_text(),
             )
 
         def _draw_edit_cursor(self, painter):
             rect = self._rect_for("value")
             font = self._value_font()
             metrics = QtGui.QFontMetricsF(font)
-            text_width = metrics.horizontalAdvance(self._value_text())
-            cursor_x = rect.center().x() + text_width / 2 + 1
-            cursor_top = rect.center().y() - 6
+            # Cursor follows the left-aligned text, just past its right edge.
+            cursor_x = 11 + metrics.horizontalAdvance(self._value_text()) + 1
+            cursor_top = rect.center().y() - 7
             painter.setPen(QtGui.QPen(QtGui.QColor(self._theme["text"]), 1))
             painter.drawLine(
                 QtCore.QPointF(cursor_x, cursor_top),
-                QtCore.QPointF(cursor_x, cursor_top + 12),
+                QtCore.QPointF(cursor_x, cursor_top + 14),
             )
 
         def _draw_step_symbol(self, painter, part, center_y):
@@ -2650,12 +2716,12 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             scale = self._visual_scale if part == self._animated_part else 1.0
             opacity = self._visual_opacity if part == self._animated_part else 1.0
             color = self._theme["text"] if part == self._hover_part else self._theme["muted"]
-            pen = QtGui.QPen(QtGui.QColor(color), 1.6)
+            pen = QtGui.QPen(QtGui.QColor(color), 1.8)
             pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
             previous_opacity = painter.opacity()
             painter.setOpacity(previous_opacity * max(0.0, min(1.0, opacity)))
             painter.setPen(pen)
-            half = 3.6 * scale
+            half = 4.8 * scale
             center = QtCore.QPointF(rect.center().x(), center_y - 0.5)
             painter.drawLine(
                 QtCore.QPointF(center.x() - half, center.y()),
@@ -2695,8 +2761,8 @@ def make_combo_input(options=None):
             self._popup_alignment = "left"
 
             layout = QtWidgets.QHBoxLayout(self)
-            layout.setContentsMargins(8, 4, 10, 4)
-            layout.setSpacing(6)
+            layout.setContentsMargins(11, 2, 8, 2)
+            layout.setSpacing(8)
             self._label = QtWidgets.QLabel()
             self._label.setObjectName("RizumMockText")
             self._label.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
@@ -2708,8 +2774,11 @@ def make_combo_input(options=None):
                 QtWidgets.QSizePolicy.Policy.Preferred,
             )
             layout.addWidget(self._label, 1)
-            self._arrow = CompactChevronDown()
-            layout.addWidget(self._arrow)
+            # Chevron is drawn by _ComboInput.paintEvent (not a child widget)
+            # so it inherits the combo's background including hover states.
+            self._arrow_size = 14
+            self._arrow_angle = 0.0
+            self._arrow_anim = None
 
             for item in options or []:
                 if isinstance(item, tuple):
@@ -2776,13 +2845,8 @@ def make_combo_input(options=None):
             if not _is_qt_object_alive(self):
                 return
             label = getattr(self, "_label", None)
-            arrow = getattr(self, "_arrow", None)
             layout = self.layout()
-            if (
-                not _is_qt_object_alive(label)
-                or not _is_qt_object_alive(arrow)
-                or layout is None
-            ):
+            if not _is_qt_object_alive(label) or layout is None:
                 return
             try:
                 metrics = label.fontMetrics()
@@ -2798,7 +2862,7 @@ def make_combo_input(options=None):
                 + margins.left()
                 + margins.right()
                 + layout.spacing()
-                + arrow.width()
+                + self._arrow_size
                 + 6
             )
             try:
@@ -2816,6 +2880,8 @@ def make_combo_input(options=None):
             vertical_margin = 3 if height <= 28 else 4
             self.layout().setContentsMargins(8, vertical_margin, 10, vertical_margin)
             self._label.setMinimumHeight(max(0, height - vertical_margin * 2))
+            # Chevron size scales with the control height (default 14 at 32).
+            self._arrow_size = max(11, int(round(14 * height / 32.0)))
             self.fitToContents()
 
         def setPopupAlignment(self, alignment):
@@ -2913,13 +2979,17 @@ def make_combo_input(options=None):
                 action.triggered.connect(lambda checked=False, i=index: self.setCurrentIndex(i))
             self._menu = menu
             menu.aboutToHide.connect(self._close_menu)
-            self._arrow.setOpen(True)
+            self._set_arrow_open(True)
             menu.ensurePolished()
             menu_width = max(menu.sizeHint().width(), self.width())
             menu.setFixedWidth(menu_width)
             popup_x = self.width() - menu_width if self._popup_alignment == "right" else 0
+            # Start fully transparent so the popup never flashes at full opacity
+            # before the open animation begins.
+            menu.setWindowOpacity(0.0)
             menu.popup(self.mapToGlobal(QtCore.QPoint(popup_x, self.height() + 4)))
             QtCore.QTimer.singleShot(0, lambda: self._applyMenuMask(menu))
+            QtCore.QTimer.singleShot(0, lambda: self._animate_menu_open(menu))
 
         def _applyMenuMask(self, menu):
             if not _is_qt_object_alive(menu):
@@ -2927,14 +2997,103 @@ def make_combo_input(options=None):
             rect = menu.rect()
             if rect.isEmpty():
                 return
+            # QMenu background fills the entire widget rect even with
+            # border-radius, bleeding past the rounded corners. A mask clips
+            # those corner pixels. The mask matches the full rect (no inset)
+            # so the border stays visible on all four sides; only the
+            # transparent corner triangles outside the radius are removed.
             path = QtGui.QPainterPath()
             path.addRoundedRect(QtCore.QRectF(rect), 6, 6)
-            menu.setMask(QtGui.QRegion(path.toFillPolygon().toPolygon()))
+            region = QtGui.QRegion()
+            for polygon in path.toSubpathPolygons():
+                region += QtGui.QRegion(polygon.toPolygon())
+            menu.setMask(region)
+
+        def _animate_menu_open(self, menu):
+            if not _is_qt_object_alive(menu) or not menu.isVisible():
+                try:
+                    menu.setWindowOpacity(1.0)
+                except Exception:
+                    pass
+                return
+            # Read the settled position (Qt may have corrected it to keep the
+            # popup on-screen) and animate from 6px above so the menu appears
+            # to drop out of the combo.
+            target = menu.pos()
+            start = QtCore.QPoint(target.x(), target.y() - 6)
+            menu.move(start)
+
+            fade = QtCore.QPropertyAnimation(menu, b"windowOpacity", menu)
+            fade.setDuration(140)
+            fade.setStartValue(0.0)
+            fade.setEndValue(1.0)
+            fade.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+
+            slide = QtCore.QPropertyAnimation(menu, b"pos", menu)
+            slide.setDuration(180)
+            slide.setStartValue(start)
+            slide.setEndValue(target)
+            slide.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+
+            menu._rizum_popup_fade = fade
+            menu._rizum_popup_slide = slide
+            fade.start()
+            slide.start()
 
         def _close_menu(self):
-            self._arrow.setOpen(False)
+            self._set_arrow_open(False)
             self._last_menu_close_ms = QtCore.QDateTime.currentMSecsSinceEpoch()
             self._menu = None
+
+        def _set_arrow_open(self, is_open):
+            target = 180.0 if is_open else 0.0
+            old_anim = getattr(self, "_arrow_anim", None)
+            if old_anim is not None:
+                old_anim.stop()
+            anim = QtCore.QPropertyAnimation(self, b"arrowAngle", self)
+            anim.setDuration(180)
+            anim.setStartValue(self._arrow_angle)
+            anim.setEndValue(target)
+            anim.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+            self._arrow_anim = anim
+            anim.start()
+
+        def getArrowAngle(self):
+            return self._arrow_angle
+
+        def setArrowAngle(self, angle):
+            self._arrow_angle = float(angle)
+            self.update()
+
+        arrowAngle = QtCore.Property(float, getArrowAngle, setArrowAngle)
+
+        def paintEvent(self, event):
+            super().paintEvent(event)
+            # Draw the chevron glyph on top of the combo's own background
+            # (which already includes hover/pressed states from stylesheet).
+            # This avoids the child-widget background fill problem entirely.
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            sz = self._arrow_size
+            margins = self.layout().contentsMargins()
+            cx = self.width() - margins.right() - sz / 2.0
+            cy = self.height() / 2.0
+            painter.translate(cx, cy)
+            painter.rotate(self._arrow_angle)
+            painter.translate(-cx, -cy)
+            pen = QtGui.QPen(QtGui.QColor("#9e9e9e"))
+            pen.setWidthF(1.8)
+            pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            s = sz / 10.0
+            painter.drawPolyline(
+                [
+                    QtCore.QPointF(cx - 2.5 * s, cy - 1.0 * s),
+                    QtCore.QPointF(cx, cy + 1.5 * s),
+                    QtCore.QPointF(cx + 2.5 * s, cy - 1.0 * s),
+                ]
+            )
 
     return _ComboInput()
 
@@ -3025,6 +3184,184 @@ class CompactSpinArrows:
         return _SpinArrows()
 
 
+class CompactStepperButtons:
+    """Touch-friendly horizontal - / + buttons matching the compact stepper."""
+
+    def __new__(cls, on_step=None, size=32):
+        from PySide6 import QtCore, QtGui, QtWidgets
+
+        button_size = int(size)
+        gap = 2
+
+        class _StepperButtons(QtWidgets.QWidget):
+            def __init__(self):
+                super().__init__()
+                self.setObjectName("RizumStepperButtons")
+                self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, False)
+                self._button_size = button_size
+                self._gap = gap
+                self.setFixedSize(button_size * 2 + gap, button_size)
+                self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+                self.setMouseTracking(True)
+                self._hover = None
+                self._pressed = None
+                self._animated_part = None
+                self._visual_scale = 1.0
+                self._visual_opacity = 1.0
+                self._animation = None
+
+            def setButtonSize(self, size):
+                """Scale the stepper buttons (re-lays out fixed size + symbols)."""
+                new_size = max(21, int(round(size)))
+                if new_size == self._button_size:
+                    return
+                self._button_size = new_size
+                self.setFixedSize(new_size * 2 + self._gap, new_size)
+                self.update()
+
+            def buttonSize(self):
+                return self._button_size
+
+            def getVisualScale(self):
+                return self._visual_scale
+
+            def setVisualScale(self, value):
+                self._visual_scale = float(value)
+                self.update()
+
+            def getVisualOpacity(self):
+                return self._visual_opacity
+
+            def setVisualOpacity(self, value):
+                self._visual_opacity = float(value)
+                self.update()
+
+            visualScale = QtCore.Property(float, getVisualScale, setVisualScale)
+            visualOpacity = QtCore.Property(float, getVisualOpacity, setVisualOpacity)
+
+            def _rect_for(self, part):
+                bs = self._button_size
+                x = 0 if part == "minus" else bs + self._gap
+                return QtCore.QRectF(x, 0, bs, bs)
+
+            def _part_at(self, pos):
+                point = QtCore.QPointF(pos)
+                for part in ("minus", "plus"):
+                    if self._rect_for(part).contains(point):
+                        return part
+                return None
+
+            def _animate_part(self, part, scale, opacity, duration):
+                if self._animation is not None:
+                    self._animation.stop()
+                self._animated_part = part
+                group = QtCore.QParallelAnimationGroup(self)
+                for prop, start, end in (
+                    (b"visualScale", self._visual_scale, scale),
+                    (b"visualOpacity", self._visual_opacity, opacity),
+                ):
+                    animation = QtCore.QPropertyAnimation(self, prop, self)
+                    animation.setDuration(duration)
+                    animation.setStartValue(start)
+                    animation.setEndValue(float(end))
+                    animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+                    group.addAnimation(animation)
+                self._animation = group
+                if scale == 1.0 and opacity == 1.0:
+                    group.finished.connect(lambda: self._clear_finished_animation(part))
+                group.start()
+
+            def _clear_finished_animation(self, part):
+                if self._animated_part == part:
+                    self._animated_part = None
+                    self.update()
+
+            def paintEvent(self, event):
+                painter = QtGui.QPainter(self)
+                painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+                for part in ("minus", "plus"):
+                    if part == self._pressed:
+                        bg = QtGui.QColor(255, 255, 255, 75)
+                    elif part == self._hover:
+                        bg = QtGui.QColor(255, 255, 255, 30)
+                    else:
+                        continue
+                    rect = self._rect_for(part).adjusted(1, 1, -1, -1)
+                    painter.setPen(QtCore.Qt.PenStyle.NoPen)
+                    painter.setBrush(bg)
+                    painter.drawRoundedRect(rect, 6, 6)
+                for part in ("minus", "plus"):
+                    self._draw_symbol(painter, part)
+                painter.end()
+
+            def _draw_symbol(self, painter, part):
+                rect = self._rect_for(part)
+                scale = self._visual_scale if part == self._animated_part else 1.0
+                opacity = self._visual_opacity if part == self._animated_part else 1.0
+                active = part == self._hover or part == self._pressed
+                color = QtGui.QColor("#e0e0e0") if active else QtGui.QColor("#9e9e9e")
+                pen = QtGui.QPen(color, 1.8)
+                pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+                previous_opacity = painter.opacity()
+                painter.setOpacity(previous_opacity * max(0.0, min(1.0, opacity)))
+                painter.setPen(pen)
+                # Symbol size scales with the button size (4.8 at default 32).
+                half = 4.8 * (self._button_size / 32.0) * scale
+                center = QtCore.QPointF(rect.center().x(), rect.center().y() - 0.5)
+                painter.drawLine(
+                    QtCore.QPointF(center.x() - half, center.y()),
+                    QtCore.QPointF(center.x() + half, center.y()),
+                )
+                if part == "plus":
+                    painter.drawLine(
+                        QtCore.QPointF(center.x(), center.y() - half),
+                        QtCore.QPointF(center.x(), center.y() + half),
+                    )
+                painter.setOpacity(previous_opacity)
+
+            def mousePressEvent(self, event):
+                if event.button() != QtCore.Qt.MouseButton.LeftButton:
+                    return
+                self._pressed = self._part_at(event.position())
+                if self._pressed is not None:
+                    self._animate_part(self._pressed, 0.85, 0.7, 80)
+                    if on_step is not None:
+                        on_step(-1 if self._pressed == "minus" else 1)
+                self.update()
+                event.accept()
+
+            def mouseReleaseEvent(self, event):
+                pressed = self._pressed
+                self._pressed = None
+                self._hover = self._part_at(event.position())
+                if pressed is not None:
+                    self._animate_part(pressed, 1.0, 1.0, 180)
+                self.update()
+                event.accept()
+
+            def mouseMoveEvent(self, event):
+                next_hover = self._part_at(event.position())
+                if next_hover != self._hover:
+                    self._hover = next_hover
+                    self.update()
+
+            def enterEvent(self, event):
+                super().enterEvent(event)
+                pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
+                self._hover = self._part_at(pos)
+                self.update()
+
+            def leaveEvent(self, event):
+                pressed = self._pressed
+                self._pressed = None
+                self._hover = None
+                if pressed is not None and self._animated_part is not None:
+                    self._animate_part(pressed, 1.0, 1.0, 160)
+                self.update()
+
+        return _StepperButtons()
+
+
 class CompactChevronDown:
     """Small painted down chevron without a child hover surface."""
 
@@ -3039,8 +3376,21 @@ class CompactChevronDown:
                 self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, False)
                 self.setAttribute(QtCore.Qt.WidgetAttribute.WA_NoSystemBackground, True)
                 self.setAutoFillBackground(False)
-                self.setFixedSize(10, 10)
+                self._size = 14
+                self.setFixedSize(self._size, self._size)
                 self._angle = 0.0
+
+            def setSize(self, size):
+                """Scale the chevron widget and its painted glyph."""
+                new_size = max(8, int(round(size)))
+                if new_size == self._size:
+                    return
+                self._size = new_size
+                self.setFixedSize(new_size, new_size)
+                self.update()
+
+            def size(self):
+                return self._size
 
             def getAngle(self):
                 return self._angle
@@ -3052,28 +3402,49 @@ class CompactChevronDown:
             angle = QtCore.Property(float, getAngle, setAngle)
 
             def setOpen(self, is_open):
+                target = 180.0 if is_open else 0.0
                 old_animation = getattr(self, "_rizum_arrow_animation", None)
                 if old_animation is not None:
                     old_animation.stop()
-                self._rizum_arrow_animation = None
-                self.setAngle(0.0)
+                animation = QtCore.QPropertyAnimation(self, b"angle", self)
+                animation.setDuration(180)
+                animation.setStartValue(self._angle)
+                animation.setEndValue(target)
+                animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+                self._rizum_arrow_animation = animation
+                animation.start()
 
             def paintEvent(self, event):
                 painter = QtGui.QPainter(self)
+                # Grab the parent's actual rendered pixels behind this widget
+                # (including hover/pressed stylesheet states) and use them as
+                # our background. This avoids any transparent fill (which turns
+                # black on SP's opaque backing store) and matches the combo's
+                # hover color exactly.
+                parent = self.parent()
+                if parent is not None:
+                    try:
+                        pos = self.mapToParent(QtCore.QPoint(0, 0))
+                        pm = parent.grab(QtCore.QRect(pos.x(), pos.y(), self.width(), self.height()))
+                        painter.drawPixmap(0, 0, pm)
+                    except Exception:
+                        pass
                 painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
                 painter.translate(self.width() / 2, self.height() / 2)
                 painter.rotate(self._angle)
                 painter.translate(-self.width() / 2, -self.height() / 2)
                 pen = QtGui.QPen(QtGui.QColor("#9e9e9e"))
-                pen.setWidthF(1.4)
+                pen.setWidthF(1.8)
                 pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
                 pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
                 painter.setPen(pen)
+                # Glyph points scale relative to the default 10px size.
+                s = self._size / 10.0
                 painter.drawPolyline(
                     [
-                        QtCore.QPointF(2.5, 4.0),
-                        QtCore.QPointF(5.0, 6.5),
-                        QtCore.QPointF(7.5, 4.0),
+                        QtCore.QPointF(2.5 * s, 4.0 * s),
+                        QtCore.QPointF(5.0 * s, 6.5 * s),
+                        QtCore.QPointF(7.5 * s, 4.0 * s),
                     ]
                 )
 
@@ -3090,11 +3461,24 @@ def make_mock_checkbox(checked=True):
             self.setObjectName("RizumMockCheckbox")
             self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
             self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            self.setFixedSize(14, 14)
+            self._size = 14
+            self.setFixedSize(self._size, self._size)
             self._checked = bool(checked)
             self._indeterminate = False
             self.setProperty("checked", self._checked)
             self.setProperty("indeterminate", False)
+
+        def setSize(self, size):
+            """Scale the checkbox widget and its painted glyph."""
+            new_size = max(11, int(round(size)))
+            if new_size == self._size:
+                return
+            self._size = new_size
+            self.setFixedSize(new_size, new_size)
+            self.update()
+
+        def checkboxSize(self):
+            return self._size
 
         def toggle(self):
             self.set_checked(not self._checked)
@@ -3133,35 +3517,39 @@ def make_mock_checkbox(checked=True):
         def paintEvent(self, event):
             painter = QtGui.QPainter(self)
             painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            s = self._size / 14.0
 
             if self._checked or self._indeterminate:
                 painter.setPen(QtCore.Qt.PenStyle.NoPen)
                 painter.setBrush(QtGui.QColor("#ffffff"))
-                painter.drawRoundedRect(QtCore.QRectF(0, 0, 14, 14), 3, 3)
+                painter.drawRoundedRect(QtCore.QRectF(0, 0, 14 * s, 14 * s), 3 * s, 3 * s)
 
                 pen = QtGui.QPen(QtGui.QColor("#1b1b1b"))
-                pen.setWidthF(1.6)
+                pen.setWidthF(1.6 * s)
                 pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
                 pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
                 painter.setPen(pen)
                 if self._indeterminate:
-                    painter.drawLine(QtCore.QPointF(3.6, 7.0), QtCore.QPointF(10.4, 7.0))
+                    painter.drawLine(
+                        QtCore.QPointF(3.6 * s, 7.0 * s),
+                        QtCore.QPointF(10.4 * s, 7.0 * s),
+                    )
                 else:
                     painter.drawPolyline(
                         [
-                            QtCore.QPointF(4.0, 7.2),
-                            QtCore.QPointF(6.0, 9.2),
-                            QtCore.QPointF(10.0, 4.8),
+                            QtCore.QPointF(4.0 * s, 7.2 * s),
+                            QtCore.QPointF(6.0 * s, 9.2 * s),
+                            QtCore.QPointF(10.0 * s, 4.8 * s),
                         ]
                     )
             else:
-                rect = QtCore.QRectF(0.75, 0.75, 12.5, 12.5)
+                rect = QtCore.QRectF(0.75 * s, 0.75 * s, 12.5 * s, 12.5 * s)
                 pen = QtGui.QPen(QtGui.QColor("#ffffff"))
-                pen.setWidthF(1.5)
+                pen.setWidthF(1.5 * s)
                 pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
                 painter.setPen(pen)
                 painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
-                painter.drawRoundedRect(rect, 3, 3)
+                painter.drawRoundedRect(rect, 3 * s, 3 * s)
 
     return _Checkbox()
 

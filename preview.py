@@ -566,7 +566,7 @@ def build_font_preview(QtWidgets):
         return compact_label_width(["Size", "Font"], widget=panel, minimum=28, maximum=56, padding=6)
 
     def scale_control_width():
-        return compact_text_width("2.00", widget=size_control, minimum=66, maximum=84, padding=30)
+        return compact_text_width("2.00", widget=size_control, minimum=120, maximum=150, padding=78)
 
     current_label_width = label_width()
     size_control = make_spin_input(1.0)
@@ -575,7 +575,7 @@ def build_font_preview(QtWidgets):
         size_control,
         label_width=current_label_width,
         gap=8,
-        width=66,
+        width=120,
     )
     main_layout.addWidget(size_row)
 
