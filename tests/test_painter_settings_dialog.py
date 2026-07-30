@@ -43,6 +43,19 @@ class PainterSettingsDialogTests(unittest.TestCase):
         self.assertEqual(dialog.settingsSurfaceRadius(), 7.0)
         self.assertIn("border-radius: 7px", dialog.settingsSurface().styleSheet())
 
+    def test_settings_typography_tracks_ui_font_scale(self):
+        dialog = PainterSettingsDialog()
+
+        dialog.setSettingsUiScale(1.1)
+
+        stylesheet = dialog.settingsSurface().styleSheet()
+        self.assertEqual(dialog.settingsUiScale(), 1.1)
+        self.assertEqual(dialog.settingsMetric(13), 14)
+        self.assertIn("font-size: 11px", stylesheet)
+        self.assertIn("font-size: 14px", stylesheet)
+        self.assertIn("font-size: 12px", stylesheet)
+        self.assertIn("font-weight: 700", stylesheet)
+
 
 if __name__ == "__main__":
     unittest.main()
