@@ -2698,12 +2698,18 @@ def make_spin_input(value=1.0, minimum=0.75, maximum=2.0, step=0.05, decimals=2)
     return _SpinInput()
 
 
-def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
-    """Create a compact three-part numeric stepper with a Painter-style edit value."""
+def make_compact_stepper(
+    value=8,
+    minimum=0,
+    maximum=999,
+    step=1,
+    decimals=0,
+):
+    """Create a compact editable numeric stepper with Painter-style controls."""
     from PySide6 import QtCore, QtGui, QtWidgets
 
     class _CompactStepper(QtWidgets.QWidget):
-        valueChanged = QtCore.Signal(int)
+        valueChanged = QtCore.Signal(object)
 
         def __init__(self):
             super().__init__()
@@ -2714,10 +2720,13 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
             self.setMouseTracking(True)
             self.setFixedSize(120, 32)
-            self._value = int(value)
-            self._minimum = int(minimum)
-            self._maximum = int(maximum)
-            self._step = int(step)
+            self._compact_height = 32
+            self._decimals = max(0, int(decimals))
+            number_type = float if self._decimals else int
+            self._minimum = number_type(minimum)
+            self._maximum = number_type(maximum)
+            self._step = number_type(step)
+            self._value = self._normalized_value(value)
             self._hover_part = None
             self._pressed_part = None
             self._animated_part = None
@@ -2725,7 +2734,7 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             self._visual_opacity = 1.0
             self._animation = None
             self._editing = False
-            self._edit_text = str(self._value)
+            self._edit_text = self._formatted_value(self._value)
             self._replace_edit_text = False
             self._theme = {
                 "background": "#1b1b1b",
@@ -2751,23 +2760,51 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             return self._value
 
         def setValue(self, value, emit=True):
-            next_value = max(self._minimum, min(self._maximum, int(value)))
+            next_value = self._normalized_value(value)
             if next_value == self._value:
-                self._edit_text = str(self._value)
+                self._edit_text = self._formatted_value(self._value)
                 return
             self._value = next_value
-            self._edit_text = str(self._value)
+            self._edit_text = self._formatted_value(self._value)
             self.update()
             if emit:
                 self.valueChanged.emit(self._value)
 
         def setRange(self, minimum, maximum):
-            self._minimum = int(minimum)
-            self._maximum = int(maximum)
+            number_type = float if self._decimals else int
+            self._minimum = number_type(minimum)
+            self._maximum = number_type(maximum)
             self.setValue(self._value)
 
         def setSingleStep(self, step):
-            self._step = int(step)
+            number_type = float if self._decimals else int
+            self._step = number_type(step)
+
+        def setCompactHeight(self, height):
+            """Scale the frame and painted geometry from the 32px baseline."""
+            self._compact_height = max(24, int(round(height)))
+            scale = self._compact_height / 32.0
+            self.setFixedSize(
+                max(90, int(round(120 * scale))),
+                self._compact_height,
+            )
+            self.updateGeometry()
+            self.update()
+
+        def _normalized_value(self, value):
+            number = float(value)
+            number = max(float(self._minimum), min(float(self._maximum), number))
+            if self._decimals:
+                return round(number, self._decimals)
+            return int(round(number))
+
+        def _formatted_value(self, value):
+            if self._decimals:
+                return f"{float(value):.{self._decimals}f}"
+            return str(int(round(float(value))))
+
+        def _geometry_scale(self):
+            return self._compact_height / 32.0
 
         def getVisualScale(self):
             return self._visual_scale
@@ -2790,10 +2827,16 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             # Layout: [value][-][+] with 28x28 buttons centered vertically in
             # the 32px height. Text starts at x=11 so the left visual gap
             # matches the + glyph's right visual gap (~11px).
+            scale = self._geometry_scale()
             if part == "value":
-                return QtCore.QRectF(0, 0, 54, 32)
+                return QtCore.QRectF(0, 0, 54 * scale, 32 * scale)
             x = 60 if part == "minus" else 90
-            return QtCore.QRectF(x, 2, 28, 28)
+            return QtCore.QRectF(
+                x * scale,
+                2 * scale,
+                28 * scale,
+                28 * scale,
+            )
 
         def _hover_rect_for(self, part):
             rect = self._rect_for(part)
@@ -2870,7 +2913,7 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
 
         def _start_edit(self):
             self._editing = True
-            self._edit_text = str(self._value)
+            self._edit_text = self._formatted_value(self._value)
             self._replace_edit_text = True
             self.setFocus(QtCore.Qt.FocusReason.MouseFocusReason)
             self.update()
@@ -2879,10 +2922,13 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             if not self._editing:
                 return
             text = self._edit_text.strip()
-            if text:
-                self.setValue(int(text))
+            if text not in ("", "-", ".", "-."):
+                try:
+                    self.setValue(float(text))
+                except ValueError:
+                    self._edit_text = self._formatted_value(self._value)
             else:
-                self._edit_text = str(self._value)
+                self._edit_text = self._formatted_value(self._value)
             self._editing = False
             self._replace_edit_text = False
             self.update()
@@ -2890,7 +2936,7 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
         def _cancel_edit(self):
             if not self._editing:
                 return
-            self._edit_text = str(self._value)
+            self._edit_text = self._formatted_value(self._value)
             self._editing = False
             self._replace_edit_text = False
             self.update()
@@ -2976,12 +3022,26 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
                     event.accept()
                     return
                 text = event.text()
-                if text and text.isdigit():
+                is_decimal = self._decimals and text in (".", ",")
+                is_negative = text == "-" and self._minimum < 0
+                if text and (text.isdigit() or is_decimal or is_negative):
                     seed = "" if self._replace_edit_text else self._edit_text
-                    next_text = (seed + text).lstrip("0") or "0"
-                    if int(next_text) <= self._maximum:
+                    character = "." if is_decimal else text
+                    next_text = seed + character
+                    if character == "." and "." in seed:
+                        event.accept()
+                        return
+                    if character == "-" and seed:
+                        event.accept()
+                        return
+                    if "." in next_text:
+                        fraction = next_text.partition(".")[2]
+                        if len(fraction) > self._decimals:
+                            event.accept()
+                            return
+                    if len(next_text) <= 16:
                         self._edit_text = next_text
-                        self._replace_edit_text = False
+                    self._replace_edit_text = False
                     self.update()
                     event.accept()
                     return
@@ -3022,12 +3082,14 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
                     rect = self._hover_rect_for(part)
                     painter.setPen(QtCore.Qt.PenStyle.NoPen)
                     painter.setBrush(QtGui.QColor(255, 255, 255, 75))
-                    painter.drawRoundedRect(rect, 6, 6)
+                    radius = 6 * self._geometry_scale()
+                    painter.drawRoundedRect(rect, radius, radius)
                 elif is_hovered:
                     rect = self._hover_rect_for(part)
                     painter.setPen(QtCore.Qt.PenStyle.NoPen)
                     painter.setBrush(self._hover_color())
-                    painter.drawRoundedRect(rect, 6, 6)
+                    radius = 6 * self._geometry_scale()
+                    painter.drawRoundedRect(rect, radius, radius)
 
             symbol_center_y = self._value_visual_center_y()
             self._draw_step_symbol(painter, "minus", symbol_center_y)
@@ -3039,7 +3101,9 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
 
         def _value_font(self):
             font = QtGui.QFont(self.font())
-            font.setPixelSize(14)
+            font.setPixelSize(
+                max(11, int(round(14 * self._geometry_scale())))
+            )
             font.setWeight(QtGui.QFont.Weight.Medium)
             return font
 
@@ -3066,7 +3130,7 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             baseline = self._value_baseline(font)
             # Left-align the number so it lines up with combo input text.
             painter.drawText(
-                QtCore.QPointF(11, baseline),
+                QtCore.QPointF(11 * self._geometry_scale(), baseline),
                 self._value_text(),
             )
 
@@ -3075,12 +3139,22 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             font = self._value_font()
             metrics = QtGui.QFontMetricsF(font)
             # Cursor follows the left-aligned text, just past its right edge.
-            cursor_x = 11 + metrics.horizontalAdvance(self._value_text()) + 1
-            cursor_top = rect.center().y() - 7
-            painter.setPen(QtGui.QPen(QtGui.QColor(self._theme["text"]), 1))
+            scale = self._geometry_scale()
+            cursor_x = (
+                11 * scale
+                + metrics.horizontalAdvance(self._value_text())
+                + scale
+            )
+            cursor_top = rect.center().y() - 7 * scale
+            painter.setPen(
+                QtGui.QPen(
+                    QtGui.QColor(self._theme["text"]),
+                    max(1.0, scale),
+                )
+            )
             painter.drawLine(
                 QtCore.QPointF(cursor_x, cursor_top),
-                QtCore.QPointF(cursor_x, cursor_top + 14),
+                QtCore.QPointF(cursor_x, cursor_top + 14 * scale),
             )
 
         def _draw_step_symbol(self, painter, part, center_y):
@@ -3088,13 +3162,20 @@ def make_compact_stepper(value=8, minimum=0, maximum=999, step=1):
             scale = self._visual_scale if part == self._animated_part else 1.0
             opacity = self._visual_opacity if part == self._animated_part else 1.0
             color = self._theme["text"] if part == self._hover_part else self._theme["muted"]
-            pen = QtGui.QPen(QtGui.QColor(color), 1.8)
+            geometry_scale = self._geometry_scale()
+            pen = QtGui.QPen(
+                QtGui.QColor(color),
+                max(1.35, 1.8 * geometry_scale),
+            )
             pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
             previous_opacity = painter.opacity()
             painter.setOpacity(previous_opacity * max(0.0, min(1.0, opacity)))
             painter.setPen(pen)
-            half = 4.8 * scale
-            center = QtCore.QPointF(rect.center().x(), center_y - 0.5)
+            half = 4.8 * scale * geometry_scale
+            center = QtCore.QPointF(
+                rect.center().x(),
+                center_y - 0.5 * geometry_scale,
+            )
             painter.drawLine(
                 QtCore.QPointF(center.x() - half, center.y()),
                 QtCore.QPointF(center.x() + half, center.y()),
