@@ -1,0 +1,48 @@
+from __future__ import annotations
+
+import os
+import unittest
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6 import QtWidgets
+
+from rizum_ui import PainterSettingsDialog
+
+
+class PainterSettingsDialogTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(
+            []
+        )
+
+    def test_default_frame_and_surface_follow_painter_geometry(self):
+        dialog = PainterSettingsDialog()
+        margins = dialog.layout().contentsMargins()
+
+        self.assertEqual(
+            (margins.left(), margins.top(), margins.right(), margins.bottom()),
+            (2, 0, 2, 2),
+        )
+        self.assertEqual(dialog.settingsFrameWidth(), 2)
+        self.assertEqual(dialog.settingsSurfaceRadius(), 8.0)
+        self.assertIn("background: #1b1b1b", dialog.settingsSurface().styleSheet())
+        self.assertIn("border-radius: 8px", dialog.settingsSurface().styleSheet())
+
+    def test_frame_width_recomputes_parallel_inner_curve(self):
+        dialog = PainterSettingsDialog()
+
+        dialog.setSettingsFrameWidth(3)
+
+        margins = dialog.layout().contentsMargins()
+        self.assertEqual(
+            (margins.left(), margins.top(), margins.right(), margins.bottom()),
+            (3, 0, 3, 3),
+        )
+        self.assertEqual(dialog.settingsSurfaceRadius(), 7.0)
+        self.assertIn("border-radius: 7px", dialog.settingsSurface().styleSheet())
+
+
+if __name__ == "__main__":
+    unittest.main()
