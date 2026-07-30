@@ -69,6 +69,25 @@ group.refreshLayout("M_body", "4 Channels")
 export_button.refreshLayout(minimum=82, maximum=140)
 ```
 
+Use `make_segmented_control()` for compact, mutually exclusive modes instead
+of a wide combo box or a row of unrelated buttons:
+
+```python
+mode_control = make_segmented_control(
+    [
+        ("Continuous", "continuous"),
+        ("15°", "step_15"),
+        ("Custom", "custom"),
+    ],
+    current="step_15",
+)
+mode_control.currentDataChanged.connect(set_rotation_mode)
+mode_control.setCompactHeight(30)
+```
+
+The control sizes itself from its labels, supports mouse and arrow-key
+selection, and exposes `setCompactHeight()` for runtime UI Font scaling.
+
 Use `make_compact_action_bar()` for rows that have compact controls on the left and a right-aligned icon toolbar. This keeps Export and PT Bridge toolbar alignment identical without making their plugin-owned chrome a shared component:
 
 ```python

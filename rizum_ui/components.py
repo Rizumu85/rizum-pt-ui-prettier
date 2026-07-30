@@ -19,6 +19,378 @@ FOOTER_BUTTON_HEIGHT = 26
 FOOTER_BUTTON_PADDING_X = 8
 
 
+def make_segmented_control(options=None, current=None, parent=None):
+    """Create a compact animated single-choice control."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    from .theme import default_theme
+
+    base_height = 30
+    minimum_height = 23
+
+    class _SegmentedControl(QtWidgets.QFrame):
+        currentIndexChanged = QtCore.Signal(int)
+        currentDataChanged = QtCore.Signal(object)
+
+        def __init__(self):
+            super().__init__(parent)
+            self.setObjectName("RizumSegmentedControl")
+            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+            self.setMouseTracking(True)
+            self.setAutoFillBackground(False)
+            self.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Minimum,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+            )
+            self._items = []
+            self._current_index = -1
+            self._hovered_index = -1
+            self._compact_height = base_height
+            self._slider_x = 2.0
+            self._slider_width = 0.0
+            self._animation = None
+            self.setFixedHeight(base_height)
+            self.setItems(options or [])
+            if current is not None:
+                self.setCurrentData(current, emit=False)
+
+        def getSliderX(self):
+            return self._slider_x
+
+        def setSliderX(self, value):
+            self._slider_x = float(value)
+            self.update()
+
+        def getSliderWidth(self):
+            return self._slider_width
+
+        def setSliderWidth(self, value):
+            self._slider_width = float(value)
+            self.update()
+
+        sliderX = QtCore.Property(float, getSliderX, setSliderX)
+        sliderWidth = QtCore.Property(float, getSliderWidth, setSliderWidth)
+
+        def _scale(self):
+            return self._compact_height / float(base_height)
+
+        def _scaled(self, value, floor=None):
+            scaled_value = int(round(value * self._scale()))
+            if floor is None:
+                floor = int(value * 0.75 + 0.5)
+            return max(floor, scaled_value)
+
+        def _font(self):
+            font = QtGui.QFont(self.font())
+            font.setWeight(QtGui.QFont.Weight.Medium)
+            return font
+
+        def _base_widths(self):
+            metrics = QtGui.QFontMetrics(self._font())
+            padding = self._scaled(12, 9)
+            minimum = self._scaled(34, 26)
+            return [
+                max(minimum, metrics.horizontalAdvance(label) + padding * 2)
+                for label, _data in self._items
+            ]
+
+        def _segment_rects(self):
+            if not self._items:
+                return []
+            inset = float(self._scaled(2, 2))
+            widths = [float(width) for width in self._base_widths()]
+            available = max(0.0, self.width() - inset * 2.0)
+            extra = max(0.0, available - sum(widths)) / len(widths)
+            rects = []
+            x = inset
+            for index, width in enumerate(widths):
+                segment_width = width + extra
+                if index == len(widths) - 1:
+                    segment_width = max(0.0, self.width() - inset - x)
+                rects.append(
+                    QtCore.QRectF(
+                        x,
+                        inset,
+                        segment_width,
+                        max(0.0, self.height() - inset * 2.0),
+                    )
+                )
+                x += segment_width
+            return rects
+
+        def _target_slider_rect(self):
+            rects = self._segment_rects()
+            if 0 <= self._current_index < len(rects):
+                return rects[self._current_index]
+            return QtCore.QRectF()
+
+        def _stop_animation(self):
+            if self._animation is not None:
+                self._animation.stop()
+                self._animation = None
+
+        def _sync_slider(self):
+            self._stop_animation()
+            target = self._target_slider_rect()
+            self._slider_x = target.x()
+            self._slider_width = target.width()
+            self.update()
+
+        def _animate_slider(self):
+            target = self._target_slider_rect()
+            self._stop_animation()
+            group = QtCore.QParallelAnimationGroup(self)
+            for prop, start, end in (
+                (b"sliderX", self._slider_x, target.x()),
+                (b"sliderWidth", self._slider_width, target.width()),
+            ):
+                animation = QtCore.QPropertyAnimation(self, prop, group)
+                animation.setDuration(180)
+                animation.setStartValue(start)
+                animation.setEndValue(end)
+                animation.setEasingCurve(
+                    QtCore.QEasingCurve.Type.OutCubic
+                )
+                group.addAnimation(animation)
+            self._animation = group
+            group.start()
+
+        def setItems(self, next_options):
+            previous_data = self.currentData()
+            items = []
+            for option in next_options or []:
+                if isinstance(option, (tuple, list)) and len(option) >= 2:
+                    label, data = option[0], option[1]
+                else:
+                    label = data = option
+                items.append((str(label), data))
+            self._items = items
+            self._current_index = self.findData(previous_data)
+            if self._current_index < 0 and self._items:
+                self._current_index = 0
+            self.setAccessibleName(" / ".join(label for label, _ in items))
+            self.refreshMetrics()
+
+        def count(self):
+            return len(self._items)
+
+        def findData(self, data):
+            for index, (_label, item_data) in enumerate(self._items):
+                if item_data == data:
+                    return index
+            return -1
+
+        def currentIndex(self):
+            return self._current_index
+
+        def currentData(self):
+            if 0 <= self._current_index < len(self._items):
+                return self._items[self._current_index][1]
+            return None
+
+        def currentText(self):
+            if 0 <= self._current_index < len(self._items):
+                return self._items[self._current_index][0]
+            return ""
+
+        def setCurrentIndex(
+            self,
+            index,
+            *,
+            animate=False,
+            emit=True,
+        ):
+            if not self._items:
+                index = -1
+            else:
+                index = max(0, min(int(index), len(self._items) - 1))
+            if index == self._current_index:
+                self._sync_slider()
+                return
+            self._current_index = index
+            if animate and self.isVisible():
+                self._animate_slider()
+            else:
+                self._sync_slider()
+            if emit:
+                self.currentIndexChanged.emit(index)
+                self.currentDataChanged.emit(self.currentData())
+
+        def setCurrentData(self, data, *, animate=False, emit=True):
+            index = self.findData(data)
+            if index >= 0:
+                self.setCurrentIndex(
+                    index,
+                    animate=animate,
+                    emit=emit,
+                )
+
+        def setCompactHeight(self, height):
+            """Scale the fixed frame and all painted internal geometry."""
+            self._compact_height = max(minimum_height, int(round(height)))
+            self.setFixedHeight(self._compact_height)
+            self.refreshMetrics()
+
+        def refreshMetrics(self):
+            self.setMinimumWidth(self.sizeHint().width())
+            self.updateGeometry()
+            self._sync_slider()
+
+        def sizeHint(self):
+            inset = self._scaled(2, 2)
+            return QtCore.QSize(
+                sum(self._base_widths()) + inset * 2,
+                self._compact_height,
+            )
+
+        def minimumSizeHint(self):
+            return self.sizeHint()
+
+        def _index_at(self, point):
+            for index, rect in enumerate(self._segment_rects()):
+                if rect.contains(point):
+                    return index
+            return -1
+
+        def mouseMoveEvent(self, event):
+            hovered = self._index_at(event.position())
+            if hovered != self._hovered_index:
+                self._hovered_index = hovered
+                self.update()
+            super().mouseMoveEvent(event)
+
+        def leaveEvent(self, event):
+            self._hovered_index = -1
+            self.update()
+            super().leaveEvent(event)
+
+        def mousePressEvent(self, event):
+            if (
+                self.isEnabled()
+                and event.button() == QtCore.Qt.MouseButton.LeftButton
+            ):
+                index = self._index_at(event.position())
+                if index >= 0:
+                    self.setCurrentIndex(index, animate=True)
+                    event.accept()
+                    return
+            super().mousePressEvent(event)
+
+        def keyPressEvent(self, event):
+            key = event.key()
+            if key in (
+                QtCore.Qt.Key.Key_Left,
+                QtCore.Qt.Key.Key_Up,
+            ):
+                self.setCurrentIndex(self._current_index - 1, animate=True)
+                event.accept()
+                return
+            if key in (
+                QtCore.Qt.Key.Key_Right,
+                QtCore.Qt.Key.Key_Down,
+            ):
+                self.setCurrentIndex(self._current_index + 1, animate=True)
+                event.accept()
+                return
+            if key == QtCore.Qt.Key.Key_Home:
+                self.setCurrentIndex(0, animate=True)
+                event.accept()
+                return
+            if key == QtCore.Qt.Key.Key_End:
+                self.setCurrentIndex(len(self._items) - 1, animate=True)
+                event.accept()
+                return
+            super().keyPressEvent(event)
+
+        def resizeEvent(self, event):
+            super().resizeEvent(event)
+            self._sync_slider()
+
+        def changeEvent(self, event):
+            super().changeEvent(event)
+            if event.type() in (
+                QtCore.QEvent.Type.FontChange,
+                QtCore.QEvent.Type.ApplicationFontChange,
+            ):
+                self.refreshMetrics()
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(
+                QtGui.QPainter.RenderHint.Antialiasing,
+                True,
+            )
+            if not self.isEnabled():
+                painter.setOpacity(0.45)
+
+            outer_radius = float(self._scaled(7, 5))
+            slider_radius = float(self._scaled(6, 5))
+            outer = QtCore.QRectF(self.rect()).adjusted(
+                0.5,
+                0.5,
+                -0.5,
+                -0.5,
+            )
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(QtGui.QColor(default_theme.surface_control))
+            painter.drawRoundedRect(outer, outer_radius, outer_radius)
+
+            rects = self._segment_rects()
+            if (
+                0 <= self._hovered_index < len(rects)
+                and self._hovered_index != self._current_index
+            ):
+                painter.setBrush(QtGui.QColor(255, 255, 255, 13))
+                painter.drawRoundedRect(
+                    rects[self._hovered_index],
+                    slider_radius,
+                    slider_radius,
+                )
+
+            slider = QtCore.QRectF(
+                self._slider_x,
+                float(self._scaled(2, 2)),
+                self._slider_width,
+                max(0.0, self.height() - self._scaled(2, 2) * 2.0),
+            )
+            painter.setBrush(QtGui.QColor(default_theme.accent))
+            painter.drawRoundedRect(
+                slider,
+                slider_radius,
+                slider_radius,
+            )
+
+            painter.setFont(self._font())
+            for index, ((label, _data), rect) in enumerate(
+                zip(self._items, rects)
+            ):
+                painter.setPen(
+                    QtGui.QColor(default_theme.accent_text)
+                    if index == self._current_index
+                    else QtGui.QColor(default_theme.text_muted)
+                )
+                painter.drawText(
+                    rect,
+                    QtCore.Qt.AlignmentFlag.AlignCenter,
+                    label,
+                )
+
+            if self.hasFocus():
+                painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+                painter.setPen(
+                    QtGui.QPen(QtGui.QColor(default_theme.border), 1)
+                )
+                painter.drawRoundedRect(
+                    outer,
+                    outer_radius,
+                    outer_radius,
+                )
+            painter.end()
+
+    return _SegmentedControl()
+
+
 def _svg_with_breathing_room(source):
     """Give 24px stroke icons a small viewBox margin so strokes are not clipped."""
     source = source.replace('viewBox="0 0 24 24"', 'viewBox="-2 -2 28 28"')
