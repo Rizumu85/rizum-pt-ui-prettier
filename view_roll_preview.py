@@ -511,6 +511,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.setObjectName("RizumViewRollPreview")
         self._saved_state = _copy_state(DEFAULTS)
         self._base_height = None
+        self._footer_metrics = None
         self._restoring = False
         self._syncing_scale = False
         self._name_labels = []
@@ -620,8 +621,10 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         footer_outer.setSpacing(0)
         self._footer_separator = make_inset_separator(12, 1)
         footer_outer.addWidget(self._footer_separator)
-        # The status hint gets its own compact line above the actions so it
-        # can never compete with (or overlap) the footer buttons for width.
+        # The status hint lives in a collapsible reveal above the actions: it
+        # only claims footer height while there is something worth reporting,
+        # so the idle footer is just the compact action row. Height-only
+        # animation, same language as the speed/angle reveals.
         status_line = QtWidgets.QWidget()
         status_line.setObjectName("RizumViewRollStatusLine")
         self._status_line = status_line
@@ -637,7 +640,9 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Policy.Preferred,
         )
         self._status_layout.addWidget(self.status_label)
-        footer_outer.addWidget(status_line)
+        self.status_reveal = _RevealRow(status_line, 22)
+        self.status_reveal.setGeometryCallback(self._on_status_geometry)
+        footer_outer.addWidget(self.status_reveal)
         button_row = QtWidgets.QWidget()
         button_row.setObjectName("RizumViewRollFooterRow")
         self._button_row = button_row
@@ -778,7 +783,9 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
     def save_changes(self):
         self._saved_state = self.current_state()
-        self._refresh_status(saved=True)
+        # No "Saved." filler: the disabled Save button and the collapsing
+        # status line already carry the confirmation.
+        self._refresh_status()
 
     def cancel_changes(self):
         self._apply_state(self._saved_state)
@@ -827,7 +834,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         for action_id, field in self.shortcut_fields.items():
             field.setConflicted(action_id in conflicted)
 
-    def _refresh_status(self, saved=False):
+    def _refresh_status(self):
         capturing = next(
             (field for field in self.shortcut_fields.values() if field.isCapturing()),
             None,
@@ -851,8 +858,12 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             self._status_text = "Unsaved changes."
         else:
             self._status_tone = ""
-            self._status_text = "Saved." if saved else ""
+            self._status_text = ""
         self._sync_status_text()
+        # Animate only when on screen; setup and tests settle instantly.
+        self.status_reveal.setExpanded(
+            bool(self._status_text), animate=self.isVisible()
+        )
 
     def _status_font(self):
         font = QtGui.QFont(self.font())
@@ -924,18 +935,14 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self._header.setFixedHeight(header_height)
         # The footer breathes like the body does: air around the separator,
         # the status hint, and below the buttons. Horizontal margins stay put.
+        # The status row is collapsible, so its slice of the footer height
+        # comes from the reveal, not a fixed slot (see _sync_footer_height).
         footer_outer = self._footer.layout()
         footer_outer.setContentsMargins(0, footer_top, 0, footer_bottom)
         footer_outer.setSpacing(footer_gap)
-        self._footer.setFixedHeight(
-            footer_top
-            + self._footer_separator.sizeHint().height()
-            + footer_gap
-            + status_height
-            + footer_gap
-            + buttons_height
-            + footer_bottom
-        )
+        self._footer_metrics = (footer_top, footer_gap, buttons_height, footer_bottom)
+        self.status_reveal.setExpandedHeight(status_height)
+        self._sync_footer_height()
         self._status_line.setFixedHeight(status_height)
         self._button_row.setFixedHeight(buttons_height)
         self._status_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
@@ -1122,9 +1129,32 @@ QLabel#RizumViewRollScaleHint {{
 
     def _current_extra_height(self):
         extra = 0
-        for reveal in (self.speed_reveal, self.angle_reveal):
+        for reveal in (self.speed_reveal, self.angle_reveal, self.status_reveal):
             extra += round(reveal.expandedHeight() * reveal.progress())
         return extra
+
+    def _on_status_geometry(self, _progress):
+        self._sync_footer_height()
+        self._sync_dialog_height()
+
+    def _sync_footer_height(self):
+        """Footer fixed height tracks the status reveal's animated height.
+
+        When the reveal is collapsed the two layout gaps around its empty
+        slot remain, which reads as normal air above the action row.
+        """
+        if self._footer_metrics is None:
+            return
+        top, gap, buttons_height, bottom = self._footer_metrics
+        self._footer.setFixedHeight(
+            top
+            + self._footer_separator.sizeHint().height()
+            + gap
+            + self.status_reveal.height()
+            + gap
+            + buttons_height
+            + bottom
+        )
 
     def _remeasure_base_height(self):
         self.dialog.setMinimumHeight(0)
