@@ -59,9 +59,10 @@ WATCHED_MODULES = [
     "rizum_ui.components",
     "rizum_ui.animation",
     "rizum_ui",
+    "view_roll_preview",
 ]
 WATCHED_FILES = sorted(
-    [PREVIEW_FILE]
+    [PREVIEW_FILE, ROOT / "view_roll_preview.py"]
     + list((ROOT / "rizum_ui").glob("*.py"))
     + list((ROOT / "icons").glob("*.svg"))
 )
@@ -1985,6 +1986,20 @@ def build_preview(window, QtWidgets, watch_enabled):
     )
     settings_layout.addStretch(1)
     tabs.addTab(settings_page, "Settings")
+
+    import view_roll_preview
+
+    view_roll_page = QtWidgets.QWidget()
+    view_roll_layout = QtWidgets.QVBoxLayout(view_roll_page)
+    view_roll_layout.setContentsMargins(0, 12, 0, 0)
+    view_roll_layout.setSpacing(0)
+    view_roll_layout.addWidget(
+        view_roll_preview.build_view_roll_preview(QtWidgets),
+        0,
+        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+    )
+    view_roll_layout.addStretch(1)
+    tabs.addTab(view_roll_page, "View Roll Concept")
 
     layout.addWidget(tabs, 1)
 

@@ -1,0 +1,1018 @@
+"""Standalone concept preview for a compact View Roll settings panel.
+
+Fresh alternative design built on the shared Rizum UI kit: the Painter
+settings dialog surface, segmented control, compact steppers, and footer
+buttons. The shortcut capture field is concept-local; if the concept ships
+it can graduate into ``rizum_ui`` with the same sizing contract it already
+follows here (``setCompactHeight`` with a 0.75x floor, no closure sizes).
+"""
+
+from __future__ import annotations
+
+from PySide6 import QtCore, QtGui, QtWidgets
+
+from rizum_ui import (
+    FOOTER_BUTTON_PADDING_X,
+    ActionButton,
+    PainterSettingsDialog,
+    install_compact_tooltip,
+    make_compact_stepper,
+    make_inset_separator,
+    make_segmented_control,
+    make_spin_input,
+    make_svg_label,
+    set_compact_footer_button_width,
+)
+from rizum_ui.theme import default_theme
+
+
+ROTATION_MODES = [
+    ("Continuous", "continuous"),
+    ("15°", "step_15"),
+    ("Custom", "custom"),
+]
+
+SHORTCUT_ACTIONS = [
+    ("roll_left", "Roll 3D Left"),
+    ("roll_right", "Roll 3D Right"),
+    ("roll_reset", "Reset 3D Roll"),
+]
+
+DEFAULTS = {
+    "mode": "step_15",
+    "angle": 45,
+    "speed": 90,
+    "shortcuts": {
+        "roll_left": "Alt+Left",
+        "roll_right": "Alt+Right",
+        "roll_reset": "Alt+0",
+    },
+}
+
+
+def _copy_state(state):
+    return {
+        "mode": state["mode"],
+        "angle": state["angle"],
+        "speed": state["speed"],
+        "shortcuts": dict(state["shortcuts"]),
+    }
+
+
+class ShortcutCaptureField(QtWidgets.QFrame):
+    """Painted shortcut field with capture, clear, and conflict states."""
+
+    shortcutChanged = QtCore.Signal(str)
+    captureStateChanged = QtCore.Signal(bool)
+
+    BASE_HEIGHT = 30
+    MIN_HEIGHT = 23  # BASE_HEIGHT x 0.75, per the font-scale contract
+
+    def __init__(self, action_name, parent=None):
+        super().__init__(parent)
+        self.setObjectName("RizumShortcutCapture")
+        self._action_name = action_name
+        self._shortcut = ""
+        self._capturing = False
+        self._conflicted = False
+        self._pending_modifiers = ""
+        self._compact_height = self.BASE_HEIGHT
+        self._hovered = False
+        self._hover_clear = False
+        self._pressed_clear = False
+        self.setFixedHeight(self.BASE_HEIGHT)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.setMouseTracking(True)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
+        self.refreshMetrics()
+
+    def actionName(self):
+        return self._action_name
+
+    def shortcut(self):
+        return self._shortcut
+
+    def setShortcut(self, text, emit=True):
+        text = str(text or "").strip()
+        if text == self._shortcut:
+            self.update()
+            return
+        self._shortcut = text
+        self.refreshMetrics()
+        self.update()
+        if emit:
+            self.shortcutChanged.emit(self._shortcut)
+
+    def isCapturing(self):
+        return self._capturing
+
+    def setConflicted(self, conflicted):
+        conflicted = bool(conflicted)
+        if conflicted == self._conflicted:
+            return
+        self._conflicted = conflicted
+        self.update()
+
+    def setCompactHeight(self, height):
+        """Scale the frame and every painted metric from the 30px baseline."""
+        self._compact_height = max(self.MIN_HEIGHT, int(round(height)))
+        self.setFixedHeight(self._compact_height)
+        self.refreshMetrics()
+        self.update()
+
+    def refreshMetrics(self):
+        # Fixed (not minimum) width: the row layout can never squeeze the
+        # field below the width its placeholder/clear slot were measured for.
+        self.setFixedWidth(self.sizeHint().width())
+        self.updateGeometry()
+
+    def _scale(self):
+        return self._compact_height / float(self.BASE_HEIGHT)
+
+    def _scaled(self, value):
+        return max(int(round(value * 0.75)), int(round(value * self._scale())))
+
+    def _font(self):
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(self._scaled(12))
+        font.setWeight(QtGui.QFont.Weight.Medium)
+        return font
+
+    def _display_text(self):
+        if self._capturing:
+            return self._pending_modifiers or "Type shortcut…"
+        return self._shortcut or "Not set"
+
+    def _clear_slot_width(self):
+        return self._scaled(22) if self._shortcut and not self._capturing else 0
+
+    def _clear_rect(self):
+        slot = self._clear_slot_width()
+        if not slot:
+            return QtCore.QRectF()
+        return QtCore.QRectF(self.width() - slot, 0, slot, self.height())
+
+    def sizeHint(self):
+        metrics = QtGui.QFontMetrics(self._font())
+        candidates = [self._display_text(), "Type shortcut…", "Not set"]
+        if self._shortcut:
+            candidates.append(self._shortcut)
+        text_width = max(metrics.horizontalAdvance(text) for text in candidates)
+        width = (
+            self._scaled(10)
+            + text_width
+            + self._clear_slot_width()
+            + self._scaled(8)
+        )
+        return QtCore.QSize(max(self._scaled(64), width), self._compact_height)
+
+    def minimumSizeHint(self):
+        return self.sizeHint()
+
+    def startCapture(self):
+        if self._capturing:
+            return
+        self._capturing = True
+        self._pending_modifiers = ""
+        self.setFocus(QtCore.Qt.FocusReason.MouseFocusReason)
+        self.refreshMetrics()
+        self.update()
+        self.captureStateChanged.emit(True)
+
+    def cancelCapture(self):
+        if not self._capturing:
+            return
+        self._capturing = False
+        self._pending_modifiers = ""
+        self.refreshMetrics()
+        self.update()
+        self.captureStateChanged.emit(False)
+
+    def _finish_capture(self, text):
+        self._capturing = False
+        self._pending_modifiers = ""
+        self.setShortcut(text)
+        self.captureStateChanged.emit(False)
+
+    def keyPressEvent(self, event):
+        if self._capturing:
+            key = event.key()
+            if key == QtCore.Qt.Key.Key_Escape:
+                self.cancelCapture()
+                event.accept()
+                return
+            if key in (QtCore.Qt.Key.Key_Backspace, QtCore.Qt.Key.Key_Delete):
+                self._finish_capture("")
+                event.accept()
+                return
+            if key in (
+                QtCore.Qt.Key.Key_Control,
+                QtCore.Qt.Key.Key_Shift,
+                QtCore.Qt.Key.Key_Alt,
+                QtCore.Qt.Key.Key_Meta,
+                QtCore.Qt.Key.Key_unknown,
+            ):
+                parts = []
+                modifiers = event.modifiers()
+                if modifiers & QtCore.Qt.KeyboardModifier.ControlModifier:
+                    parts.append("Ctrl")
+                if modifiers & QtCore.Qt.KeyboardModifier.AltModifier:
+                    parts.append("Alt")
+                if modifiers & QtCore.Qt.KeyboardModifier.ShiftModifier:
+                    parts.append("Shift")
+                if modifiers & QtCore.Qt.KeyboardModifier.MetaModifier:
+                    parts.append("Meta")
+                self._pending_modifiers = "+".join(parts) + ("+" if parts else "")
+                self.update()
+                event.accept()
+                return
+            if key in (QtCore.Qt.Key.Key_Tab, QtCore.Qt.Key.Key_Backtab):
+                self.cancelCapture()
+                event.ignore()
+                return
+            sequence = QtGui.QKeySequence(int(event.modifiers()) | key)
+            text = sequence.toString(QtGui.QKeySequence.SequenceFormat.PortableText)
+            if text:
+                self._finish_capture(text)
+                event.accept()
+                return
+            event.accept()
+            return
+        if event.key() in (
+            QtCore.Qt.Key.Key_Return,
+            QtCore.Qt.Key.Key_Enter,
+            QtCore.Qt.Key.Key_Space,
+        ):
+            self.startCapture()
+            event.accept()
+            return
+        if event.key() in (QtCore.Qt.Key.Key_Backspace, QtCore.Qt.Key.Key_Delete):
+            if self._shortcut:
+                self.setShortcut("")
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def focusOutEvent(self, event):
+        self.cancelCapture()
+        super().focusOutEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            if self._clear_rect().contains(event.position()):
+                self._pressed_clear = True
+            else:
+                self.startCapture()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            was_clear = self._pressed_clear
+            self._pressed_clear = False
+            if was_clear and self._clear_rect().contains(event.position()):
+                self.setShortcut("")
+            self.update()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event):
+        hover_clear = self._clear_rect().contains(event.position())
+        if hover_clear != self._hover_clear:
+            self._hover_clear = hover_clear
+            self.update()
+        super().mouseMoveEvent(event)
+
+    def enterEvent(self, event):
+        self._hovered = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self._hover_clear = False
+        self._pressed_clear = False
+        self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
+
+        theme = default_theme
+        radius = float(self._scaled(6))
+        rect = QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+
+        background = QtGui.QColor(theme.surface_control)
+        if self._hovered or self._capturing:
+            background = background.lighter(112)
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
+        painter.setBrush(background)
+        painter.drawRoundedRect(rect, radius, radius)
+
+        border_color = None
+        if self._capturing:
+            border_color = QtGui.QColor(theme.accent)
+        elif self._conflicted:
+            border_color = QtGui.QColor(theme.warning)
+        elif self.hasFocus():
+            border_color = QtGui.QColor(theme.border)
+        if border_color is not None:
+            painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            painter.setPen(QtGui.QPen(border_color, 1))
+            painter.drawRoundedRect(rect, radius, radius)
+
+        text = self._display_text()
+        if self._conflicted and not self._capturing:
+            text_color = QtGui.QColor(theme.warning)
+        elif self._capturing:
+            text_color = QtGui.QColor(theme.text_muted)
+        elif self._shortcut:
+            text_color = QtGui.QColor(theme.text)
+        else:
+            text_color = QtGui.QColor(theme.text_faint)
+        font = self._font()
+        painter.setFont(font)
+        painter.setPen(text_color)
+        metrics = QtGui.QFontMetricsF(font)
+        # Elide as a safety net; refreshMetrics sizes the field so this
+        # should never actually trigger.
+        available = (
+            rect.width()
+            - self._scaled(10)
+            - self._clear_slot_width()
+            - self._scaled(8)
+        )
+        text = metrics.elidedText(
+            text, QtCore.Qt.TextElideMode.ElideRight, int(available)
+        )
+        baseline = rect.center().y() + (metrics.ascent() - metrics.descent()) / 2
+        painter.drawText(QtCore.QPointF(self._scaled(10), baseline), text)
+
+        clear_rect = self._clear_rect()
+        if not clear_rect.isEmpty():
+            glyph_color = (
+                QtGui.QColor(theme.text)
+                if self._hover_clear
+                else QtGui.QColor(theme.text_faint)
+            )
+            scale = self._scale()
+            pen = QtGui.QPen(glyph_color, max(1.2, 1.4 * scale))
+            pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            half = 3.2 * scale
+            center = clear_rect.center()
+            painter.drawLine(
+                QtCore.QPointF(center.x() - half, center.y() - half),
+                QtCore.QPointF(center.x() + half, center.y() + half),
+            )
+            painter.drawLine(
+                QtCore.QPointF(center.x() - half, center.y() + half),
+                QtCore.QPointF(center.x() + half, center.y() - half),
+            )
+        painter.end()
+
+
+class _RevealRow(QtWidgets.QFrame):
+    """Height-animated collapsible row, mirroring the settings preview."""
+
+    def __init__(self, content, expanded_height, parent=None):
+        super().__init__(parent)
+        self.setObjectName("RizumViewRollReveal")
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAutoFillBackground(False)
+        self._expanded_height = int(expanded_height)
+        self._progress = 1.0
+        self._expanded = True
+        self._animation = None
+        self._geometry_callback = None
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(content)
+        self.setFixedHeight(self._expanded_height)
+
+    def progress(self):
+        return self._progress
+
+    def expandedHeight(self):
+        return self._expanded_height
+
+    def setExpandedHeight(self, height):
+        self._expanded_height = max(0, int(round(height)))
+        self._sync_geometry()
+
+    def setGeometryCallback(self, callback):
+        self._geometry_callback = callback
+
+    def _sync_geometry(self):
+        progress = max(0.0, min(1.0, self._progress))
+        self.setFixedHeight(round(self._expanded_height * progress))
+        if self._geometry_callback is not None:
+            self._geometry_callback(progress)
+
+    def getRevealProgress(self):
+        return self._progress
+
+    def setRevealProgress(self, value):
+        self._progress = float(value)
+        self._sync_geometry()
+
+    revealProgress = QtCore.Property(float, getRevealProgress, setRevealProgress)
+
+    def setExpanded(self, expanded, animate=True):
+        expanded = bool(expanded)
+        self._expanded = expanded
+        target = 1.0 if expanded else 0.0
+        if self._animation is not None:
+            self._animation.stop()
+        if not animate or abs(self._progress - target) < 0.001:
+            self.setRevealProgress(target)
+            self.setAttribute(
+                QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, not expanded
+            )
+            return
+        self.setAttribute(
+            QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, not expanded
+        )
+        animation = QtCore.QPropertyAnimation(self, b"revealProgress", self)
+        animation.setDuration(max(120, round(320 * abs(target - self._progress))))
+        animation.setStartValue(self._progress)
+        animation.setEndValue(target)
+        animation.setEasingCurve(QtCore.QEasingCurve.Type.OutQuart)
+        self._animation = animation
+        animation.start()
+
+
+class ViewRollConceptPanel(QtWidgets.QWidget):
+    """Tab content: the concept dialog plus a preview-only UI scale driver."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("RizumViewRollPreview")
+        self._saved_state = _copy_state(DEFAULTS)
+        self._base_height = None
+        self._restoring = False
+        self._syncing_scale = False
+
+        outer = QtWidgets.QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(10)
+
+        self.dialog = PainterSettingsDialog(self)
+        self.dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
+        surface_layout = self.dialog.settingsSurfaceLayout()
+
+        header = QtWidgets.QWidget()
+        header.setObjectName("RizumViewRollHeader")
+        self._header = header
+        header_layout = QtWidgets.QHBoxLayout(header)
+        header_layout.setContentsMargins(16, 0, 16, 0)
+        header_layout.setSpacing(0)
+        title = QtWidgets.QLabel("View Roll")
+        title.setObjectName("RizumViewRollTitle")
+        header_layout.addWidget(title)
+        header_layout.addStretch(1)
+        header_layout.addWidget(make_svg_label("x.svg", 14))
+        surface_layout.addWidget(header)
+        surface_layout.addWidget(make_inset_separator(12, 1))
+
+        body = QtWidgets.QWidget()
+        body.setObjectName("RizumViewRollBody")
+        self._body_layout = QtWidgets.QVBoxLayout(body)
+        self._body_layout.setContentsMargins(12, 8, 12, 16)
+        self._body_layout.setSpacing(2)
+
+        self._section_rotation = self._make_section("Rotation", first=True)
+        self._body_layout.addWidget(self._section_rotation)
+
+        self.mode_segment = make_segmented_control(
+            ROTATION_MODES, current=self._saved_state["mode"]
+        )
+        mode_row, mode_layout = self._make_row()
+        mode_layout.addWidget(self._make_name("Mode"))
+        mode_layout.addStretch(1)
+        mode_layout.addWidget(self.mode_segment)
+        self._body_layout.addWidget(mode_row)
+
+        self.speed_stepper = make_compact_stepper(
+            self._saved_state["speed"], minimum=1, maximum=360, step=5, decimals=0
+        )
+        speed_row, speed_layout = self._make_row(tall=True)
+        speed_layout.addWidget(self._make_texts("Speed", "°/s"))
+        speed_layout.addStretch(1)
+        speed_layout.addWidget(self.speed_stepper)
+        self.speed_reveal = _RevealRow(speed_row, speed_row.height())
+        self.speed_reveal.setGeometryCallback(self._sync_dialog_height)
+        self._body_layout.addWidget(self.speed_reveal)
+
+        self.angle_stepper = make_compact_stepper(
+            self._saved_state["angle"], minimum=1, maximum=180, step=1, decimals=0
+        )
+        angle_row, angle_layout = self._make_row(tall=True)
+        angle_layout.addWidget(self._make_texts("Angle", "°"))
+        angle_layout.addStretch(1)
+        angle_layout.addWidget(self.angle_stepper)
+        self.angle_reveal = _RevealRow(angle_row, angle_row.height())
+        self.angle_reveal.setGeometryCallback(self._sync_dialog_height)
+        self._body_layout.addWidget(self.angle_reveal)
+
+        self._section_shortcuts = self._make_section("Shortcuts")
+        self._body_layout.addWidget(self._section_shortcuts)
+
+        self.shortcut_fields = {}
+        for action_id, action_name in SHORTCUT_ACTIONS:
+            field = ShortcutCaptureField(action_name)
+            field.setShortcut(self._saved_state["shortcuts"][action_id], emit=False)
+            install_compact_tooltip(
+                field, "Click to capture a new shortcut. Esc cancels, Delete clears."
+            )
+            row, row_layout = self._make_row()
+            row_layout.addWidget(self._make_name(action_name))
+            row_layout.addStretch(1)
+            row_layout.addWidget(field)
+            self._body_layout.addWidget(row)
+            self.shortcut_fields[action_id] = field
+            field.shortcutChanged.connect(self._on_shortcut_changed)
+            field.captureStateChanged.connect(
+                lambda _capturing: self._refresh_status()
+            )
+
+        surface_layout.addWidget(body, 1)
+
+        footer = QtWidgets.QWidget()
+        footer.setObjectName("RizumViewRollFooter")
+        self._footer = footer
+        footer_outer = QtWidgets.QVBoxLayout(footer)
+        footer_outer.setContentsMargins(0, 0, 0, 0)
+        footer_outer.setSpacing(0)
+        self._footer_separator = make_inset_separator(12, 1)
+        footer_outer.addWidget(self._footer_separator)
+        # The status hint gets its own compact line above the actions so it
+        # can never compete with (or overlap) the footer buttons for width.
+        status_line = QtWidgets.QWidget()
+        status_line.setObjectName("RizumViewRollStatusLine")
+        self._status_line = status_line
+        self._status_layout = QtWidgets.QHBoxLayout(status_line)
+        self._status_layout.setContentsMargins(16, 0, 16, 0)
+        self._status_layout.setSpacing(0)
+        self._status_text = ""
+        self._status_tone = ""
+        self.status_label = QtWidgets.QLabel("")
+        self.status_label.setObjectName("RizumSettingsFooterHint")
+        self.status_label.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Ignored,
+            QtWidgets.QSizePolicy.Policy.Preferred,
+        )
+        self._status_layout.addWidget(self.status_label)
+        footer_outer.addWidget(status_line)
+        button_row = QtWidgets.QWidget()
+        button_row.setObjectName("RizumViewRollFooterRow")
+        self._button_row = button_row
+        self._button_layout = QtWidgets.QHBoxLayout(button_row)
+        self._button_layout.setContentsMargins(16, 0, 16, 0)
+        self._button_layout.setSpacing(8)
+        self._button_layout.addStretch(1)
+        # Compact footer: "Restore defaults" cannot stay unclipped inside the
+        # dialog's measured-width budget at 1.5x-2.0x UI scale.
+        self.restore_button = ActionButton.create("Restore", "dialog-secondary")
+        self.cancel_button = ActionButton.create("Cancel", "dialog-secondary")
+        self.save_button = ActionButton.create("Save", "dialog-primary")
+        self._button_layout.addWidget(self.restore_button)
+        self._button_layout.addWidget(self.cancel_button)
+        self._button_layout.addWidget(self.save_button)
+        footer_outer.addWidget(button_row)
+        surface_layout.addWidget(footer)
+
+        scale_row = QtWidgets.QHBoxLayout()
+        scale_row.setContentsMargins(2, 0, 2, 0)
+        scale_row.setSpacing(8)
+        scale_hint = QtWidgets.QLabel("Preview UI Scale")
+        scale_hint.setObjectName("RizumViewRollScaleHint")
+        self.scale_input = make_spin_input(1.0, minimum=0.75, maximum=2.0, step=0.05)
+        self.scale_input.setCompactHeight(26)
+        scale_row.addWidget(scale_hint)
+        scale_row.addWidget(self.scale_input)
+        scale_row.addStretch(1)
+        outer.addLayout(scale_row)
+        outer.addWidget(
+            self.dialog,
+            0,
+            QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+        )
+        outer.addStretch(1)
+
+        self.mode_segment.currentDataChanged.connect(self._on_mode_changed)
+        self.angle_stepper.valueChanged.connect(self._on_value_edited)
+        self.speed_stepper.valueChanged.connect(self._on_value_edited)
+        self.restore_button.clicked.connect(self.restore_defaults)
+        self.cancel_button.clicked.connect(self.cancel_changes)
+        self.save_button.clicked.connect(self.save_changes)
+        self.dialog.settingsUiScaleChanged.connect(self._on_ui_scale_changed)
+        self.scale_input.valueChanged.connect(self._on_scale_input_changed)
+
+        self._apply_mode_reveals(animate=False)
+        self._apply_scale()
+        self._remeasure_base_height()
+        self._refresh_conflicts()
+        self._refresh_status()
+        self._syncing_scale = True
+        self.scale_input.setValue(self.dialog.settingsUiScale())
+        self._syncing_scale = False
+
+    # --- widget helpers -------------------------------------------------
+
+    def _make_section(self, text, first=False):
+        label = QtWidgets.QLabel(text.upper())
+        label.setObjectName("RizumSettingsSection")
+        label._rizum_first = first
+        label.setFixedHeight(28 if first else 40)
+        return label
+
+    def _make_name(self, text):
+        label = QtWidgets.QLabel(text)
+        label.setObjectName("RizumSettingsItemName")
+        # Names yield to the fixed-size control on the right (segment,
+        # stepper, shortcut field) so the row never pushes the control out
+        # of the dialog; the measured dialog width ignores name text.
+        label.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Ignored,
+            QtWidgets.QSizePolicy.Policy.Preferred,
+        )
+        return label
+
+    def _make_texts(self, name, meta):
+        widget = QtWidgets.QWidget()
+        widget.setObjectName("RizumViewRollTexts")
+        layout = QtWidgets.QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        layout.addWidget(self._make_name(name))
+        meta_label = QtWidgets.QLabel(meta)
+        meta_label.setObjectName("RizumSettingsItemMeta")
+        layout.addWidget(meta_label)
+        return widget
+
+    def _make_row(self, tall=False):
+        row = QtWidgets.QFrame()
+        row.setObjectName("RizumViewRollRow")
+        row.setFixedHeight(46 if tall else 40)
+        layout = QtWidgets.QHBoxLayout(row)
+        layout.setContentsMargins(8, 5, 8, 5)
+        layout.setSpacing(8)
+        return row, layout
+
+    def _metric(self, pixels, minimum=None):
+        return self.dialog.settingsMetric(pixels, minimum)
+
+    # --- state ----------------------------------------------------------
+
+    def current_state(self):
+        return {
+            "mode": self.mode_segment.currentData(),
+            "angle": self.angle_stepper.value(),
+            "speed": self.speed_stepper.value(),
+            "shortcuts": {
+                action_id: field.shortcut()
+                for action_id, field in self.shortcut_fields.items()
+            },
+        }
+
+    def is_dirty(self):
+        return self.current_state() != self._saved_state
+
+    def _apply_state(self, state, emit=False):
+        self._restoring = True
+        try:
+            self.mode_segment.setCurrentData(state["mode"], animate=False, emit=emit)
+            self.angle_stepper.setValue(state["angle"], emit=emit)
+            self.speed_stepper.setValue(state["speed"], emit=emit)
+            for action_id, field in self.shortcut_fields.items():
+                field.cancelCapture()
+                field.setShortcut(state["shortcuts"][action_id], emit=emit)
+            self._apply_mode_reveals(animate=False)
+        finally:
+            self._restoring = False
+        self._refresh_conflicts()
+        self._refresh_status()
+
+    def save_changes(self):
+        self._saved_state = self.current_state()
+        self._refresh_status(saved=True)
+
+    def cancel_changes(self):
+        self._apply_state(self._saved_state)
+
+    def restore_defaults(self):
+        self._apply_state(_copy_state(DEFAULTS))
+
+    # --- interactions ---------------------------------------------------
+
+    def _on_mode_changed(self, _data):
+        self._apply_mode_reveals(animate=True)
+        if not self._restoring:
+            self._refresh_status()
+
+    def _apply_mode_reveals(self, animate):
+        mode = self.mode_segment.currentData()
+        self.speed_reveal.setExpanded(mode == "continuous", animate=animate)
+        self.angle_reveal.setExpanded(mode == "custom", animate=animate)
+        if not animate:
+            self._remeasure_base_height()
+
+    def _on_value_edited(self, _value):
+        if not self._restoring:
+            self._refresh_status()
+
+    def _on_shortcut_changed(self, _text):
+        if self._restoring:
+            return
+        self._refresh_conflicts()
+        self._refresh_status()
+
+    def _conflicting_actions(self):
+        owners = {}
+        for action_id, field in self.shortcut_fields.items():
+            shortcut = field.shortcut()
+            if shortcut:
+                owners.setdefault(shortcut.lower(), []).append(action_id)
+        conflicted = set()
+        for action_ids in owners.values():
+            if len(action_ids) > 1:
+                conflicted.update(action_ids)
+        return conflicted
+
+    def _refresh_conflicts(self):
+        conflicted = self._conflicting_actions()
+        for action_id, field in self.shortcut_fields.items():
+            field.setConflicted(action_id in conflicted)
+
+    def _refresh_status(self, saved=False):
+        capturing = next(
+            (field for field in self.shortcut_fields.values() if field.isCapturing()),
+            None,
+        )
+        conflicted = self._conflicting_actions()
+        dirty = self.is_dirty()
+        self.save_button.setEnabled(dirty)
+        if capturing is not None:
+            self._status_tone = ""
+            self._status_text = (
+                f"Editing {capturing.actionName()} — press keys, Esc to cancel."
+            )
+        elif conflicted:
+            names = " and ".join(
+                dict(SHORTCUT_ACTIONS)[action_id] for action_id in sorted(conflicted)
+            )
+            self._status_tone = "warn"
+            self._status_text = f"{names} use the same shortcut."
+        elif dirty:
+            self._status_tone = ""
+            self._status_text = "Unsaved changes."
+        else:
+            self._status_tone = ""
+            self._status_text = "Saved." if saved else ""
+        self._sync_status_text()
+
+    def _status_font(self):
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(self._metric(11))
+        font.setWeight(QtGui.QFont.Weight.Medium)
+        return font
+
+    def _sync_status_text(self):
+        """Elide the status hint to the width its line actually has."""
+        text = self._status_text
+        if text:
+            frame = self.dialog.settingsFrameWidth()
+            margins = self._status_layout.contentsMargins()
+            available = (
+                self.dialog.width()
+                - 2 * frame
+                - margins.left()
+                - margins.right()
+            )
+            if available > 0:
+                metrics = QtGui.QFontMetrics(self._status_font())
+                text = metrics.elidedText(
+                    text, QtCore.Qt.TextElideMode.ElideRight, available
+                )
+        self.status_label.setProperty("tone", self._status_tone)
+        self.status_label.setText(text)
+        self.status_label.style().unpolish(self.status_label)
+        self.status_label.style().polish(self.status_label)
+
+    # --- UI font scale ----------------------------------------------------
+
+    def _on_scale_input_changed(self, value):
+        if not self._syncing_scale:
+            self.dialog.setSettingsUiScale(value)
+
+    def _on_ui_scale_changed(self, scale):
+        self._apply_scale()
+        self._remeasure_base_height()
+        self._syncing_scale = True
+        self.scale_input.setValue(scale)
+        self._syncing_scale = False
+
+    def _apply_scale(self):
+        """Scale every row, control, and footer button from the dialog scale."""
+        header_height = self._metric(40, 30)
+        row_height = self._metric(40, 30)
+        tall_height = self._metric(46, 35)
+        status_height = self._metric(20, 15)
+        buttons_height = self._metric(34, 26)
+        footer_margin = self._metric(16, 12)
+
+        self._header.setFixedHeight(header_height)
+        self._footer.setFixedHeight(
+            self._footer_separator.sizeHint().height()
+            + status_height
+            + buttons_height
+        )
+        self._status_line.setFixedHeight(status_height)
+        self._button_row.setFixedHeight(buttons_height)
+        self._status_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
+        self._button_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
+        self._section_rotation.setFixedHeight(self._metric(28, 21))
+        self._section_shortcuts.setFixedHeight(self._metric(40, 30))
+        self._body_layout.setContentsMargins(
+            self._metric(12, 9),
+            self._metric(8, 6),
+            self._metric(12, 9),
+            self._metric(16, 12),
+        )
+
+        self.mode_segment.setCompactHeight(self._metric(30, 23))
+        self.speed_stepper.setCompactHeight(self._metric(32, 24))
+        self.angle_stepper.setCompactHeight(self._metric(32, 24))
+        for field in self.shortcut_fields.values():
+            field.setCompactHeight(self._metric(30, 23))
+            if hasattr(field, "setCompactTooltipScale"):
+                field.setCompactTooltipScale(self.dialog.settingsUiScale())
+
+        mode_row = self.mode_segment.parentWidget()
+        mode_row.setFixedHeight(row_height)
+        for reveal, stepper in (
+            (self.speed_reveal, self.speed_stepper),
+            (self.angle_reveal, self.angle_stepper),
+        ):
+            stepper.parentWidget().setFixedHeight(tall_height)
+            reveal.setExpandedHeight(tall_height)
+        for field in self.shortcut_fields.values():
+            field.parentWidget().setFixedHeight(row_height)
+
+        footer_button_height = self._metric(26, 20)
+        for button, minimum, maximum in (
+            (self.restore_button, 108, 150),
+            (self.cancel_button, 56, 96),
+            (self.save_button, 52, 92),
+        ):
+            width = self._footer_button_width(
+                button, minimum=minimum, maximum=maximum
+            )
+            set_compact_footer_button_width(
+                button, width, height=footer_button_height
+            )
+
+        # Width is measured, not fixed: stay at the compact baseline unless
+        # the scaled footer buttons or field rows genuinely need more room.
+        self.dialog.setFixedWidth(self._required_dialog_width())
+        self._restyle()
+        self._sync_status_text()
+
+    def _footer_button_font(self):
+        """The font the dialog stylesheet renders footer buttons in.
+
+        Measuring with ``button.font()`` before polish misses the stylesheet
+        ``font-size``, which is what truncated the buttons at 1.10x.
+        """
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(self._metric(12))
+        font.setWeight(QtGui.QFont.Weight.Normal)
+        return font
+
+    def _footer_button_width(self, button, minimum, maximum):
+        scale = self.dialog.settingsUiScale()
+        text_width = QtGui.QFontMetrics(
+            self._footer_button_font()
+        ).horizontalAdvance(button.text())
+        # +2: set_compact_footer_button_width reserves padding*2 + 2 for chrome.
+        width = text_width + 2 * FOOTER_BUTTON_PADDING_X + 2
+        return max(
+            self._metric(minimum),
+            min(int(round(maximum * scale)), width),
+        )
+
+    def _required_dialog_width(self):
+        base = self._metric(300, 240)
+        footer_margin = self._metric(16, 12)
+        row_margin = 8
+        row_spacing = 8
+        body_margin = self._metric(12, 9)
+
+        button_spacing = self._button_layout.spacing()
+        buttons_width = sum(
+            button.width()
+            for button in (
+                self.restore_button,
+                self.cancel_button,
+                self.save_button,
+            )
+        )
+        footer_need = buttons_width + 2 * button_spacing + 2 * footer_margin
+
+        def control_row_need(control_width):
+            # Only the fixed-size control counts; name labels shrink (Ignored
+            # policy) and the segmented control stretches to whatever is left.
+            return control_width + row_spacing + 2 * row_margin + 2 * body_margin
+
+        stepper_need = max(
+            control_row_need(stepper.width())
+            for stepper in (self.speed_stepper, self.angle_stepper)
+        )
+        shortcut_need = max(
+            control_row_need(field.sizeHint().width())
+            for field in self.shortcut_fields.values()
+        )
+
+        content_need = max(footer_need, stepper_need, shortcut_need)
+        return max(base, content_need + 2 * self.dialog.settingsFrameWidth() + 2)
+
+    def _restyle(self):
+        theme = default_theme
+        title_px = self._metric(13)
+        hint_px = self._metric(11)
+        # Rebuild the dialog's base stylesheet first so repeated restyles
+        # never stack duplicate concept rules on top of each other.
+        self.dialog._update_surface_stylesheet()
+        surface = self.dialog.settingsSurface()
+        surface.setStyleSheet(
+            surface.styleSheet()
+            + f"""
+QWidget#RizumViewRollHeader,
+QWidget#RizumViewRollBody,
+QWidget#RizumViewRollFooter,
+QWidget#RizumViewRollStatusLine,
+QWidget#RizumViewRollFooterRow,
+QWidget#RizumViewRollTexts,
+QFrame#RizumViewRollReveal {{
+    background: transparent;
+    border: 0;
+}}
+QLabel#RizumViewRollTitle {{
+    color: {theme.text};
+    font-size: {title_px}px;
+    font-weight: 600;
+    background: transparent;
+    border: 0;
+}}
+QFrame#RizumViewRollRow {{
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+}}
+QFrame#RizumViewRollRow:hover {{
+    background: {theme.surface_hover};
+    border: 0;
+}}
+QLabel#RizumSettingsFooterHint[tone="warn"] {{
+    color: {theme.warning};
+}}
+QLabel#RizumViewRollScaleHint {{
+    color: {theme.text_faint};
+    font-size: {hint_px}px;
+    background: transparent;
+    border: 0;
+}}
+"""
+        )
+
+    # --- geometry ---------------------------------------------------------
+
+    def _current_extra_height(self):
+        extra = 0
+        for reveal in (self.speed_reveal, self.angle_reveal):
+            extra += round(reveal.expandedHeight() * reveal.progress())
+        return extra
+
+    def _remeasure_base_height(self):
+        self.dialog.setMinimumHeight(0)
+        self.dialog.setMaximumHeight(16777215)
+        hint = self.dialog.sizeHint().height()
+        self._base_height = max(1, hint - self._current_extra_height())
+        self._sync_dialog_height()
+
+    def _sync_dialog_height(self, _progress=0.0):
+        if self._base_height is None:
+            return
+        self.dialog.setFixedHeight(self._base_height + self._current_extra_height())
+
+
+def build_view_roll_preview(QtWidgets):
+    """Build the View Roll Concept tab content for the standalone preview."""
+    return ViewRollConceptPanel()
