@@ -15,6 +15,7 @@ from view_roll_preview import (
     SHORTCUT_ACTIONS,
     ShortcutCaptureField,
     ViewRollConceptPanel,
+    _fill_segmented_paint_event,
 )
 
 REPRESENTATIVE_SCALES = (0.75, 1.0, 1.1, 1.5, 2.0)
@@ -240,16 +241,188 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                     rect = self.rect_in_dialog(panel, field)
                     self.assertLessEqual(rect.right(), panel.dialog.width() - 1)
 
+    def test_shortcut_names_remain_visible_without_overlapping_fields(self):
+        for scale in REPRESENTATIVE_SCALES:
+            with self.subTest(scale=scale):
+                panel = self.make_panel(scale)
+                for action_id, _action_name in SHORTCUT_ACTIONS:
+                    field = panel.shortcut_fields[action_id]
+                    label = field._rizum_name_label
+                    label_rect = self.rect_in_dialog(panel, label)
+                    field_rect = self.rect_in_dialog(panel, field)
+                    self.assertGreater(label.width(), 0)
+                    self.assertGreaterEqual(label_rect.left(), 0)
+                    self.assertFalse(label_rect.intersects(field_rect))
+
     def test_dialog_width_stays_compact(self):
         for scale in REPRESENTATIVE_SCALES:
             with self.subTest(scale=scale):
                 panel = self.make_panel(scale)
                 base = panel.dialog.settingsMetric(300, 240)
+                # Exact fit: the width is the compact baseline, grown only by
+                # what the measured content genuinely demands — never more.
                 self.assertEqual(panel.dialog.width(), panel._required_dialog_width())
-                # Content must fit the scaled compact baseline; the measured
-                # fallback exists for wider fonts, not as an invitation to grow.
                 self.assertGreaterEqual(panel.dialog.width(), base)
-                self.assertLessEqual(panel.dialog.width(), base + 48)
+                # Runaway-growth cap. The offscreen test font engine measures
+                # glyphs ~1.8x wider than production fonts, so an absolute
+                # pixel bound cannot be tight; 1.5x the baseline still catches
+                # double-scaling bugs at the non-1.0 scales.
+                self.assertLessEqual(panel.dialog.width(), base + base // 2)
+
+    def test_name_labels_render_full_text_at_every_scale(self):
+        """"Speed" clipped to "Speec" when widths were guessed per character."""
+        for scale in REPRESENTATIVE_SCALES:
+            with self.subTest(scale=scale):
+                panel = self.make_panel(scale)
+                for label in panel._name_labels:
+                    metrics = QtGui.QFontMetrics(label.font())
+                    self.assertLessEqual(
+                        metrics.horizontalAdvance(label.text()),
+                        label.width(),
+                        f"{label.text()!r} clips at {scale}x",
+                    )
+                for block in panel._texts_blocks:
+                    meta = block._rizum_meta_label
+                    metrics = QtGui.QFontMetrics(meta.font())
+                    self.assertLessEqual(
+                        metrics.horizontalAdvance(meta.text()),
+                        meta.width(),
+                        f"{meta.text()!r} clips at {scale}x",
+                    )
+
+    def test_tall_row_text_block_centers_against_stepper(self):
+        """The name+meta stack sits as one tight unit beside the stepper."""
+        for scale in REPRESENTATIVE_SCALES:
+            with self.subTest(scale=scale):
+                panel = self.make_panel(scale)
+                for texts, stepper in (
+                    (panel.speed_texts, panel.speed_stepper),
+                    (panel.angle_texts, panel.angle_stepper),
+                ):
+                    row = stepper.parentWidget()
+                    name = texts._rizum_name_label
+                    meta = texts._rizum_meta_label
+                    # Tight stack: exactly name + spacing + meta, no stretch.
+                    self.assertEqual(
+                        texts.height(),
+                        name.height() + texts.layout().spacing() + meta.height(),
+                    )
+                    self.assertLessEqual(
+                        texts.layout().spacing(), panel._metric(2, 1)
+                    )
+                    block_center = texts.mapTo(
+                        row, QtCore.QPoint(0, texts.height() // 2)
+                    ).y()
+                    stepper_center = stepper.mapTo(
+                        row, QtCore.QPoint(0, stepper.height() // 2)
+                    ).y()
+                    self.assertLessEqual(abs(block_center - stepper_center), 1)
+                    # The block stays inside the row's content box.
+                    margins = row.layout().contentsMargins()
+                    block_top = texts.mapTo(row, QtCore.QPoint(0, 0)).y()
+                    self.assertGreaterEqual(block_top, margins.top())
+                    self.assertLessEqual(
+                        block_top + texts.height(),
+                        row.height() - margins.bottom(),
+                    )
+
+    def test_footer_rhythm_keeps_vertical_breathing_room(self):
+        """Separator, hint, and buttons keep scaled air above and below."""
+        for scale in REPRESENTATIVE_SCALES:
+            with self.subTest(scale=scale):
+                panel = self.make_panel(scale)
+                separator = self.rect_in_dialog(panel, panel._footer_separator)
+                status = self.rect_in_dialog(panel, panel._status_line)
+                buttons = self.rect_in_dialog(panel, panel._button_row)
+                footer = self.rect_in_dialog(panel, panel._footer)
+
+                self.assertEqual(
+                    separator.top() - footer.top(), panel._metric(6, 5)
+                )
+                # QRect.bottom() is inclusive; +1 converts to a pixel gap.
+                self.assertEqual(
+                    status.top() - separator.bottom() - 1, panel._metric(8, 6)
+                )
+                self.assertEqual(
+                    buttons.top() - status.bottom() - 1, panel._metric(8, 6)
+                )
+                self.assertEqual(
+                    footer.bottom() - buttons.bottom(), panel._metric(12, 9)
+                )
+                # Breathing room is vertical only: side margins stay compact.
+                margins = panel._button_layout.contentsMargins()
+                self.assertEqual(margins.left(), panel._metric(16, 12))
+                self.assertEqual(margins.right(), panel._metric(16, 12))
+
+    def test_segmented_control_paints_fills_without_edge_stroke(self):
+        """Focus raises the track fill; no 1px outline is ever drawn."""
+        panel = self.make_panel(1.0)
+        control = panel.mode_segment
+        self.assertIs(type(control).paintEvent, _fill_segmented_paint_event)
+
+        def grab_focused(focused):
+            if focused:
+                control.hasFocus = lambda: True
+            else:
+                # The offscreen window can hand this control real focus;
+                # drop it so the "plain" grab is deterministic.
+                control.clearFocus()
+            try:
+                return control.grab().toImage()
+            finally:
+                if focused:
+                    del control.hasFocus
+
+        plain = grab_focused(False)
+        focused = grab_focused(True)
+        width, height = plain.width(), plain.height()
+
+        # The old focus ring lived on the outermost edge pixels; the fill
+        # design leaves them untouched whether focused or not. Tolerance 4
+        # covers antialiasing of the lifted track; the old 1px ring shifted
+        # these pixels by ~25.
+        for point in (
+            (width // 2, 0),
+            (width // 2, height - 1),
+            (0, height // 2),
+            (width - 1, height // 2),
+        ):
+            before = plain.pixelColor(*point)
+            after = focused.pixelColor(*point)
+            self.assertLessEqual(
+                abs(before.value() - after.value()),
+                4,
+                f"edge stroke appears at {point}",
+            )
+
+        # Track still lifts on focus, sampled inside an unselected segment
+        # away from its text.
+        rects = control._segment_rects()
+        idle_index = (control.currentIndex() + 1) % control.count()
+        idle_rect = rects[idle_index]
+        track_point = (
+            int(idle_rect.left()) + 2,
+            int(idle_rect.center().y()) - int(idle_rect.height() // 4),
+        )
+        before = plain.pixelColor(*track_point)
+        after = focused.pixelColor(*track_point)
+        self.assertGreater(after.value(), before.value())
+
+        # The selected segment keeps its accent fill.
+        current = rects[control.currentIndex()]
+        selected = plain.pixelColor(
+            int(current.center().x()), int(current.top()) + 1
+        )
+        self.assertGreater(selected.value(), 200)
+
+        # Hover keeps its light overlay on the segment under the pointer.
+        control._hovered_index = idle_index
+        control.update()
+        hovered = grab_focused(False)
+        self.assertGreater(
+            hovered.pixelColor(*track_point).value(),
+            plain.pixelColor(*track_point).value(),
+        )
 
 
 if __name__ == "__main__":

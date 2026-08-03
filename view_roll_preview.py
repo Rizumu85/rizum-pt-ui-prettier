@@ -50,6 +50,61 @@ DEFAULTS = {
 }
 
 
+def _fill_segmented_paint_event(control, event):
+    """Fill-driven paint for the shared segmented control.
+
+    The library paintEvent ends with a 1px focus outline; this dialog speaks
+    purely in fills, so focus raises the track fill instead of drawing a
+    stroke. ``make_segmented_control`` builds a fresh closure class per call,
+    so rebinding ``paintEvent`` only affects this panel's instance.
+    """
+    painter = QtGui.QPainter(control)
+    painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+    if not control.isEnabled():
+        painter.setOpacity(0.45)
+
+    outer_radius = float(control._scaled(7, 5))
+    slider_radius = float(control._scaled(6, 5))
+    outer = QtCore.QRectF(control.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+
+    track = QtGui.QColor(default_theme.surface_control)
+    if control.hasFocus():
+        track = track.lighter(112)
+    painter.setPen(QtCore.Qt.PenStyle.NoPen)
+    painter.setBrush(track)
+    painter.drawRoundedRect(outer, outer_radius, outer_radius)
+
+    rects = control._segment_rects()
+    if (
+        0 <= control._hovered_index < len(rects)
+        and control._hovered_index != control._current_index
+    ):
+        painter.setBrush(QtGui.QColor(255, 255, 255, 13))
+        painter.drawRoundedRect(
+            rects[control._hovered_index], slider_radius, slider_radius
+        )
+
+    inset = float(control._scaled(2, 2))
+    slider = QtCore.QRectF(
+        control._slider_x,
+        inset,
+        control._slider_width,
+        max(0.0, control.height() - inset * 2.0),
+    )
+    painter.setBrush(QtGui.QColor(default_theme.accent))
+    painter.drawRoundedRect(slider, slider_radius, slider_radius)
+
+    painter.setFont(control._font())
+    for index, ((label, _data), rect) in enumerate(zip(control._items, rects)):
+        painter.setPen(
+            QtGui.QColor(default_theme.accent_text)
+            if index == control._current_index
+            else QtGui.QColor(default_theme.text_muted)
+        )
+        painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignCenter, label)
+    painter.end()
+
+
 def _copy_state(state):
     return {
         "mode": state["mode"],
@@ -458,6 +513,8 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self._base_height = None
         self._restoring = False
         self._syncing_scale = False
+        self._name_labels = []
+        self._texts_blocks = []
 
         outer = QtWidgets.QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -493,6 +550,9 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.mode_segment = make_segmented_control(
             ROTATION_MODES, current=self._saved_state["mode"]
         )
+        # Fill-only restyle: drop the library's 1px focus outline (see the
+        # painter's docstring); track, selection, and hover stay as shipped.
+        type(self.mode_segment).paintEvent = _fill_segmented_paint_event
         mode_row, mode_layout = self._make_row()
         mode_layout.addWidget(self._make_name("Mode"))
         mode_layout.addStretch(1)
@@ -503,7 +563,10 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             self._saved_state["speed"], minimum=1, maximum=360, step=5, decimals=0
         )
         speed_row, speed_layout = self._make_row(tall=True)
-        speed_layout.addWidget(self._make_texts("Speed", "°/s"))
+        self.speed_texts = self._make_texts("Speed", "°/s")
+        speed_layout.addWidget(
+            self.speed_texts, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
         speed_layout.addStretch(1)
         speed_layout.addWidget(self.speed_stepper)
         self.speed_reveal = _RevealRow(speed_row, speed_row.height())
@@ -514,7 +577,10 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             self._saved_state["angle"], minimum=1, maximum=180, step=1, decimals=0
         )
         angle_row, angle_layout = self._make_row(tall=True)
-        angle_layout.addWidget(self._make_texts("Angle", "°"))
+        self.angle_texts = self._make_texts("Angle", "°")
+        angle_layout.addWidget(
+            self.angle_texts, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
         angle_layout.addStretch(1)
         angle_layout.addWidget(self.angle_stepper)
         self.angle_reveal = _RevealRow(angle_row, angle_row.height())
@@ -532,10 +598,12 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
                 field, "Click to capture a new shortcut. Esc cancels, Delete clears."
             )
             row, row_layout = self._make_row()
-            row_layout.addWidget(self._make_name(action_name))
+            name_label = self._make_name(action_name)
+            row_layout.addWidget(name_label)
             row_layout.addStretch(1)
             row_layout.addWidget(field)
             self._body_layout.addWidget(row)
+            field._rizum_name_label = name_label
             self.shortcut_fields[action_id] = field
             field.shortcutChanged.connect(self._on_shortcut_changed)
             field.captureStateChanged.connect(
@@ -634,15 +702,19 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         return label
 
     def _make_name(self, text):
+        # Keep QLabel's minimum size hint. QSizePolicy.Ignored collapses these
+        # names to zero when the fixed-width control claims the row.
         label = QtWidgets.QLabel(text)
         label.setObjectName("RizumSettingsItemName")
-        # Names yield to the fixed-size control on the right (segment,
-        # stepper, shortcut field) so the row never pushes the control out
-        # of the dialog; the measured dialog width ignores name text.
-        label.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Ignored,
-            QtWidgets.QSizePolicy.Policy.Preferred,
-        )
+        # Measured against the stylesheet's base metrics (13px/500), not a
+        # per-character guess: len()*7 clipped "Speed" to "Speec" at 1.0x.
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(13)
+        font.setWeight(QtGui.QFont.Weight.Medium)
+        width = QtGui.QFontMetrics(font).horizontalAdvance(text) + 8
+        label._rizum_base_width = max(32, width)
+        label.setFixedWidth(label._rizum_base_width)
+        self._name_labels.append(label)
         return label
 
     def _make_texts(self, name, meta):
@@ -651,10 +723,14 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
-        layout.addWidget(self._make_name(name))
+        name_label = self._make_name(name)
+        layout.addWidget(name_label)
         meta_label = QtWidgets.QLabel(meta)
         meta_label.setObjectName("RizumSettingsItemMeta")
         layout.addWidget(meta_label)
+        widget._rizum_name_label = name_label
+        widget._rizum_meta_label = meta_label
+        self._texts_blocks.append(widget)
         return widget
 
     def _make_row(self, tall=False):
@@ -784,6 +860,20 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         font.setWeight(QtGui.QFont.Weight.Medium)
         return font
 
+    def _name_font(self):
+        """Matches the surface stylesheet's RizumSettingsItemName rule."""
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(self._metric(13))
+        font.setWeight(QtGui.QFont.Weight.Medium)
+        return font
+
+    def _meta_font(self):
+        """Matches the surface stylesheet's RizumSettingsItemMeta rule."""
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(self._metric(11))
+        font.setWeight(QtGui.QFont.Weight.Medium)
+        return font
+
     def _sync_status_text(self):
         """Elide the status hint to the width its line actually has."""
         text = self._status_text
@@ -824,15 +914,27 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         header_height = self._metric(40, 30)
         row_height = self._metric(40, 30)
         tall_height = self._metric(46, 35)
-        status_height = self._metric(20, 15)
-        buttons_height = self._metric(34, 26)
+        status_height = self._metric(22, 17)
+        buttons_height = self._metric(36, 27)
         footer_margin = self._metric(16, 12)
+        footer_gap = self._metric(8, 6)
+        footer_top = self._metric(6, 5)
+        footer_bottom = self._metric(12, 9)
 
         self._header.setFixedHeight(header_height)
+        # The footer breathes like the body does: air around the separator,
+        # the status hint, and below the buttons. Horizontal margins stay put.
+        footer_outer = self._footer.layout()
+        footer_outer.setContentsMargins(0, footer_top, 0, footer_bottom)
+        footer_outer.setSpacing(footer_gap)
         self._footer.setFixedHeight(
-            self._footer_separator.sizeHint().height()
+            footer_top
+            + self._footer_separator.sizeHint().height()
+            + footer_gap
             + status_height
+            + footer_gap
             + buttons_height
+            + footer_bottom
         )
         self._status_line.setFixedHeight(status_height)
         self._button_row.setFixedHeight(buttons_height)
@@ -846,6 +948,24 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             self._metric(12, 9),
             self._metric(16, 12),
         )
+        for label in self._name_labels:
+            base_width = label._rizum_base_width
+            label.setFixedWidth(
+                self._metric(base_width, max(24, int(round(base_width * 0.75))))
+            )
+
+        # Tight name+meta stack with line heights from the rendered fonts, so
+        # the block centers as one unit against the stepper next to it.
+        name_metrics = QtGui.QFontMetrics(self._name_font())
+        meta_metrics = QtGui.QFontMetrics(self._meta_font())
+        texts_spacing = self._metric(2, 1)
+        for block in self._texts_blocks:
+            block._rizum_name_label.setFixedHeight(name_metrics.height())
+            block._rizum_meta_label.setFixedHeight(meta_metrics.height())
+            block.layout().setSpacing(texts_spacing)
+            block.setFixedHeight(
+                name_metrics.height() + texts_spacing + meta_metrics.height()
+            )
 
         self.mode_segment.setCompactHeight(self._metric(30, 23))
         self.speed_stepper.setCompactHeight(self._metric(32, 24))
@@ -927,16 +1047,22 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         footer_need = buttons_width + 2 * button_spacing + 2 * footer_margin
 
         def control_row_need(control_width):
-            # Only the fixed-size control counts; name labels shrink (Ignored
-            # policy) and the segmented control stretches to whatever is left.
+            # The compact baseline already includes the name column. Grow only
+            # when a scaled fixed-size control genuinely exceeds that budget.
             return control_width + row_spacing + 2 * row_margin + 2 * body_margin
+
+        def labeled_row_need(label_width, control_width):
+            return label_width + control_row_need(control_width)
 
         stepper_need = max(
             control_row_need(stepper.width())
             for stepper in (self.speed_stepper, self.angle_stepper)
         )
         shortcut_need = max(
-            control_row_need(field.sizeHint().width())
+            labeled_row_need(
+                field._rizum_name_label.width(),
+                field.sizeHint().width(),
+            )
             for field in self.shortcut_fields.values()
         )
 
