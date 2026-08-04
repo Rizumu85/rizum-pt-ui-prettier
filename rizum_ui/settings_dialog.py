@@ -143,7 +143,7 @@ class PainterSettingsDialog(QtWidgets.QDialog):
                 border-radius: {self._settings_surface_radius:g}px;
             }}
             QLabel#RizumSettingsSection {{
-                color: {self._settings_theme.text_muted};
+                color: {self._settings_theme.text_faint};
                 font-size: {section_px}px;
                 font-weight: 700;
                 letter-spacing: 0.5px;

@@ -56,6 +56,16 @@ class PainterSettingsDialogTests(unittest.TestCase):
         self.assertIn("font-size: 12px", stylesheet)
         self.assertIn("font-weight: 700", stylesheet)
 
+    def test_section_heading_color_matches_pt_bridge_reference(self):
+        dialog = PainterSettingsDialog()
+        stylesheet = dialog.settingsSurface().styleSheet()
+
+        self.assertIn(
+            "QLabel#RizumSettingsSection {\n"
+            "                color: #666666;",
+            stylesheet,
+        )
+
     def test_show_preserves_consumer_surface_rules_when_scale_is_unchanged(self):
         self.app.setProperty("rizumUiFontScale", 1.0)
         dialog = PainterSettingsDialog()
