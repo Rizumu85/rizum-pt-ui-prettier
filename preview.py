@@ -622,7 +622,12 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     content_layout = content.contentLayout()
     layout.addWidget(content, 1)
 
-    mode_combo = make_combo_input(["All Sets", "Current Set"])
+    mode_combo = make_combo_input(
+        [
+            preview_text("current_stack", "Current Stack"),
+            preview_text("all_stacks", "All Stacks"),
+        ]
+    )
     mode_combo.setCompactHeight(26)
     expand_btn = make_icon_button("chevrons-down.svg", "Expand all")
     collapse_btn = make_icon_button("chevrons-up.svg", "Collapse all")
@@ -666,8 +671,14 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
             group["parent"].setChecked(True)
         else:
             group["parent"].setIndeterminate(True)
+        channel_word = "channel" if len(group["children"]) == 1 else "channels"
+        group["widget"].refreshLayout(
+            subtitle_text=(
+                f"{checked_count} selected / {len(group['children'])} {channel_word}"
+            )
+        )
 
-    def add_group(name, meta, children):
+    def add_group(name, children):
         parent_cb = make_mock_checkbox(True)
         child_cbs = [make_mock_checkbox(True) for _ in children]
         group = {"parent": parent_cb, "children": child_cbs, "rows": []}
@@ -699,7 +710,7 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
         parent_cb.mousePressEvent = parent_mouse
         group_frame = make_collapsible_group(
             name,
-            meta,
+            f"{len(children)} selected / {len(children)} channels",
             children=child_rows,
             trailing_widget=parent_cb,
             expanded=True,
@@ -708,7 +719,7 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
         tree_layout.addWidget(group_frame)
         groups.append(group)
 
-    add_group("M_body", "4 Channels", ["basecolor", "User1"])
+    add_group("M_body", ["basecolor", "User1"])
     tree_layout.addStretch(1)
 
     footer = QtWidgets.QFrame()
@@ -731,20 +742,14 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
 
     expand_btn.clicked.connect(lambda: [group["widget"].setExpanded(True) for group in groups])
     collapse_btn.clicked.connect(lambda: [group["widget"].setExpanded(False) for group in groups])
-    select_all_btn.clicked.connect(
-        lambda: [
-            checkbox.setChecked(True)
-            for group in groups
-            for checkbox in [group["parent"], *group["children"]]
-        ]
-    )
-    select_none_btn.clicked.connect(
-        lambda: [
-            checkbox.setChecked(False)
-            for group in groups
-            for checkbox in [group["parent"], *group["children"]]
-        ]
-    )
+    def set_all_checked(checked):
+        for group in groups:
+            for checkbox in [group["parent"], *group["children"]]:
+                checkbox.setChecked(checked)
+            update_parent(group)
+
+    select_all_btn.clicked.connect(lambda: set_all_checked(True))
+    select_none_btn.clicked.connect(lambda: set_all_checked(False))
 
     def refresh_layout():
         top_controls.refreshLayout()
@@ -904,6 +909,9 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
         next_font.setPointSizeF(point_size)
         for widget in [panel, *panel.findChildren(_QtWidgets.QWidget)]:
             widget.setFont(next_font)
+        for button in (folder_btn, refresh_btn):
+            if hasattr(button, "setCompactTooltipScale"):
+                button.setCompactTooltipScale(scale)
 
         next_label_width = label_width()
         tool_row.setContentsMargins(next_label_width + 8, -6, 0, 2)
@@ -1332,8 +1340,13 @@ def build_settings_preview(QtWidgets):
     dilation_reveal.setGapLayout(padding_stack_layout)
     body_layout.addWidget(padding_stack)
 
-    auto_row, auto_layout = make_row(36)
-    auto_layout.addWidget(make_label("Auto-open Photoshop", "RizumSettingsItemName"))
+    auto_row, auto_layout = make_row(51)
+    auto_layout.addWidget(
+        make_text_block(
+            preview_text("auto_open", "Auto-open Photoshop"),
+            preview_text("auto_open_meta", "Launch after a successful export"),
+        )
+    )
     auto_layout.addStretch(1)
     auto_toggle = ToggleSwitch(False)
     auto_layout.addWidget(auto_toggle)
@@ -1661,6 +1674,7 @@ def build_drag_drop_preview(QtWidgets):
                 removable=True,
                 on_remove=self._return_to_source,
                 masked=True,
+                mapped=True,
             )
             self.target_group = make_drag_collapsible_group(
                 "Target Group",
@@ -1674,6 +1688,10 @@ def build_drag_drop_preview(QtWidgets):
             self.drop_line.setFixedHeight(2)
             self.drop_line.setVisible(False)
             self.tree_layout.addWidget(self.target_group)
+            self.empty_hint = _QtWidgets.QLabel("Drop Photoshop layers here to map")
+            self.empty_hint.setObjectName("RizumDragEmptyHint")
+            self.empty_hint.setContentsMargins(34, 4, 0, 0)
+            self.tree_layout.addWidget(self.empty_hint)
             self.tree_layout.addStretch(1)
             layout.addWidget(self.tree, 1)
 
@@ -1728,6 +1746,7 @@ def build_drag_drop_preview(QtWidgets):
                 removable=True,
                 on_remove=self._return_to_source,
                 masked=masked,
+                mapped=True,
             )
             item._rizum_parent_group = self.target_group
             self.target_group._rizum_content_layout.insertWidget(index, item)
@@ -1908,6 +1927,13 @@ QLabel#RizumDragColumnSub {
     font-size: 11px;
     font-weight: 400;
     background: transparent;
+}
+QLabel#RizumDragEmptyHint {
+    color: #666666;
+    font-size: 11px;
+    font-weight: 400;
+    background: transparent;
+    border: 0;
 }
 QFrame#RizumDragDropLine {
     background: #ffffff;
