@@ -73,6 +73,8 @@ PREVIEW_LANGUAGES = (
     ("简体中文", "zh_CN"),
     ("日本語", "ja_JP"),
 )
+_PREVIEW_SETTINGS_ORG = "Rizum"
+_PREVIEW_SETTINGS_APP = "UiPrettierPreview"
 _PREVIEW_TEXT = {
     "zh_CN": {
         "overview": "概览",
@@ -148,6 +150,15 @@ PREVIEW_FLAGS = {"--full", "--no-watch", "--scale-1x"}
 PREVIEW_CANVAS_STYLESHEET = """
 QWidget#RizumSurface {
     background: #2b2b2b;
+}
+
+QWidget#RizumSurface QLabel#RizumPreviewToolLabel,
+QWidget#RizumSurface QLabel#RizumPreviewToolLabel:hover,
+QWidget#RizumSurface QLabel#RizumPreviewToolLabel:focus {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
 }
 
 QTabWidget#RizumPreviewTabs::pane {
@@ -1913,12 +1924,22 @@ def build_preview(window, QtWidgets, watch_enabled, rebuild_callback=None):
             window.setProperty("rizumPreviewUiScale", value)
             if app is not None:
                 app.setProperty("rizumUiFontScale", value)
+            if window.property("rizumPreviewPersistSettings"):
+                settings = QtCore.QSettings(
+                    _PREVIEW_SETTINGS_ORG, _PREVIEW_SETTINGS_APP
+                )
+                settings.setValue("uiScale", value)
             QtCore.QTimer.singleShot(0, rebuild_callback)
 
         def request_language(_index):
             language = language_input.currentData() or "en"
             if app is not None:
                 app.setProperty("rizumPreviewLanguage", language)
+            if window.property("rizumPreviewPersistSettings"):
+                settings = QtCore.QSettings(
+                    _PREVIEW_SETTINGS_ORG, _PREVIEW_SETTINGS_APP
+                )
+                settings.setValue("language", language)
             QtCore.QTimer.singleShot(0, rebuild_callback)
 
         scale_input.valueChanged.connect(request_scale)
@@ -2047,9 +2068,20 @@ def main():
         build_preview(window, QtWidgets, watch_enabled, refresh_preview)
         mtimes = snapshot_mtimes()
 
-    app.setProperty("rizumPreviewLanguage", "en")
-    app.setProperty("rizumUiFontScale", 1.0)
-    window.setProperty("rizumPreviewUiScale", 1.0)
+    settings = QtCore.QSettings(_PREVIEW_SETTINGS_ORG, _PREVIEW_SETTINGS_APP)
+    try:
+        saved_scale = float(settings.value("uiScale", 1.0))
+    except (TypeError, ValueError):
+        saved_scale = 1.0
+    saved_scale = max(0.75, min(2.0, saved_scale))
+    saved_language = str(settings.value("language", "en"))
+    valid_languages = {data for _label, data in PREVIEW_LANGUAGES}
+    if saved_language not in valid_languages:
+        saved_language = "en"
+    app.setProperty("rizumPreviewLanguage", saved_language)
+    app.setProperty("rizumUiFontScale", saved_scale)
+    window.setProperty("rizumPreviewUiScale", saved_scale)
+    window.setProperty("rizumPreviewPersistSettings", True)
     build_preview(window, QtWidgets, watch_enabled, refresh_preview)
 
     if watch_enabled:
