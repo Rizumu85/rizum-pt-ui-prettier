@@ -175,6 +175,7 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         panel.parameter_slot.setMode("continuous", animate=False)
         stable_height = panel.dialog.height()
         panel.parameter_slot.setMode("custom", animate=True)
+        self.assertEqual(panel.parameter_slot._animation.duration(), 140)
         panel.parameter_slot._animation.pause()
         panel.parameter_slot.setTransitionProgress(0.5)
 
@@ -393,7 +394,9 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertEqual(codex.mode_segment._corner_radius, 8)
         self.assertEqual(codex.mode_segment._paint_inset, 1.5)
         self.assertIsNotNone(codex.parameter_slot)
-        self.assertEqual(codex.parameter_slot._duration, 220)
+        self.assertEqual(codex.parameter_slot._duration, 140)
+        self.assertEqual(original.speed_reveal._duration, 140)
+        self.assertEqual(kimi.angle_reveal._duration, 140)
         codex._apply_mode_reveals(animate=False)
         body_margins = codex._body_layout.contentsMargins()
         self.assertEqual((body_margins.left(), body_margins.right()), (20, 20))

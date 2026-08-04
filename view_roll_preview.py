@@ -52,6 +52,8 @@ DEFAULTS = {
     },
 }
 
+PARAMETER_TRANSITION_DURATION = 140
+
 DESIGN_VARIANTS = {
     "original": {
         "label": "Original",
@@ -1238,7 +1240,7 @@ class _RevealRow(QtWidgets.QFrame):
         expanded_height,
         parent=None,
         fade_content=False,
-        duration=320,
+        duration=PARAMETER_TRANSITION_DURATION,
     ):
         super().__init__(parent)
         self.setObjectName("RizumViewRollReveal")
@@ -1311,7 +1313,7 @@ class _RevealRow(QtWidgets.QFrame):
         )
         animation = QtCore.QPropertyAnimation(self, b"revealProgress", self)
         animation.setDuration(
-            max(100, round(self._duration * abs(target - self._progress)))
+            max(70, round(self._duration * abs(target - self._progress)))
         )
         animation.setStartValue(self._progress)
         animation.setEndValue(target)
@@ -1327,7 +1329,13 @@ class _RevealRow(QtWidgets.QFrame):
 class _ParameterSlot(QtWidgets.QFrame):
     """Crossfade parameter rows in place while animating one shared height."""
 
-    def __init__(self, rows, expanded_height, parent=None, duration=220):
+    def __init__(
+        self,
+        rows,
+        expanded_height,
+        parent=None,
+        duration=PARAMETER_TRANSITION_DURATION,
+    ):
         super().__init__(parent)
         self.setObjectName("RizumViewRollParameterSlot")
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
@@ -1440,15 +1448,23 @@ class _ParameterSlot(QtWidgets.QFrame):
             return
 
         group = QtCore.QParallelAnimationGroup(self)
+        transition_distance = max(
+            abs(target_height - self._height_progress),
+            *(
+                abs(self._end_opacities[key] - self._start_opacities[key])
+                for key in self._rows
+            ),
+        )
+        duration = max(70, round(self._duration * transition_distance))
         for prop, start, end in (
             (b"animatedHeightProgress", self._height_progress, target_height),
             (b"animatedTransitionProgress", 0.0, 1.0),
         ):
             animation = QtCore.QPropertyAnimation(self, prop, group)
-            animation.setDuration(self._duration)
+            animation.setDuration(duration)
             animation.setStartValue(start)
             animation.setEndValue(end)
-            animation.setEasingCurve(QtCore.QEasingCurve.Type.InOutCubic)
+            animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
             group.addAnimation(animation)
         group.finished.connect(self._finish_transition)
         self._animation = group
