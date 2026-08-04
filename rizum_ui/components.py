@@ -161,6 +161,22 @@ def make_segmented_control(options=None, current=None, parent=None):
                 floor = int(value * 0.75 + 0.5)
             return max(floor, scaled_value)
 
+        def _device_geometry(self):
+            dpr = max(1.0, float(self.devicePixelRatioF()))
+
+            def aligned_extent(value):
+                return int(float(value) * dpr + 0.5) / dpr
+
+            return (
+                dpr,
+                aligned_extent(self.width()),
+                aligned_extent(self.height()),
+            )
+
+        @staticmethod
+        def _device_aligned_inset(value, dpr):
+            return max(1, int(float(value) * dpr + 0.5)) / dpr
+
         def _font(self):
             font = QtGui.QFont(self.font())
             font.setWeight(QtGui.QFont.Weight.Medium)
@@ -178,22 +194,23 @@ def make_segmented_control(options=None, current=None, parent=None):
         def _segment_rects(self):
             if not self._items:
                 return []
-            inset = float(self._scaled(2, 2))
+            dpr, paint_width, paint_height = self._device_geometry()
+            inset = self._device_aligned_inset(self._scaled(2, 2), dpr)
             widths = [float(width) for width in self._base_widths()]
-            available = max(0.0, self.width() - inset * 2.0)
+            available = max(0.0, paint_width - inset * 2.0)
             extra = max(0.0, available - sum(widths)) / len(widths)
             rects = []
             x = inset
             for index, width in enumerate(widths):
                 segment_width = width + extra
                 if index == len(widths) - 1:
-                    segment_width = max(0.0, self.width() - inset - x)
+                    segment_width = max(0.0, paint_width - inset - x)
                 rects.append(
                     QtCore.QRectF(
                         x,
                         inset,
                         segment_width,
-                        max(0.0, self.height() - inset * 2.0),
+                        max(0.0, paint_height - inset * 2.0),
                     )
                 )
                 x += segment_width
@@ -426,7 +443,9 @@ def make_segmented_control(options=None, current=None, parent=None):
                 if self._paint_inset is None
                 else max(0.5, self._paint_inset * self._scale())
             )
-            outer = QtCore.QRectF(self.rect()).adjusted(
+            dpr, paint_width, paint_height = self._device_geometry()
+            edge_inset = self._device_aligned_inset(edge_inset, dpr)
+            outer = QtCore.QRectF(0.0, 0.0, paint_width, paint_height).adjusted(
                 edge_inset,
                 edge_inset,
                 -edge_inset,

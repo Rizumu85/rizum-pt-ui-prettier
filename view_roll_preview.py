@@ -1423,6 +1423,7 @@ class _ParameterSlot(QtWidgets.QFrame):
 
     def setMode(self, mode, animate=True):
         target_mode = mode if mode in self._rows else None
+        previous_mode = self._mode
         if self._animation is not None:
             self._animation.stop()
             self._animation = None
@@ -1434,6 +1435,13 @@ class _ParameterSlot(QtWidgets.QFrame):
             key: 1.0 if key == target_mode else 0.0 for key in self._rows
         }
         target_height = 1.0 if target_mode is not None else 0.0
+        if target_mode is not None and (
+            previous_mode is None or self._height_progress < 0.999
+        ):
+            # Height owns the reveal. Starting another opacity reveal from zero
+            # leaves the expanding slot visibly empty on the first frames.
+            self._start_opacities = dict(self._end_opacities)
+            self.setTransitionProgress(0.0)
         self._mode = target_mode
         for key, row in self._rows.items():
             row.setAttribute(

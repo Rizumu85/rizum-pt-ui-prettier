@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
+import textwrap
 import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -190,6 +193,82 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertAlmostEqual(
             panel.parameter_slot.rowOpacity("custom"), 0.5, places=2
         )
+
+    def test_codex_parameter_is_opaque_before_expansion_starts(self):
+        panel = ViewRollConceptPanel(design_variant="codex")
+        self.addCleanup(panel.deleteLater)
+        panel.show()
+        QtWidgets.QApplication.processEvents()
+
+        panel.parameter_slot.setMode("step_15", animate=False)
+        panel.parameter_slot.setMode("continuous", animate=True)
+
+        self.assertEqual(panel.parameter_slot.height(), 0)
+        self.assertAlmostEqual(
+            panel.parameter_slot.rowOpacity("continuous"), 1.0, places=2
+        )
+
+    def test_codex_mode_caps_are_symmetric_at_the_host_dpi(self):
+        probe = textwrap.dedent(
+            """
+            from PySide6 import QtWidgets
+
+            import preview
+            from rizum_ui import (
+                apply_painter_like_base,
+                build_painter_host_preview_stylesheet,
+                build_stylesheet,
+            )
+            from view_roll_preview import ViewRollConceptPanel
+
+            app = QtWidgets.QApplication([])
+            apply_painter_like_base(app)
+            app.setStyleSheet(
+                build_painter_host_preview_stylesheet()
+                + build_stylesheet(mode="full")
+                + preview.PREVIEW_CANVAS_STYLESHEET
+            )
+            app.setProperty("rizumUiFontScale", 1.0)
+            panel = ViewRollConceptPanel(design_variant="codex")
+            panel.show()
+            app.processEvents()
+            control = panel.mode_segment
+            control.setCurrentData("step_15", animate=False, emit=False)
+            app.processEvents()
+            image = control.grab().toImage()
+            max_delta = 0
+            for x in range(4):
+                for y in range(image.height()):
+                    left = image.pixelColor(x, y)
+                    right = image.pixelColor(image.width() - 1 - x, y)
+                    max_delta = max(
+                        max_delta,
+                        abs(left.red() - right.red()),
+                        abs(left.green() - right.green()),
+                        abs(left.blue() - right.blue()),
+                        abs(left.alpha() - right.alpha()),
+                    )
+            print(max_delta)
+            """
+        )
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "QT_QPA_PLATFORM": "offscreen",
+                "QT_SCALE_FACTOR": "1.125",
+                "QT_FONT_DPI": "96",
+            }
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            cwd=os.path.dirname(os.path.dirname(__file__)),
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertLessEqual(int(result.stdout.strip()), 8)
 
     def test_duplicate_shortcuts_flag_conflict(self):
         panel = self.make_panel()
