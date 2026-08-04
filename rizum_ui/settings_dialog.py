@@ -164,6 +164,11 @@ class PainterSettingsDialog(QtWidgets.QDialog):
                 font-size: {meta_px}px;
                 font-weight: 500;
             }}
+            QLabel#RizumSettingsItemMeta,
+            QLabel#RizumSettingsFooterHint {{
+                background: transparent;
+                border: 0;
+            }}
             QLabel#RizumMockText,
             QFrame#RizumSegmentedControl {{
                 font-size: {item_px}px;

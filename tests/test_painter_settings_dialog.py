@@ -69,6 +69,17 @@ class PainterSettingsDialogTests(unittest.TestCase):
 
         self.assertIn(consumer_rule, surface.styleSheet())
 
+    def test_metadata_labels_do_not_paint_over_parent_hover_fill(self):
+        dialog = PainterSettingsDialog()
+        stylesheet = dialog.settingsSurface().styleSheet()
+
+        self.assertIn(
+            "QLabel#RizumSettingsItemMeta,\n"
+            "            QLabel#RizumSettingsFooterHint {\n"
+            "                background: transparent;",
+            stylesheet,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
