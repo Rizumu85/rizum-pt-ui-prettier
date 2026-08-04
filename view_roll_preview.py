@@ -103,7 +103,6 @@ _VIEW_ROLL_TEXT = {
         "editing_shortcut": "{action} bearbeiten — Tasten drücken, Esc zum Abbrechen.",
         "same_shortcut": "{names} verwenden dasselbe Tastenkürzel.",
         "name_joiner": " und ",
-        "unsaved_changes": "Nicht gespeicherte Änderungen.",
     },
     "es": {
         "title": "Ajustes de rotación de vista",
@@ -124,7 +123,6 @@ _VIEW_ROLL_TEXT = {
         "editing_shortcut": "Editando {action} — pulsa las teclas; Esc cancela.",
         "same_shortcut": "{names} usan el mismo atajo.",
         "name_joiner": " y ",
-        "unsaved_changes": "Cambios sin guardar.",
     },
     "fr": {
         "title": "Paramètres de rotation de la vue",
@@ -145,7 +143,6 @@ _VIEW_ROLL_TEXT = {
         "editing_shortcut": "Modification de {action} — appuyez sur les touches, Échap pour annuler.",
         "same_shortcut": "{names} utilisent le même raccourci.",
         "name_joiner": " et ",
-        "unsaved_changes": "Modifications non enregistrées.",
     },
     "it": {
         "title": "Impostazioni rotazione vista",
@@ -166,7 +163,6 @@ _VIEW_ROLL_TEXT = {
         "editing_shortcut": "Modifica di {action} — premi i tasti, Esc per annullare.",
         "same_shortcut": "{names} usano la stessa scorciatoia.",
         "name_joiner": " e ",
-        "unsaved_changes": "Modifiche non salvate.",
     },
     "ko": {
         "title": "뷰 회전 설정",
@@ -187,7 +183,6 @@ _VIEW_ROLL_TEXT = {
         "editing_shortcut": "{action} 편집 중 — 키를 누르세요. Esc는 취소입니다.",
         "same_shortcut": "{names}에 같은 단축키가 사용됩니다.",
         "name_joiner": " 및 ",
-        "unsaved_changes": "저장되지 않은 변경 사항.",
     },
     "pt": {
         "title": "Configurações de rotação da vista",
@@ -208,7 +203,6 @@ _VIEW_ROLL_TEXT = {
         "editing_shortcut": "Editando {action} — pressione as teclas; Esc cancela.",
         "same_shortcut": "{names} usam o mesmo atalho.",
         "name_joiner": " e ",
-        "unsaved_changes": "Alterações não salvas.",
     },
     "zh_CN": {
         "title": "视图旋转设置",
@@ -229,7 +223,6 @@ _VIEW_ROLL_TEXT = {
         "editing_shortcut": "正在编辑 {action} — 请按键，按 Esc 取消。",
         "same_shortcut": "{names} 使用了相同的快捷键。",
         "name_joiner": "和",
-        "unsaved_changes": "有未保存的更改。",
     },
     "ja_JP": {
         "title": "ビュー回転設定",
@@ -250,7 +243,6 @@ _VIEW_ROLL_TEXT = {
         "editing_shortcut": "{action}を編集中 — キーを押してください。Escで取消。",
         "same_shortcut": "{names}に同じショートカットが使われています。",
         "name_joiner": "と",
-        "unsaved_changes": "未保存の変更があります。",
     },
 }
 
@@ -1211,8 +1203,6 @@ QFrame#RizumPainterWindowContent {
 
     def save_changes(self):
         self._saved_state = self.current_state()
-        # No "Saved." filler: the disabled Save button and the collapsing
-        # status line already carry the confirmation.
         self._refresh_status()
 
     def cancel_changes(self):
@@ -1285,11 +1275,6 @@ QFrame#RizumPainterWindowContent {
             self._status_text = _preview_text(
                 "same_shortcut", "{names} use the same shortcut."
             ).format(names=names)
-        elif dirty:
-            self._status_tone = ""
-            self._status_text = _preview_text(
-                "unsaved_changes", "Unsaved changes."
-            )
         else:
             self._status_tone = ""
             self._status_text = ""

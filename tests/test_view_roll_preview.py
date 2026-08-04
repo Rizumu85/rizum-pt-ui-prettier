@@ -165,22 +165,24 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertEqual(panel.status_reveal.height(), 0)
         self.assertEqual(panel.status_label.text(), "")
 
-    def test_status_reveal_follows_dirty_state_without_saved_filler(self):
+    def test_save_button_carries_dirty_state_without_a_footer_message(self):
         panel = self.make_panel()
 
         panel.angle_stepper.setValue(90)
-        self.assertEqual(panel.status_reveal.progress(), 1.0)
-        self.assertEqual(panel.status_label.text(), "Unsaved changes.")
+        self.assertTrue(panel.save_button.isEnabled())
+        self.assertEqual(panel.status_reveal.progress(), 0.0)
+        self.assertEqual(panel.status_label.text(), "")
 
-        # Saving must not leave a permanent "Saved." placeholder behind;
-        # the disabled Save button carries that information.
         panel.save_changes()
+        self.assertFalse(panel.save_button.isEnabled())
         self.assertEqual(panel.status_reveal.progress(), 0.0)
         self.assertEqual(panel.status_label.text(), "")
 
         panel.speed_stepper.setValue(120)
-        self.assertEqual(panel.status_reveal.progress(), 1.0)
+        self.assertTrue(panel.save_button.isEnabled())
+        self.assertEqual(panel.status_reveal.progress(), 0.0)
         panel.cancel_changes()
+        self.assertFalse(panel.save_button.isEnabled())
         self.assertEqual(panel.status_reveal.progress(), 0.0)
         self.assertEqual(panel.status_label.text(), "")
 
