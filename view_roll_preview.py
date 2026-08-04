@@ -831,6 +831,137 @@ class _RevealRow(QtWidgets.QFrame):
         animation.start()
 
 
+class _ParameterSlot(QtWidgets.QFrame):
+    """Crossfade parameter rows in place while animating one shared height."""
+
+    def __init__(self, rows, expanded_height, parent=None, duration=220):
+        super().__init__(parent)
+        self.setObjectName("RizumViewRollParameterSlot")
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAutoFillBackground(False)
+        self._rows = dict(rows)
+        self._effects = {}
+        self._expanded_height = max(0, int(round(expanded_height)))
+        self._height_progress = 0.0
+        self._transition_progress = 1.0
+        self._start_opacities = {mode: 0.0 for mode in self._rows}
+        self._end_opacities = dict(self._start_opacities)
+        self._mode = None
+        self._duration = int(duration)
+        self._animation = None
+        self._geometry_callback = None
+
+        layout = QtWidgets.QStackedLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.setStackingMode(QtWidgets.QStackedLayout.StackingMode.StackAll)
+        for mode, row in self._rows.items():
+            effect = QtWidgets.QGraphicsOpacityEffect(row)
+            effect.setOpacity(0.0)
+            row.setGraphicsEffect(effect)
+            row.setAttribute(
+                QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+            )
+            row.setFixedHeight(self._expanded_height)
+            self._effects[mode] = effect
+            layout.addWidget(row)
+        self.setFixedHeight(0)
+
+    def expandedHeight(self):
+        return self._expanded_height
+
+    def setExpandedHeight(self, height):
+        self._expanded_height = max(0, int(round(height)))
+        for row in self._rows.values():
+            row.setFixedHeight(self._expanded_height)
+        self._sync_geometry()
+
+    def setGeometryCallback(self, callback):
+        self._geometry_callback = callback
+
+    def heightProgress(self):
+        return self._height_progress
+
+    def setHeightProgress(self, value):
+        self._height_progress = max(0.0, min(1.0, float(value)))
+        self._sync_geometry()
+
+    animatedHeightProgress = QtCore.Property(
+        float, heightProgress, setHeightProgress
+    )
+
+    def transitionProgress(self):
+        return self._transition_progress
+
+    def setTransitionProgress(self, value):
+        self._transition_progress = max(0.0, min(1.0, float(value)))
+        for mode, effect in self._effects.items():
+            start = self._start_opacities.get(mode, 0.0)
+            end = self._end_opacities.get(mode, 0.0)
+            effect.setOpacity(start + (end - start) * self._transition_progress)
+
+    animatedTransitionProgress = QtCore.Property(
+        float, transitionProgress, setTransitionProgress
+    )
+
+    def rowOpacity(self, mode):
+        effect = self._effects.get(mode)
+        return 0.0 if effect is None else effect.opacity()
+
+    def progress(self):
+        return self._height_progress
+
+    def _sync_geometry(self):
+        self.setFixedHeight(round(self._expanded_height * self._height_progress))
+        if self._geometry_callback is not None:
+            self._geometry_callback(self._height_progress)
+
+    def _finish_transition(self):
+        self._start_opacities = dict(self._end_opacities)
+        self._transition_progress = 1.0
+
+    def setMode(self, mode, animate=True):
+        target_mode = mode if mode in self._rows else None
+        if self._animation is not None:
+            self._animation.stop()
+            self._animation = None
+
+        self._start_opacities = {
+            key: effect.opacity() for key, effect in self._effects.items()
+        }
+        self._end_opacities = {
+            key: 1.0 if key == target_mode else 0.0 for key in self._rows
+        }
+        target_height = 1.0 if target_mode is not None else 0.0
+        self._mode = target_mode
+        for key, row in self._rows.items():
+            row.setAttribute(
+                QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+                key != target_mode,
+            )
+
+        if not animate:
+            self.setHeightProgress(target_height)
+            self.setTransitionProgress(1.0)
+            self._finish_transition()
+            return
+
+        group = QtCore.QParallelAnimationGroup(self)
+        for prop, start, end in (
+            (b"animatedHeightProgress", self._height_progress, target_height),
+            (b"animatedTransitionProgress", 0.0, 1.0),
+        ):
+            animation = QtCore.QPropertyAnimation(self, prop, group)
+            animation.setDuration(self._duration)
+            animation.setStartValue(start)
+            animation.setEndValue(end)
+            animation.setEasingCurve(QtCore.QEasingCurve.Type.InOutCubic)
+            group.addAnimation(animation)
+        group.finished.connect(self._finish_transition)
+        self._animation = group
+        group.start()
+
+
 class ViewRollConceptPanel(QtWidgets.QWidget):
     """Tab content for the View Roll settings concept."""
 
@@ -912,9 +1043,9 @@ QFrame#RizumPainterWindowContent {
                 self.mode_segment.setCornerRadius(4)
             elif self.design_variant == "codex":
                 self.mode_segment.setCornerRadius(default_theme.radius)
-                # A full paint pixel around the track keeps Qt's antialiasing
+                # A small paint gutter keeps Qt's antialiasing
                 # from flattening the end caps against the widget boundary.
-                self.mode_segment.setPaintInset(1)
+                self.mode_segment.setPaintInset(1.5)
             self.mode_segment.setTheme(segment_theme)
         mode_row, mode_layout = self._make_row()
         mode_layout.addWidget(self._make_name(_preview_text("mode", "Mode")))
@@ -933,14 +1064,7 @@ QFrame#RizumPainterWindowContent {
         )
         speed_layout.addStretch(1)
         speed_layout.addWidget(self.speed_stepper)
-        self.speed_reveal = _RevealRow(
-            speed_row,
-            speed_row.height(),
-            fade_content=self.design_variant == "codex",
-            duration=220 if self.design_variant == "codex" else 320,
-        )
-        self.speed_reveal.setGeometryCallback(self._sync_dialog_height)
-        self._body_layout.addWidget(self.speed_reveal)
+        self.speed_row = speed_row
 
         self.angle_stepper = make_compact_stepper(
             self._saved_state["angle"], minimum=1, maximum=180, step=1, decimals=0
@@ -953,14 +1077,24 @@ QFrame#RizumPainterWindowContent {
         )
         angle_layout.addStretch(1)
         angle_layout.addWidget(self.angle_stepper)
-        self.angle_reveal = _RevealRow(
-            angle_row,
-            angle_row.height(),
-            fade_content=self.design_variant == "codex",
-            duration=220 if self.design_variant == "codex" else 320,
-        )
-        self.angle_reveal.setGeometryCallback(self._sync_dialog_height)
-        self._body_layout.addWidget(self.angle_reveal)
+        self.angle_row = angle_row
+        self.parameter_slot = None
+        self.speed_reveal = None
+        self.angle_reveal = None
+        if self.design_variant == "codex":
+            self.parameter_slot = _ParameterSlot(
+                {"continuous": speed_row, "custom": angle_row},
+                speed_row.height(),
+            )
+            self.parameter_slot.setGeometryCallback(self._sync_dialog_height)
+            self._body_layout.addWidget(self.parameter_slot)
+        else:
+            self.speed_reveal = _RevealRow(speed_row, speed_row.height())
+            self.speed_reveal.setGeometryCallback(self._sync_dialog_height)
+            self._body_layout.addWidget(self.speed_reveal)
+            self.angle_reveal = _RevealRow(angle_row, angle_row.height())
+            self.angle_reveal.setGeometryCallback(self._sync_dialog_height)
+            self._body_layout.addWidget(self.angle_reveal)
 
         self._section_shortcuts = self._make_section(
             _preview_text("shortcuts", "Shortcuts")
@@ -1220,8 +1354,11 @@ QFrame#RizumPainterWindowContent {
 
     def _apply_mode_reveals(self, animate):
         mode = self.mode_segment.currentData()
-        self.speed_reveal.setExpanded(mode == "continuous", animate=animate)
-        self.angle_reveal.setExpanded(mode == "custom", animate=animate)
+        if self.parameter_slot is not None:
+            self.parameter_slot.setMode(mode, animate=animate)
+        else:
+            self.speed_reveal.setExpanded(mode == "continuous", animate=animate)
+            self.angle_reveal.setExpanded(mode == "custom", animate=animate)
         if not animate:
             self._remeasure_base_height()
 
@@ -1485,12 +1622,13 @@ QFrame#RizumPainterWindowContent {
 
         mode_row = self.mode_segment.parentWidget()
         mode_row.setFixedHeight(row_height)
-        for reveal, stepper in (
-            (self.speed_reveal, self.speed_stepper),
-            (self.angle_reveal, self.angle_stepper),
-        ):
+        for stepper in (self.speed_stepper, self.angle_stepper):
             stepper.parentWidget().setFixedHeight(tall_height)
-            reveal.setExpandedHeight(tall_height)
+        if self.parameter_slot is not None:
+            self.parameter_slot.setExpandedHeight(tall_height)
+        else:
+            self.speed_reveal.setExpandedHeight(tall_height)
+            self.angle_reveal.setExpandedHeight(tall_height)
         for field in self.shortcut_fields.values():
             field.parentWidget().setFixedHeight(row_height)
 
@@ -1668,7 +1806,8 @@ QWidget#RizumViewRollStatusLine,
 QWidget#RizumViewRollFooterRow,
 QWidget#RizumViewRollTexts,
 QWidget#RizumViewRollFooterDivider,
-QFrame#RizumViewRollReveal {{
+QFrame#RizumViewRollReveal,
+QFrame#RizumViewRollParameterSlot {{
     background: transparent;
     border: 0;
 }}
@@ -1736,9 +1875,19 @@ QPushButton#RizumViewRollCancel {
     # --- geometry ---------------------------------------------------------
 
     def _current_extra_height(self):
-        extra = 0
-        for reveal in (self.speed_reveal, self.angle_reveal, self.status_reveal):
-            extra += round(reveal.expandedHeight() * reveal.progress())
+        if self.parameter_slot is not None:
+            extra = round(
+                self.parameter_slot.expandedHeight()
+                * self.parameter_slot.heightProgress()
+            )
+        else:
+            extra = sum(
+                round(reveal.expandedHeight() * reveal.progress())
+                for reveal in (self.speed_reveal, self.angle_reveal)
+            )
+        extra += round(
+            self.status_reveal.expandedHeight() * self.status_reveal.progress()
+        )
         return extra
 
     def _on_status_geometry(self, _progress):

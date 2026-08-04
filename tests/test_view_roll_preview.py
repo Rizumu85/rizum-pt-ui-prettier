@@ -9,7 +9,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from rizum_ui import FOOTER_BUTTON_PADDING_X, PAINTER_FOOTER_MARGIN_BOTTOM
+from rizum_ui import (
+    FOOTER_BUTTON_PADDING_X,
+    PAINTER_FOOTER_MARGIN_BOTTOM,
+    make_segmented_control,
+)
 
 from view_roll_preview import (
     DESIGN_VARIANTS,
@@ -146,6 +150,30 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertEqual(panel.speed_reveal.progress(), 0.0)
         self.assertEqual(panel.angle_reveal.progress(), 1.0)
 
+    def test_codex_parameter_switch_crossfades_in_one_fixed_slot(self):
+        panel = ViewRollConceptPanel(design_variant="codex")
+        self.addCleanup(panel.deleteLater)
+        panel.show()
+        QtWidgets.QApplication.processEvents()
+
+        panel.parameter_slot.setMode("continuous", animate=False)
+        stable_height = panel.dialog.height()
+        panel.parameter_slot.setMode("custom", animate=True)
+        panel.parameter_slot._animation.pause()
+        panel.parameter_slot.setTransitionProgress(0.5)
+
+        self.assertEqual(
+            panel.parameter_slot.height(), panel.parameter_slot.expandedHeight()
+        )
+        self.assertEqual(panel.dialog.height(), stable_height)
+        self.assertEqual(panel.speed_row.geometry(), panel.angle_row.geometry())
+        self.assertAlmostEqual(
+            panel.parameter_slot.rowOpacity("continuous"), 0.5, places=2
+        )
+        self.assertAlmostEqual(
+            panel.parameter_slot.rowOpacity("custom"), 0.5, places=2
+        )
+
     def test_duplicate_shortcuts_flag_conflict(self):
         panel = self.make_panel()
 
@@ -227,6 +255,40 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         )
 
 
+class SegmentedControlHostStyleTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    def test_host_qframe_fill_does_not_cover_the_antialiasing_inset(self):
+        host = QtWidgets.QWidget()
+        self.addCleanup(host.deleteLater)
+        host.setObjectName("SegmentedControlTestHost")
+        host.setStyleSheet(
+            """
+QWidget#SegmentedControlTestHost { background: #202123; }
+QFrame { background: #1b1b1b; border: 1px solid transparent; border-radius: 8px; }
+"""
+        )
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(4, 4, 4, 4)
+        control = make_segmented_control(
+            [("Continuous", "continuous"), ("15°", "step"), ("Custom", "custom")],
+            current="step",
+        )
+        control.setPaintInset(1)
+        layout.addWidget(control)
+        host.show()
+        QtWidgets.QApplication.processEvents()
+
+        image = host.grab().toImage()
+        origin = control.mapTo(host, QtCore.QPoint(0, 0))
+        y = origin.y() + control.height() // 2
+        edge = image.pixelColor(origin.x() + control.width() - 1, y)
+        outside = image.pixelColor(origin.x() + control.width(), y)
+        self.assertEqual(edge, outside)
+
+
 class ViewRollComparisonPanelTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -254,12 +316,9 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertIsNone(original.mode_segment._corner_radius)
         self.assertEqual(codex._visual_style["surface"], "#202123")
         self.assertEqual(codex.mode_segment._corner_radius, 8)
-        self.assertEqual(codex.mode_segment._paint_inset, 1)
-        for reveal in (codex.speed_reveal, codex.angle_reveal):
-            self.assertIsNotNone(reveal._fade_effect)
-            self.assertEqual(reveal._duration, 220)
-            reveal.setRevealProgress(0.5)
-            self.assertLess(reveal._fade_effect.opacity(), 0.5)
+        self.assertEqual(codex.mode_segment._paint_inset, 1.5)
+        self.assertIsNotNone(codex.parameter_slot)
+        self.assertEqual(codex.parameter_slot._duration, 220)
         codex._apply_mode_reveals(animate=False)
         body_margins = codex._body_layout.contentsMargins()
         self.assertEqual((body_margins.left(), body_margins.right()), (20, 20))

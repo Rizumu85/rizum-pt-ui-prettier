@@ -44,6 +44,11 @@ def make_segmented_control(options=None, current=None, parent=None):
             self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
             self.setMouseTracking(True)
             self.setAutoFillBackground(False)
+            # Painter styles every QFrame; suppress that fill so the painted
+            # end-cap gutter reveals the real parent surface instead.
+            self.setStyleSheet(
+                "QFrame#RizumSegmentedControl { background: transparent; border: 0; }"
+            )
             self.setSizePolicy(
                 QtWidgets.QSizePolicy.Policy.Minimum,
                 QtWidgets.QSizePolicy.Policy.Fixed,
@@ -417,7 +422,7 @@ def make_segmented_control(options=None, current=None, parent=None):
                     self._scaled(slider_base, int(slider_base * 0.75 + 0.5))
                 )
             edge_inset = (
-                0.5
+                1.0
                 if self._paint_inset is None
                 else max(0.5, self._paint_inset * self._scale())
             )
