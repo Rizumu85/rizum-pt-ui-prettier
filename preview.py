@@ -16,6 +16,7 @@ from rizum_ui import (
     COMPACT_DOCK_MIN_WIDTH,
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
+    PAINTER_SETTINGS_FRAME_COLOR,
     animate_drag_tree_item_added,
     apply_compact_dock_surface,
     apply_painter_like_base,
@@ -44,6 +45,7 @@ from rizum_ui import (
     make_mock_checkbox,
     make_progress_panel,
     make_painter_title_bar,
+    make_painter_window_content,
     make_segmented_control,
     make_spin_input,
     make_svg_label,
@@ -141,6 +143,7 @@ def reload_ui_kit():
     global COMPACT_DOCK_MIN_WIDTH
     global PAINTER_FOOTER_MARGIN_BOTTOM
     global PAINTER_FOOTER_MARGIN_X
+    global PAINTER_SETTINGS_FRAME_COLOR
     global animate_drag_tree_item_added
     global apply_compact_dock_surface
     global apply_painter_like_base
@@ -169,6 +172,7 @@ def reload_ui_kit():
     global make_mock_checkbox
     global make_progress_panel
     global make_painter_title_bar
+    global make_painter_window_content
     global make_segmented_control
     global make_spin_input
     global make_svg_label
@@ -193,6 +197,7 @@ def reload_ui_kit():
     COMPACT_DOCK_MIN_WIDTH = rizum_ui.COMPACT_DOCK_MIN_WIDTH
     PAINTER_FOOTER_MARGIN_BOTTOM = rizum_ui.PAINTER_FOOTER_MARGIN_BOTTOM
     PAINTER_FOOTER_MARGIN_X = rizum_ui.PAINTER_FOOTER_MARGIN_X
+    PAINTER_SETTINGS_FRAME_COLOR = rizum_ui.PAINTER_SETTINGS_FRAME_COLOR
     animate_drag_tree_item_added = rizum_ui.animate_drag_tree_item_added
     apply_compact_dock_surface = rizum_ui.apply_compact_dock_surface
     apply_painter_like_base = rizum_ui.apply_painter_like_base
@@ -221,6 +226,7 @@ def reload_ui_kit():
     make_mock_checkbox = rizum_ui.make_mock_checkbox
     make_progress_panel = rizum_ui.make_progress_panel
     make_painter_title_bar = rizum_ui.make_painter_title_bar
+    make_painter_window_content = rizum_ui.make_painter_window_content
     make_segmented_control = rizum_ui.make_segmented_control
     make_spin_input = rizum_ui.make_spin_input
     make_svg_label = rizum_ui.make_svg_label
@@ -269,7 +275,7 @@ def build_bridge_preview(QtWidgets):
     window.setStyleSheet(
         """
 QFrame#RizumExportWindow {
-    background: #1b1b1b;
+    background: #f3f3f3;
     border: 0;
     border-radius: 10px;
     font-family: "__EXPORT_FAMILY__", "Segoe UI", Arial, sans-serif;
@@ -364,9 +370,12 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     )
 
     layout = QtWidgets.QVBoxLayout(window)
-    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setContentsMargins(2, 0, 2, 2)
     layout.setSpacing(0)
     layout.addWidget(make_painter_title_bar("Export"))
+    content = make_painter_window_content("#1b1b1b")
+    content_layout = content.contentLayout()
+    layout.addWidget(content, 1)
 
     mode_combo = make_combo_input(["All Sets", "Current Set"])
     mode_combo.setCompactHeight(26)
@@ -389,15 +398,15 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
         object_name="RizumExportTopControls",
         spacing=0,
     )
-    layout.addWidget(top_controls)
-    layout.addWidget(make_inset_separator(12, thickness=2))
+    content_layout.addWidget(top_controls)
+    content_layout.addWidget(make_inset_separator(12, thickness=2))
 
     tree = QtWidgets.QFrame()
     tree.setObjectName("RizumExportTree")
     tree_layout = QtWidgets.QVBoxLayout(tree)
     tree_layout.setContentsMargins(8, 8, 8, 8)
     tree_layout.setSpacing(4)
-    layout.addWidget(tree, 1)
+    content_layout.addWidget(tree, 1)
 
     groups = []
 
@@ -473,7 +482,7 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     export = ActionButton.create("Export", "dialog-primary")
     footer_layout.addWidget(cancel)
     footer_layout.addWidget(export)
-    layout.addWidget(footer)
+    content_layout.addWidget(footer)
 
     expand_btn.clicked.connect(lambda: [group["widget"].setExpanded(True) for group in groups])
     collapse_btn.clicked.connect(lambda: [group["widget"].setExpanded(False) for group in groups])
@@ -1018,9 +1027,12 @@ def build_settings_preview(QtWidgets):
     )
 
     layout = _QtWidgets.QVBoxLayout(window)
-    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setContentsMargins(2, 0, 2, 2)
     layout.setSpacing(0)
     layout.addWidget(make_painter_title_bar("Settings"))
+    content = make_painter_window_content(themes["dark"]["window_bg"])
+    content_layout = content.contentLayout()
+    layout.addWidget(content, 1)
 
     body = _QtWidgets.QWidget()
     body.setObjectName("RizumSettingsBody")
@@ -1106,7 +1118,7 @@ def build_settings_preview(QtWidgets):
     version_layout.addWidget(make_label("2.0.0", "RizumSettingsItemMeta"))
     body_layout.addWidget(version_row)
 
-    layout.addWidget(body)
+    content_layout.addWidget(body)
 
     footer = _QtWidgets.QWidget()
     footer.setObjectName("RizumSettingsFooter")
@@ -1130,7 +1142,7 @@ def build_settings_preview(QtWidgets):
     done_button.refreshLayout(minimum=72, maximum=112)
     footer_layout.addWidget(done_button)
     footer_outer.addWidget(footer_row, 1)
-    layout.addWidget(footer)
+    content_layout.addWidget(footer)
 
     toggles = [padding_toggle, auto_toggle]
 
@@ -1138,11 +1150,12 @@ def build_settings_preview(QtWidgets):
         theme_name = "dark" if name == "system" else name
         theme = themes.get(theme_name, themes["dark"])
         window.setProperty("theme", theme_name)
+        content.setPainterContentColor(theme["window_bg"])
         window.setStyleSheet(
             f"""
 QFrame#RizumSettingsWindow {{
-    background: {theme["window_bg"]};
-    border: {theme["window_border_css"]};
+    background: {PAINTER_SETTINGS_FRAME_COLOR};
+    border: 0;
     border-radius: 10px;
 }}
 QFrame#RizumSettingsWindow QFrame#RizumInsetSeparator {{

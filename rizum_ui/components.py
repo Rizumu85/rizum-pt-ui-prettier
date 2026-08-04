@@ -20,6 +20,7 @@ FOOTER_BUTTON_PADDING_X = 8
 PAINTER_FOOTER_MARGIN_X = 16
 PAINTER_FOOTER_MARGIN_BOTTOM = 14
 PAINTER_TITLE_BAR_HEIGHT = 32
+PAINTER_WINDOW_CONTENT_RADIUS = 10
 
 
 def make_segmented_control(options=None, current=None, parent=None):
@@ -2039,6 +2040,37 @@ def make_painter_title_bar(title, parent=None):
             self.updateGeometry()
 
     return _PainterTitleBar()
+
+
+def make_painter_window_content(background="#1b1b1b", parent=None):
+    """Create Painter's rounded client area below the native title bar."""
+    from PySide6 import QtCore, QtWidgets
+
+    class _PainterWindowContent(QtWidgets.QFrame):
+        def __init__(self):
+            super().__init__(parent)
+            self.setObjectName("RizumPainterWindowContent")
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+            self._content_layout = QtWidgets.QVBoxLayout(self)
+            self._content_layout.setContentsMargins(0, 0, 0, 0)
+            self._content_layout.setSpacing(0)
+            self.setPainterContentColor(background)
+
+        def contentLayout(self):
+            return self._content_layout
+
+        def setPainterContentColor(self, color):
+            self.setStyleSheet(
+                f"""
+                QFrame#RizumPainterWindowContent {{
+                    background: {color};
+                    border: 0;
+                    border-radius: {PAINTER_WINDOW_CONTENT_RADIUS}px;
+                }}
+                """
+            )
+
+    return _PainterWindowContent()
 
 
 def make_icon_button(icon_name, tooltip="", size=16, compact=True):

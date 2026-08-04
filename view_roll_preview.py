@@ -21,6 +21,7 @@ from rizum_ui import (
     install_compact_tooltip,
     make_compact_stepper,
     make_painter_title_bar,
+    make_painter_window_content,
     make_segmented_control,
     make_spin_input,
     set_compact_footer_button_width,
@@ -479,12 +480,8 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.native_title_bar = make_painter_title_bar("View Roll Settings")
         surface_layout.addWidget(self.native_title_bar)
 
-        content = QtWidgets.QFrame()
-        content.setObjectName("RizumViewRollWindowContent")
-        content.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
-        content_layout = QtWidgets.QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(0)
+        content = make_painter_window_content(default_theme.surface)
+        content_layout = content.contentLayout()
         surface_layout.addWidget(content, 1)
 
         body = QtWidgets.QWidget()
@@ -1036,11 +1033,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             + f"""
 QFrame#RizumPainterSettingsSurface {{
     background: {PAINTER_SETTINGS_FRAME_COLOR};
-}}
-QFrame#RizumViewRollWindowContent {{
-    background: {theme.surface};
-    border: 0;
-    border-radius: {self.dialog.settingsWindowRadius():g}px;
 }}
 QWidget#RizumViewRollBody,
 QWidget#RizumViewRollFooter,

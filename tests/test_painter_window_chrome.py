@@ -11,6 +11,7 @@ from preview import build_bridge_preview, build_settings_preview
 from rizum_ui import (
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
+    PAINTER_WINDOW_CONTENT_RADIUS,
     make_painter_title_bar,
 )
 from view_roll_preview import ViewRollConceptPanel
@@ -54,6 +55,15 @@ class PainterWindowChromeTests(unittest.TestCase):
                 ),
                 1,
             )
+            self.assertEqual(
+                len(
+                    panel.findChildren(
+                        QtWidgets.QFrame,
+                        "RizumPainterWindowContent",
+                    )
+                ),
+                1,
+            )
 
     def test_panel_title_exists_only_in_native_chrome(self):
         panels = [
@@ -69,12 +79,16 @@ class PainterWindowChromeTests(unittest.TestCase):
         panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
 
-        content = panel.findChild(QtWidgets.QFrame, "RizumViewRollWindowContent")
+        content = panel.findChild(QtWidgets.QFrame, "RizumPainterWindowContent")
         self.assertIsNotNone(content)
-        stylesheet = panel.dialog.settingsSurface().styleSheet()
-        self.assertIn("QFrame#RizumViewRollWindowContent", stylesheet)
-        self.assertIn("border-radius: 10px", stylesheet)
-        self.assertIn("background: #f3f3f3", stylesheet)
+        self.assertIn(
+            f"border-radius: {PAINTER_WINDOW_CONTENT_RADIUS}px",
+            content.styleSheet(),
+        )
+        self.assertIn(
+            "background: #f3f3f3",
+            panel.dialog.settingsSurface().styleSheet(),
+        )
 
     def test_preview_footers_share_painter_edge_margins(self):
         bridge = build_bridge_preview(QtWidgets)
