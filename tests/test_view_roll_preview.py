@@ -207,11 +207,23 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertAlmostEqual(
             panel.parameter_slot.rowOpacity("continuous"), 1.0, places=2
         )
+        panel.parameter_slot._animation.pause()
+        panel.parameter_slot.setHeightProgress(0.35)
+        QtWidgets.QApplication.processEvents()
+        image = panel.parameter_slot.grab().toImage()
+        painted_pixels = sum(
+            image.pixelColor(x, y).alpha() > 0
+            for y in range(image.height())
+            for x in range(image.width())
+        )
+        self.assertGreater(painted_pixels, 0)
 
     def test_codex_mode_caps_are_symmetric_at_the_host_dpi(self):
         probe = textwrap.dedent(
             """
-            from PySide6 import QtWidgets
+            from pathlib import Path
+
+            from PySide6 import QtCore, QtGui, QtWidgets
 
             import preview
             from rizum_ui import (
@@ -222,6 +234,10 @@ class ViewRollConceptPanelTests(unittest.TestCase):
             from view_roll_preview import ViewRollConceptPanel
 
             app = QtWidgets.QApplication([])
+            font_root = Path.cwd().parent / "rizum-pt-ui-font" / "fonts"
+            for filename in ("MiSans-Regular.ttf", "MiSans-Medium.ttf"):
+                QtGui.QFontDatabase.addApplicationFont(str(font_root / filename))
+            app.setFont(QtGui.QFont("MiSans"))
             apply_painter_like_base(app)
             app.setStyleSheet(
                 build_painter_host_preview_stylesheet()
@@ -229,26 +245,45 @@ class ViewRollConceptPanelTests(unittest.TestCase):
                 + preview.PREVIEW_CANVAS_STYLESHEET
             )
             app.setProperty("rizumUiFontScale", 1.0)
-            panel = ViewRollConceptPanel(design_variant="codex")
-            panel.show()
-            app.processEvents()
-            control = panel.mode_segment
-            control.setCurrentData("step_15", animate=False, emit=False)
-            app.processEvents()
-            image = control.grab().toImage()
+            renders = []
+            controls_fit = True
+            for mode in ("continuous", "custom"):
+                panel = ViewRollConceptPanel(design_variant="codex")
+                panel.show()
+                app.processEvents()
+                control = panel.mode_segment
+                control.setCurrentData(mode, animate=False, emit=False)
+                app.processEvents()
+                controls_fit = controls_fit and control.parentWidget().contentsRect().contains(
+                    control.geometry()
+                )
+                image = panel.grab().toImage()
+                origin = control.mapTo(panel, QtCore.QPoint(0, 0))
+                dpr = image.devicePixelRatio()
+                left = int(origin.x() * dpr + 0.5)
+                top = int(origin.y() * dpr + 0.5)
+                right = int((origin.x() + control.width()) * dpr + 0.5)
+                bottom = int((origin.y() + control.height()) * dpr + 0.5)
+                renders.append((image, left, top, right, bottom))
+
+            left_render, right_render = renders
+            left_image, left, left_top, _left_right, left_bottom = left_render
+            right_image, _right_left, right_top, right, right_bottom = right_render
             max_delta = 0
             for x in range(4):
-                for y in range(image.height()):
-                    left = image.pixelColor(x, y)
-                    right = image.pixelColor(image.width() - 1 - x, y)
+                for y in range(min(left_bottom - left_top, right_bottom - right_top)):
+                    left_color = left_image.pixelColor(left + x, left_top + y)
+                    right_color = right_image.pixelColor(
+                        right - 1 - x, right_top + y
+                    )
                     max_delta = max(
                         max_delta,
-                        abs(left.red() - right.red()),
-                        abs(left.green() - right.green()),
-                        abs(left.blue() - right.blue()),
-                        abs(left.alpha() - right.alpha()),
+                        abs(left_color.red() - right_color.red()),
+                        abs(left_color.green() - right_color.green()),
+                        abs(left_color.blue() - right_color.blue()),
+                        abs(left_color.alpha() - right_color.alpha()),
                     )
-            print(max_delta)
+            print(int(controls_fit), max_delta)
             """
         )
         environment = os.environ.copy()
@@ -268,7 +303,9 @@ class ViewRollConceptPanelTests(unittest.TestCase):
             text=True,
         )
 
-        self.assertLessEqual(int(result.stdout.strip()), 8)
+        controls_fit, max_delta = (int(value) for value in result.stdout.split())
+        self.assertEqual(controls_fit, 1)
+        self.assertLessEqual(max_delta, 8)
 
     def test_duplicate_shortcuts_flag_conflict(self):
         panel = self.make_panel()

@@ -1569,7 +1569,8 @@ QFrame#RizumPainterWindowContent {
                 self.mode_segment.setPaintInset(1.5)
             self.mode_segment.setTheme(segment_theme)
         mode_row, mode_layout = self._make_row()
-        mode_layout.addWidget(self._make_name(_preview_text("mode", "Mode")))
+        self.mode_label = self._make_name(_preview_text("mode", "Mode"))
+        mode_layout.addWidget(self.mode_label)
         mode_layout.addStretch(1)
         mode_layout.addWidget(self.mode_segment)
         self._body_layout.addWidget(mode_row)
@@ -2204,6 +2205,9 @@ QFrame#RizumPainterWindowContent {
             control_row_need(stepper.width())
             for stepper in (self.speed_stepper, self.angle_stepper)
         )
+        mode_need = labeled_row_need(
+            self.mode_label.width(), self.mode_segment.sizeHint().width()
+        )
         shortcut_need = max(
             labeled_row_need(
                 field._rizum_name_label.width(),
@@ -2212,7 +2216,7 @@ QFrame#RizumPainterWindowContent {
             for field in self.shortcut_fields.values()
         )
 
-        content_need = max(footer_need, stepper_need, shortcut_need)
+        content_need = max(footer_need, mode_need, stepper_need, shortcut_need)
         measured_width = max(
             base,
             content_need + 2 * self.dialog.settingsFrameWidth() + 2,

@@ -163,15 +163,21 @@ def make_segmented_control(options=None, current=None, parent=None):
 
         def _device_geometry(self):
             dpr = max(1.0, float(self.devicePixelRatioF()))
-
-            def aligned_extent(value):
-                return int(float(value) * dpr + 0.5) / dpr
-
-            return (
-                dpr,
-                aligned_extent(self.width()),
-                aligned_extent(self.height()),
+            window = self.window()
+            origin = (
+                self.mapTo(window, QtCore.QPoint(0, 0))
+                if window is not None
+                else QtCore.QPoint(0, 0)
             )
+
+            def aligned_axis(offset, extent):
+                start = int(float(offset) * dpr + 0.5)
+                end = int(float(offset + extent) * dpr + 0.5)
+                return start / dpr - offset, end / dpr - offset
+
+            left, right = aligned_axis(origin.x(), self.width())
+            top, bottom = aligned_axis(origin.y(), self.height())
+            return dpr, QtCore.QRectF(left, top, right - left, bottom - top)
 
         @staticmethod
         def _device_aligned_inset(value, dpr):
@@ -194,23 +200,23 @@ def make_segmented_control(options=None, current=None, parent=None):
         def _segment_rects(self):
             if not self._items:
                 return []
-            dpr, paint_width, paint_height = self._device_geometry()
+            dpr, paint_rect = self._device_geometry()
             inset = self._device_aligned_inset(self._scaled(2, 2), dpr)
             widths = [float(width) for width in self._base_widths()]
-            available = max(0.0, paint_width - inset * 2.0)
+            available = max(0.0, paint_rect.width() - inset * 2.0)
             extra = max(0.0, available - sum(widths)) / len(widths)
             rects = []
-            x = inset
+            x = paint_rect.left() + inset
             for index, width in enumerate(widths):
                 segment_width = width + extra
                 if index == len(widths) - 1:
-                    segment_width = max(0.0, paint_width - inset - x)
+                    segment_width = max(0.0, paint_rect.right() - inset - x)
                 rects.append(
                     QtCore.QRectF(
                         x,
-                        inset,
+                        paint_rect.top() + inset,
                         segment_width,
-                        max(0.0, paint_height - inset * 2.0),
+                        max(0.0, paint_rect.height() - inset * 2.0),
                     )
                 )
                 x += segment_width
@@ -443,9 +449,9 @@ def make_segmented_control(options=None, current=None, parent=None):
                 if self._paint_inset is None
                 else max(0.5, self._paint_inset * self._scale())
             )
-            dpr, paint_width, paint_height = self._device_geometry()
+            dpr, paint_rect = self._device_geometry()
             edge_inset = self._device_aligned_inset(edge_inset, dpr)
-            outer = QtCore.QRectF(0.0, 0.0, paint_width, paint_height).adjusted(
+            outer = paint_rect.adjusted(
                 edge_inset,
                 edge_inset,
                 -edge_inset,
@@ -472,9 +478,9 @@ def make_segmented_control(options=None, current=None, parent=None):
 
             slider = QtCore.QRectF(
                 self._slider_x,
-                float(self._scaled(2, 2)),
+                rects[0].top() if rects else 0.0,
                 self._slider_width,
-                max(0.0, self.height() - self._scaled(2, 2) * 2.0),
+                rects[0].height() if rects else 0.0,
             )
             shadow = self._theme["shadow"]
             if shadow is not None:
