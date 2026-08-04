@@ -25,6 +25,36 @@ class SegmentedControlTests(unittest.TestCase):
             current="step_15",
         )
 
+    def _render_control(self, scale, current, hovered=-1):
+        host = QtWidgets.QWidget()
+        self.addCleanup(host.deleteLater)
+        host.setObjectName("SegmentedControlTestHost")
+        host.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+        host.setStyleSheet(
+            """
+QWidget#SegmentedControlTestHost { background: #202123; }
+QFrame { background: #1b1b1b; border: 1px solid #414141; border-radius: 8px; }
+"""
+        )
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(4, 4, 4, 4)
+        control = self.make_control()
+        control.setCurrentData(current, emit=False)
+        control.setCornerRadius(8)
+        control.setPaintInset(1.5)
+        control.setCompactHeight(max(23, round(30 * scale)))
+        control.setFixedWidth(max(control.sizeHint().width(), round(323 * scale)))
+        control._hovered_index = hovered
+        layout.addWidget(control)
+        host.show()
+        host.setFocus()
+        control.clearFocus()
+        self.app.processEvents()
+
+        image = host.grab().toImage()
+        origin = control.mapTo(host, QtCore.QPoint(0, 0))
+        return control, image, origin
+
     def test_selects_options_by_data(self):
         control = self.make_control()
         changes = []
@@ -105,6 +135,42 @@ class SegmentedControlTests(unittest.TestCase):
         self.assertEqual(control._theme["slider"].name(), "#ffffff")
         self.assertEqual(control._theme["active_text"].name(), "#1d1d1f")
         self.assertEqual(control._theme["muted"].name(), "#86868b")
+
+    def test_selected_and_hovered_end_caps_stay_mirrored_at_ui_scales(self):
+        for scale in (0.75, 1.0, 1.1, 1.5, 2.0):
+            cases = (
+                (("continuous", -1), ("custom", -1)),
+                (("step_15", 0), ("step_15", 2)),
+            )
+            for left_state, right_state in cases:
+                left, left_image, left_origin = self._render_control(
+                    scale, *left_state
+                )
+                right, right_image, right_origin = self._render_control(
+                    scale, *right_state
+                )
+                cap_width = max(4, round(10 * scale))
+                for x in range(cap_width):
+                    for y in range(left.height()):
+                        left_color = left_image.pixelColor(
+                            left_origin.x() + x,
+                            left_origin.y() + y,
+                        )
+                        right_color = right_image.pixelColor(
+                            right_origin.x() + right.width() - 1 - x,
+                            right_origin.y() + y,
+                        )
+                        channel_delta = max(
+                            abs(left_color.red() - right_color.red()),
+                            abs(left_color.green() - right_color.green()),
+                            abs(left_color.blue() - right_color.blue()),
+                            abs(left_color.alpha() - right_color.alpha()),
+                        )
+                        self.assertLessEqual(
+                            channel_delta,
+                            2,
+                            f"asymmetric cap at scale={scale}, x={x}, y={y}",
+                        )
 
     def test_pt_bridge_preview_uses_the_shared_segmented_control(self):
         from preview import build_settings_preview
