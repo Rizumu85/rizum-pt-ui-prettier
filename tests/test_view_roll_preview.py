@@ -229,6 +229,7 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertIsNone(original.mode_segment._corner_radius)
         self.assertEqual(codex._visual_style["surface"], "#202123")
         self.assertEqual(codex.mode_segment._corner_radius, 8)
+        self.assertEqual(codex.mode_segment._paint_inset, 1)
         for reveal in (codex.speed_reveal, codex.angle_reveal):
             self.assertIsNotNone(reveal._fade_effect)
             self.assertEqual(reveal._duration, 220)

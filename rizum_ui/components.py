@@ -56,6 +56,7 @@ def make_segmented_control(options=None, current=None, parent=None):
             self._slider_width = 0.0
             self._animation = None
             self._corner_radius = None
+            self._paint_inset = None
             self._theme = {}
             self.setTheme({})
             self.setFixedHeight(base_height)
@@ -122,6 +123,11 @@ def make_segmented_control(options=None, current=None, parent=None):
         def setCornerRadius(self, radius):
             """Override the painted track radius while retaining scale support."""
             self._corner_radius = max(0.0, float(radius))
+            self.update()
+
+        def setPaintInset(self, inset):
+            """Keep antialiased end caps clear of the widget paint boundary."""
+            self._paint_inset = max(0.5, float(inset))
             self.update()
 
         def getSliderX(self):
@@ -410,11 +416,16 @@ def make_segmented_control(options=None, current=None, parent=None):
                 slider_radius = float(
                     self._scaled(slider_base, int(slider_base * 0.75 + 0.5))
                 )
+            edge_inset = (
+                0.5
+                if self._paint_inset is None
+                else max(0.5, self._paint_inset * self._scale())
+            )
             outer = QtCore.QRectF(self.rect()).adjusted(
-                0.5,
-                0.5,
-                -0.5,
-                -0.5,
+                edge_inset,
+                edge_inset,
+                -edge_inset,
+                -edge_inset,
             )
             track = QtGui.QColor(self._theme["track"])
             if self.hasFocus():
