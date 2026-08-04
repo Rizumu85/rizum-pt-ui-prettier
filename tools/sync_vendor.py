@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGETS = (
     ROOT.parent / "rizum-pt-to-ps-bridge",
     ROOT.parent / "rizum-pt-ui-font",
+    ROOT.parent / "rizum-pt-view-roll",
 )
 MANIFEST_NAME = "rizum_ui_vendor_manifest.json"
 MANAGED_ROOTS = ("rizum_ui", "icons")
@@ -143,7 +144,9 @@ def write_manifest(target: Path, files: list[VendorFile]) -> None:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source_root": str(ROOT),
         "source_git_head": git_value("rev-parse", "--short", "HEAD"),
-        "source_git_status": git_value("status", "--short"),
+        "source_git_status": git_value(
+            "status", "--short", "--", *MANAGED_ROOTS
+        ),
         "managed_roots": list(MANAGED_ROOTS),
         "files": [file.relative.as_posix() for file in files],
     }

@@ -111,6 +111,9 @@ Apply it to the known sibling plugins:
 python tools/sync_vendor.py --apply
 ```
 
+The default target set includes `rizum-pt-to-ps-bridge`, `rizum-pt-ui-font`,
+and `rizum-pt-view-roll`.
+
 Apply it to one plugin folder:
 
 ```powershell

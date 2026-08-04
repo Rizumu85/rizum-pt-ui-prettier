@@ -151,6 +151,8 @@ Apply the approved snapshot:
 python tools/sync_vendor.py --apply
 ```
 
+The default target set includes the bridge, UI Font, and View Roll plugins.
+
 Apply one target explicitly:
 
 ```powershell
