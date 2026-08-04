@@ -241,6 +241,12 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertEqual(codex._button_row.height(), kimi._button_row.height())
         self.assertEqual(codex._button_row.height(), 32)
         self.assertEqual(codex._footer.layout().contentsMargins().bottom(), 16)
+        self.assertEqual(codex.status_reveal.expandedHeight(), 18)
+        self.assertEqual(codex._footer.layout().spacing(), 6)
+        self.assertTrue(
+            codex.status_label.alignment() & QtCore.Qt.AlignmentFlag.AlignRight
+        )
+        self.assertEqual(codex._status_font().weight(), QtGui.QFont.Weight.Normal)
         self.assertIsNotNone(codex._footer_separator)
         self.assertEqual(codex._footer_separator.height(), 1)
         self.assertEqual(

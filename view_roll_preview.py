@@ -859,6 +859,14 @@ QFrame#RizumPainterWindowContent {
         self._status_tone = ""
         self.status_label = QtWidgets.QLabel("")
         self.status_label.setObjectName("RizumSettingsFooterHint")
+        self.status_label.setAlignment(
+            (
+                QtCore.Qt.AlignmentFlag.AlignRight
+                if self.design_variant == "codex"
+                else QtCore.Qt.AlignmentFlag.AlignLeft
+            )
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
         self.status_label.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Ignored,
             QtWidgets.QSizePolicy.Policy.Preferred,
@@ -1116,7 +1124,11 @@ QFrame#RizumPainterWindowContent {
     def _status_font(self):
         font = QtGui.QFont(self.font())
         font.setPixelSize(self._metric(11))
-        font.setWeight(QtGui.QFont.Weight.Medium)
+        font.setWeight(
+            QtGui.QFont.Weight.Normal
+            if self.design_variant == "codex"
+            else QtGui.QFont.Weight.Medium
+        )
         return font
 
     def _name_font(self):
@@ -1176,7 +1188,7 @@ QFrame#RizumPainterWindowContent {
             row_margins = (0, 5, 0, 5)
             section_heights = (26, 36)
             control_heights = (30, 32, 30)
-            footer_values = (20, 8, 8, 32, 16)
+            footer_values = (20, 8, 6, 32, 16)
         else:
             row_base, tall_base = 40, 46
             body_margins = (12, 8, 12, 16)
@@ -1197,7 +1209,11 @@ QFrame#RizumPainterWindowContent {
         else:
             row_height = self._metric(row_base, round(row_base * 0.75))
             tall_height = self._metric(tall_base, round(tall_base * 0.75))
-        status_height = self._metric(22, 17)
+        status_height = (
+            self._metric(18, 14)
+            if self.design_variant == "codex"
+            else self._metric(22, 17)
+        )
         if self.design_variant == "original":
             footer_margin = self._metric(PAINTER_FOOTER_MARGIN_X, 12)
             footer_top = self._metric(6, 5)
@@ -1530,6 +1546,16 @@ QPushButton#RizumViewRollRestore {{
 QPushButton#RizumViewRollRestore:hover {{
     color: {text};
     background: {control_hover};
+}}
+"""
+            )
+        if self.design_variant == "codex":
+            surface.setStyleSheet(
+                surface.styleSheet()
+                + f"""
+QLabel#RizumSettingsFooterHint {{
+    color: {faint};
+    font-weight: 400;
 }}
 """
             )
