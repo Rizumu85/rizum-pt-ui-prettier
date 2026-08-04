@@ -134,6 +134,148 @@ def _copy_state(state):
     }
 
 
+class TextActionButton(QtWidgets.QAbstractButton):
+    """Text-only secondary action with quiet, tactile state feedback."""
+
+    BASE_HEIGHT = 28
+    MIN_HEIGHT = 21
+
+    def __init__(self, text, muted, active, parent=None):
+        super().__init__(parent)
+        self.setText(text)
+        self.setObjectName("RizumViewRollTextAction")
+        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAutoFillBackground(False)
+        self._muted = QtGui.QColor(muted)
+        self._active = QtGui.QColor(active)
+        self._compact_height = self.BASE_HEIGHT
+        self._hover_progress = 0.0
+        self._press_progress = 0.0
+        self._hover_animation = None
+        self._press_animation = None
+        self.setCompactHeight(self.BASE_HEIGHT)
+
+    def _scale(self):
+        return self._compact_height / float(self.BASE_HEIGHT)
+
+    def _font(self):
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(max(9, int(round(12 * self._scale()))))
+        font.setWeight(QtGui.QFont.Weight.Normal)
+        return font
+
+    def sizeHint(self):
+        width = QtGui.QFontMetrics(self._font()).horizontalAdvance(self.text()) + 2
+        return QtCore.QSize(max(1, width), self._compact_height)
+
+    def setCompactHeight(self, height):
+        self._compact_height = max(self.MIN_HEIGHT, int(round(height)))
+        hint = self.sizeHint()
+        self.setFixedSize(hint.width(), self._compact_height)
+        self.updateGeometry()
+        self.update()
+
+    def _animate(self, name, target, duration):
+        attribute = f"_{name}_animation"
+        previous = getattr(self, attribute)
+        if previous is not None:
+            previous.stop()
+        animation = QtCore.QPropertyAnimation(
+            self,
+            b"hoverProgress" if name == "hover" else b"pressProgress",
+            self,
+        )
+        animation.setDuration(duration)
+        animation.setStartValue(
+            self._hover_progress if name == "hover" else self._press_progress
+        )
+        animation.setEndValue(float(target))
+        animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        setattr(self, attribute, animation)
+        animation.start()
+
+    def getHoverProgress(self):
+        return self._hover_progress
+
+    def setHoverProgress(self, value):
+        self._hover_progress = max(0.0, min(1.0, float(value)))
+        self.update()
+
+    hoverProgress = QtCore.Property(float, getHoverProgress, setHoverProgress)
+
+    def getPressProgress(self):
+        return self._press_progress
+
+    def setPressProgress(self, value):
+        self._press_progress = max(0.0, min(1.0, float(value)))
+        self.update()
+
+    pressProgress = QtCore.Property(float, getPressProgress, setPressProgress)
+
+    def enterEvent(self, event):
+        self._animate("hover", 1.0, 120)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._animate("hover", 0.0, 140)
+        self._animate("press", 0.0, 100)
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self._animate("press", 1.0, 70)
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self._animate("press", 0.0, 120)
+        super().mouseReleaseEvent(event)
+
+    def focusInEvent(self, event):
+        self._animate("hover", 1.0, 120)
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event):
+        if not self.underMouse():
+            self._animate("hover", 0.0, 140)
+        self._animate("press", 0.0, 100)
+        super().focusOutEvent(event)
+
+    def paintEvent(self, event):
+        del event
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
+        color = QtGui.QColor(
+            round(
+                self._muted.red()
+                + (self._active.red() - self._muted.red()) * self._hover_progress
+            ),
+            round(
+                self._muted.green()
+                + (self._active.green() - self._muted.green())
+                * self._hover_progress
+            ),
+            round(
+                self._muted.blue()
+                + (self._active.blue() - self._muted.blue())
+                * self._hover_progress
+            ),
+        )
+        if self._press_progress:
+            color.setAlphaF(max(0.62, 1.0 - 0.28 * self._press_progress))
+        painter.setFont(self._font())
+        painter.setPen(color)
+        y_offset = round(self._press_progress * max(1.0, self._scale()))
+        painter.drawText(
+            self.rect().translated(0, y_offset),
+            QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter,
+            self.text(),
+        )
+        painter.end()
+
+
 class ShortcutCaptureField(QtWidgets.QFrame):
     """Painted shortcut field with capture, clear, and conflict states."""
 
@@ -725,9 +867,16 @@ QFrame#RizumPainterWindowContent {
         self._button_layout = QtWidgets.QHBoxLayout(button_row)
         self._button_layout.setContentsMargins(16, 0, 16, 0)
         self._button_layout.setSpacing(8)
-        self.restore_button = ActionButton.create(
-            _preview_text("restore", "Restore"), "dialog-secondary"
-        )
+        if self.design_variant == "codex":
+            self.restore_button = TextActionButton(
+                _preview_text("restore", "Restore"),
+                self._visual_style["muted"],
+                self._visual_style["text"],
+            )
+        else:
+            self.restore_button = ActionButton.create(
+                _preview_text("restore", "Restore"), "dialog-secondary"
+            )
         self.restore_button.setObjectName("RizumViewRollRestore")
         self.cancel_button = ActionButton.create(
             _preview_text("cancel", "Cancel"), "dialog-secondary"
@@ -1167,6 +1316,9 @@ QFrame#RizumPainterWindowContent {
             (self.cancel_button, 56, 96),
             (self.save_button, 52, 92),
         ):
+            if isinstance(button, TextActionButton):
+                button.setCompactHeight(footer_button_height)
+                continue
             width = self._footer_button_width(
                 button, minimum=minimum, maximum=maximum
             )

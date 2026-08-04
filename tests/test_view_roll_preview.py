@@ -15,6 +15,7 @@ from view_roll_preview import (
     DESIGN_VARIANTS,
     SHORTCUT_ACTIONS,
     ShortcutCaptureField,
+    TextActionButton,
     ViewRollComparisonPanel,
     ViewRollConceptPanel,
 )
@@ -233,8 +234,18 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertEqual((mode_margins.left(), mode_margins.right()), (0, 0))
         footer_margins = codex._button_layout.contentsMargins()
         self.assertEqual((footer_margins.left(), footer_margins.right()), (20, 20))
+        self.assertIsInstance(codex.restore_button, TextActionButton)
+        restore_left = codex.restore_button.mapTo(
+            codex.dialog, QtCore.QPoint(0, 0)
+        ).x()
+        section_left = codex._section_rotation.mapTo(
+            codex.dialog, QtCore.QPoint(0, 0)
+        ).x()
+        self.assertEqual(restore_left, section_left)
+        self.assertEqual(
+            codex.restore_button.width(), codex.restore_button.sizeHint().width()
+        )
         for codex_button, kimi_button in (
-            (codex.restore_button, kimi.restore_button),
             (codex.cancel_button, kimi.cancel_button),
             (codex.save_button, kimi.save_button),
         ):
@@ -242,7 +253,6 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
             self.assertEqual(codex_button.height(), 28)
         footer_metrics = QtGui.QFontMetrics(codex._footer_button_font())
         for button in (
-            codex.restore_button,
             codex.cancel_button,
             codex.save_button,
         ):
