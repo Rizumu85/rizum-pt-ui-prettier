@@ -233,6 +233,19 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertEqual((mode_margins.left(), mode_margins.right()), (0, 0))
         footer_margins = codex._button_layout.contentsMargins()
         self.assertEqual((footer_margins.left(), footer_margins.right()), (20, 20))
+        footer_metrics = QtGui.QFontMetrics(codex._footer_button_font())
+        for button in (
+            codex.restore_button,
+            codex.cancel_button,
+            codex.save_button,
+        ):
+            expected = (
+                footer_metrics.horizontalAdvance(button.text())
+                + 2 * FOOTER_BUTTON_PADDING_X
+                + 2
+                + 8
+            )
+            self.assertGreaterEqual(button.width(), expected)
         self.assertIn(
             "QPushButton#RizumViewRollSave {\n"
             "    color: #202123;\n"
