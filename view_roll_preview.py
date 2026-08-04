@@ -1327,45 +1327,34 @@ class _RevealRow(QtWidgets.QFrame):
 
 
 class _ParameterSlot(QtWidgets.QFrame):
-    """Crossfade parameter rows in place while animating one shared height."""
+    """Switch parameter rows in one shared, fully laid-out slot."""
 
     def __init__(
         self,
         rows,
         expanded_height,
         parent=None,
-        duration=PARAMETER_TRANSITION_DURATION,
     ):
         super().__init__(parent)
         self.setObjectName("RizumViewRollParameterSlot")
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAutoFillBackground(False)
         self._rows = dict(rows)
-        self._effects = {}
         self._expanded_height = max(0, int(round(expanded_height)))
         self._height_progress = 0.0
-        self._transition_progress = 1.0
-        self._start_opacities = {mode: 0.0 for mode in self._rows}
-        self._end_opacities = dict(self._start_opacities)
         self._mode = None
-        self._duration = int(duration)
-        self._animation = None
         self._geometry_callback = None
 
-        layout = QtWidgets.QStackedLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.setStackingMode(QtWidgets.QStackedLayout.StackingMode.StackAll)
-        for mode, row in self._rows.items():
-            effect = QtWidgets.QGraphicsOpacityEffect(row)
-            effect.setOpacity(0.0)
-            row.setGraphicsEffect(effect)
+        self._layout = QtWidgets.QStackedLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+        self._layout.setStackingMode(QtWidgets.QStackedLayout.StackingMode.StackOne)
+        for row in self._rows.values():
             row.setAttribute(
                 QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
             )
             row.setFixedHeight(self._expanded_height)
-            self._effects[mode] = effect
-            layout.addWidget(row)
+            self._layout.addWidget(row)
         self.setFixedHeight(0)
 
     def expandedHeight(self):
@@ -1391,23 +1380,8 @@ class _ParameterSlot(QtWidgets.QFrame):
         float, heightProgress, setHeightProgress
     )
 
-    def transitionProgress(self):
-        return self._transition_progress
-
-    def setTransitionProgress(self, value):
-        self._transition_progress = max(0.0, min(1.0, float(value)))
-        for mode, effect in self._effects.items():
-            start = self._start_opacities.get(mode, 0.0)
-            end = self._end_opacities.get(mode, 0.0)
-            effect.setOpacity(start + (end - start) * self._transition_progress)
-
-    animatedTransitionProgress = QtCore.Property(
-        float, transitionProgress, setTransitionProgress
-    )
-
     def rowOpacity(self, mode):
-        effect = self._effects.get(mode)
-        return 0.0 if effect is None else effect.opacity()
+        return 1.0 if mode == self._mode else 0.0
 
     def progress(self):
         return self._height_progress
@@ -1417,66 +1391,22 @@ class _ParameterSlot(QtWidgets.QFrame):
         if self._geometry_callback is not None:
             self._geometry_callback(self._height_progress)
 
-    def _finish_transition(self):
-        self._start_opacities = dict(self._end_opacities)
-        self._transition_progress = 1.0
-
     def setMode(self, mode, animate=True):
         target_mode = mode if mode in self._rows else None
-        previous_mode = self._mode
-        if self._animation is not None:
-            self._animation.stop()
-            self._animation = None
-
-        self._start_opacities = {
-            key: effect.opacity() for key, effect in self._effects.items()
-        }
-        self._end_opacities = {
-            key: 1.0 if key == target_mode else 0.0 for key in self._rows
-        }
-        target_height = 1.0 if target_mode is not None else 0.0
-        if target_mode is not None and (
-            previous_mode is None or self._height_progress < 0.999
-        ):
-            # Height owns the reveal. Starting another opacity reveal from zero
-            # leaves the expanding slot visibly empty on the first frames.
-            self._start_opacities = dict(self._end_opacities)
-            self.setTransitionProgress(0.0)
         self._mode = target_mode
         for key, row in self._rows.items():
             row.setAttribute(
                 QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents,
                 key != target_mode,
             )
-
-        if not animate:
-            self.setHeightProgress(target_height)
-            self.setTransitionProgress(1.0)
-            self._finish_transition()
-            return
-
-        group = QtCore.QParallelAnimationGroup(self)
-        transition_distance = max(
-            abs(target_height - self._height_progress),
-            *(
-                abs(self._end_opacities[key] - self._start_opacities[key])
-                for key in self._rows
-            ),
-        )
-        duration = max(70, round(self._duration * transition_distance))
-        for prop, start, end in (
-            (b"animatedHeightProgress", self._height_progress, target_height),
-            (b"animatedTransitionProgress", 0.0, 1.0),
-        ):
-            animation = QtCore.QPropertyAnimation(self, prop, group)
-            animation.setDuration(duration)
-            animation.setStartValue(start)
-            animation.setEndValue(end)
-            animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
-            group.addAnimation(animation)
-        group.finished.connect(self._finish_transition)
-        self._animation = group
-        group.start()
+        if target_mode is not None:
+            self._layout.setCurrentWidget(self._rows[target_mode])
+        # Qt's graphics-effect compositing can leave stacked rows blank in a
+        # visible Windows host even though offscreen grabs look correct. Keep
+        # the mode slider animated, but commit row geometry and visibility in
+        # one frame so controls never clip, ghost, or disappear.
+        self.setHeightProgress(1.0 if target_mode is not None else 0.0)
+        self.update()
 
 
 class ViewRollConceptPanel(QtWidgets.QWidget):

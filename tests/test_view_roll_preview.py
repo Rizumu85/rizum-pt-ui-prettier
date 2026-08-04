@@ -169,7 +169,7 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertEqual(panel.speed_reveal.progress(), 0.0)
         self.assertEqual(panel.angle_reveal.progress(), 1.0)
 
-    def test_codex_parameter_switch_crossfades_in_one_fixed_slot(self):
+    def test_codex_parameter_switch_is_atomic_without_graphics_effects(self):
         panel = ViewRollConceptPanel(design_variant="codex")
         self.addCleanup(panel.deleteLater)
         panel.show()
@@ -178,23 +178,22 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         panel.parameter_slot.setMode("continuous", animate=False)
         stable_height = panel.dialog.height()
         panel.parameter_slot.setMode("custom", animate=True)
-        self.assertEqual(panel.parameter_slot._animation.duration(), 140)
-        panel.parameter_slot._animation.pause()
-        panel.parameter_slot.setTransitionProgress(0.5)
+        QtWidgets.QApplication.processEvents()
 
         self.assertEqual(
             panel.parameter_slot.height(), panel.parameter_slot.expandedHeight()
         )
         self.assertEqual(panel.dialog.height(), stable_height)
         self.assertEqual(panel.speed_row.geometry(), panel.angle_row.geometry())
-        self.assertAlmostEqual(
-            panel.parameter_slot.rowOpacity("continuous"), 0.5, places=2
-        )
-        self.assertAlmostEqual(
-            panel.parameter_slot.rowOpacity("custom"), 0.5, places=2
-        )
+        self.assertEqual(panel.parameter_slot.rowOpacity("continuous"), 0.0)
+        self.assertEqual(panel.parameter_slot.rowOpacity("custom"), 1.0)
+        self.assertIs(panel.parameter_slot._layout.currentWidget(), panel.angle_row)
+        self.assertFalse(panel.speed_row.isVisible())
+        self.assertTrue(panel.angle_row.isVisible())
+        self.assertIsNone(panel.speed_row.graphicsEffect())
+        self.assertIsNone(panel.angle_row.graphicsEffect())
 
-    def test_codex_parameter_is_opaque_before_expansion_starts(self):
+    def test_codex_parameter_is_visible_and_unclipped_on_first_expansion_frame(self):
         panel = ViewRollConceptPanel(design_variant="codex")
         self.addCleanup(panel.deleteLater)
         panel.show()
@@ -203,20 +202,29 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         panel.parameter_slot.setMode("step_15", animate=False)
         panel.parameter_slot.setMode("continuous", animate=True)
 
-        self.assertEqual(panel.parameter_slot.height(), 0)
-        self.assertAlmostEqual(
-            panel.parameter_slot.rowOpacity("continuous"), 1.0, places=2
+        self.assertEqual(
+            panel.parameter_slot.height(), panel.parameter_slot.expandedHeight()
         )
-        panel.parameter_slot._animation.pause()
-        panel.parameter_slot.setHeightProgress(0.35)
+        self.assertTrue(
+            panel.parameter_slot.rect().contains(panel.speed_row.geometry())
+        )
+        self.assertEqual(panel.parameter_slot.rowOpacity("continuous"), 1.0)
         QtWidgets.QApplication.processEvents()
         image = panel.parameter_slot.grab().toImage()
+        background = image.pixelColor(0, 0)
         painted_pixels = sum(
-            image.pixelColor(x, y).alpha() > 0
+            sum(
+                abs(channel - background_channel)
+                for channel, background_channel in zip(
+                    image.pixelColor(x, y).getRgb()[:3],
+                    background.getRgb()[:3],
+                )
+            )
+            > 18
             for y in range(image.height())
             for x in range(image.width())
         )
-        self.assertGreater(painted_pixels, 0)
+        self.assertGreater(painted_pixels, 100)
 
     def test_codex_mode_caps_are_symmetric_at_the_host_dpi(self):
         probe = textwrap.dedent(
@@ -510,7 +518,10 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertEqual(codex.mode_segment._corner_radius, 8)
         self.assertEqual(codex.mode_segment._paint_inset, 1.5)
         self.assertIsNotNone(codex.parameter_slot)
-        self.assertEqual(codex.parameter_slot._duration, 140)
+        self.assertEqual(
+            codex.parameter_slot._layout.stackingMode(),
+            QtWidgets.QStackedLayout.StackingMode.StackOne,
+        )
         self.assertEqual(original.speed_reveal._duration, 140)
         self.assertEqual(kimi.angle_reveal._duration, 140)
         codex._apply_mode_reveals(animate=False)
