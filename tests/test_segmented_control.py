@@ -63,7 +63,7 @@ class SegmentedControlTests(unittest.TestCase):
 
         self.assertEqual(control.currentData(), "custom")
 
-    def test_selection_motion_matches_bridge_theme_switch(self):
+    def test_selection_motion_restrains_edge_overshoot(self):
         control = self.make_control()
         control.show()
         self.app.processEvents()
@@ -75,6 +75,14 @@ class SegmentedControlTests(unittest.TestCase):
         for index in range(control._animation.animationCount()):
             animation = control._animation.animationAt(index)
             self.assertEqual(animation.duration(), 220)
+            self.assertEqual(
+                animation.easingCurve().type(),
+                QtCore.QEasingCurve.Type.OutCubic,
+            )
+
+        control.setCurrentData("step_15", animate=True)
+        for index in range(control._animation.animationCount()):
+            animation = control._animation.animationAt(index)
             self.assertEqual(
                 animation.easingCurve().type(),
                 QtCore.QEasingCurve.Type.OutBack,

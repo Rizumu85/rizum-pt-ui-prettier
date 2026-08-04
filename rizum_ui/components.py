@@ -141,6 +141,11 @@ def make_segmented_control(options=None, current=None, parent=None):
             target = self._target_slider_rect()
             self._stop_animation()
             group = QtCore.QParallelAnimationGroup(self)
+            easing = (
+                QtCore.QEasingCurve.Type.OutCubic
+                if self._current_index in (0, len(self._items) - 1)
+                else QtCore.QEasingCurve.Type.OutBack
+            )
             for prop, start, end in (
                 (b"sliderX", self._slider_x, target.x()),
                 (b"sliderWidth", self._slider_width, target.width()),
@@ -149,9 +154,7 @@ def make_segmented_control(options=None, current=None, parent=None):
                 animation.setDuration(220)
                 animation.setStartValue(start)
                 animation.setEndValue(end)
-                animation.setEasingCurve(
-                    QtCore.QEasingCurve.Type.OutBack
-                )
+                animation.setEasingCurve(easing)
                 group.addAnimation(animation)
             self._animation = group
             group.start()
