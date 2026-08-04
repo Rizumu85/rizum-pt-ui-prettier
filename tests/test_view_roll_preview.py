@@ -15,6 +15,7 @@ from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 from rizum_ui import (
     FOOTER_BUTTON_PADDING_X,
     PAINTER_FOOTER_MARGIN_BOTTOM,
+    SecondaryActionButton,
     ShortcutCaptureField,
     TextActionButton,
     make_segmented_control,
@@ -553,6 +554,7 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertIsNone(original._footer_separator)
         self.assertIsNone(kimi._footer_separator)
         self.assertIsInstance(codex.restore_button, TextActionButton)
+        self.assertIsInstance(codex.cancel_button, SecondaryActionButton)
         restore_left = codex.restore_button.mapTo(
             codex.dialog, QtCore.QPoint(0, 0)
         ).x()

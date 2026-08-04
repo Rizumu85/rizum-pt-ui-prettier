@@ -1,10 +1,8 @@
 """Standalone concept preview for a compact View Roll settings panel.
 
 Fresh alternative design built on the shared Rizum UI kit: the Painter
-settings dialog surface, segmented control, compact steppers, and footer
-buttons. The shortcut capture field is concept-local; if the concept ships
-it can graduate into ``rizum_ui`` with the same sizing contract it already
-follows here (``setCompactHeight`` with a 0.75x floor, no closure sizes).
+settings dialog surface, segmented control, compact steppers, shortcut
+capture, and stateful footer actions.
 """
 
 from __future__ import annotations
@@ -20,6 +18,7 @@ from rizum_ui import (
     PAINTER_SETTINGS_FRAME_COLOR,
     ActionButton,
     PainterSettingsDialog,
+    SecondaryActionButton,
     ShortcutCaptureField as SharedShortcutCaptureField,
     TextActionButton as SharedTextActionButton,
     install_compact_tooltip,
@@ -1630,9 +1629,19 @@ QFrame#RizumPainterWindowContent {
                 _preview_text("restore", "Restore"), "dialog-secondary"
             )
         self.restore_button.setObjectName("RizumViewRollRestore")
-        self.cancel_button = ActionButton.create(
-            _preview_text("cancel", "Cancel"), "dialog-secondary"
-        )
+        if self.design_variant == "codex":
+            self.cancel_button = SecondaryActionButton(
+                _preview_text("cancel", "Cancel"),
+                self._visual_style["control"],
+                self._visual_style["control_hover"],
+                "#2b2d30",
+                self._visual_style["text"],
+                default_theme.radius_small,
+            )
+        else:
+            self.cancel_button = ActionButton.create(
+                _preview_text("cancel", "Cancel"), "dialog-secondary"
+            )
         self.cancel_button.setObjectName("RizumViewRollCancel")
         if self.design_variant == "codex":
             self.save_button = AnimatedSaveButton(
@@ -2066,6 +2075,13 @@ QFrame#RizumPainterWindowContent {
                 )
                 button.setFixedSize(width, footer_button_height)
                 continue
+            if isinstance(button, SecondaryActionButton):
+                button.setCompactHeight(footer_button_height)
+                width = self._footer_button_width(
+                    button, minimum=minimum, maximum=maximum
+                )
+                button.setFixedSize(width, footer_button_height)
+                continue
             width = self._footer_button_width(
                 button, minimum=minimum, maximum=maximum
             )
@@ -2093,11 +2109,14 @@ QFrame#RizumPainterWindowContent {
 
     def _footer_button_width(self, button, minimum, maximum):
         scale = self.dialog.settingsUiScale()
-        text_width = QtGui.QFontMetrics(
-            self._footer_button_font()
-        ).horizontalAdvance(button.text())
-        # +2: set_compact_footer_button_width reserves padding*2 + 2 for chrome.
-        width = text_width + 2 * FOOTER_BUTTON_PADDING_X + 2
+        if isinstance(button, (SecondaryActionButton, AnimatedSaveButton)):
+            width = button.sizeHint().width()
+        else:
+            text_width = QtGui.QFontMetrics(
+                self._footer_button_font()
+            ).horizontalAdvance(button.text())
+            # +2: the QSS button helper reserves padding*2 + 2 for chrome.
+            width = text_width + 2 * FOOTER_BUTTON_PADDING_X + 2
         if self.design_variant == "codex":
             # The square footer silhouette needs more air than the original
             # pill buttons; distribute this extra width evenly around the text.

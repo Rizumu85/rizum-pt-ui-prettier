@@ -7,7 +7,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6 import QtWidgets
 
-from rizum_ui import AnimatedSaveButton, ModeParameterSlot, TextActionButton
+from rizum_ui import (
+    AnimatedSaveButton,
+    ModeParameterSlot,
+    SecondaryActionButton,
+    TextActionButton,
+)
 
 
 class SettingsControlTests(unittest.TestCase):
@@ -36,6 +41,16 @@ class SettingsControlTests(unittest.TestCase):
         button.showSavedFeedback()
         self.assertFalse(button.isEnabled())
         self.assertTrue(button.feedbackActive())
+
+    def test_secondary_action_measures_from_its_painted_font(self):
+        button = SecondaryActionButton("Cancel")
+        self.addCleanup(button.deleteLater)
+
+        button.setCompactHeight(28)
+
+        self.assertEqual(button.height(), 28)
+        self.assertGreater(button.sizeHint().width(), 45)
+        self.assertLess(button.sizeHint().width(), 90)
 
     def test_parameter_slot_switches_rows_atomically(self):
         speed = QtWidgets.QWidget()
