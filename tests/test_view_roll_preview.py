@@ -181,6 +181,19 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertEqual(panel.shortcut_fields["roll_left"].height(), 23)
         self.assertEqual(panel.mode_segment.height(), 23)
 
+    def test_ui_scale_preserves_the_one_x_dialog_proportions(self):
+        panel = self.make_panel()
+        panel.show()
+        QtWidgets.QApplication.processEvents()
+        panel.dialog.setSettingsUiScale(1.0)
+        base_size = panel.dialog.size()
+
+        panel.dialog.setSettingsUiScale(1.1)
+        QtWidgets.QApplication.processEvents()
+
+        self.assertEqual(panel.dialog.width(), round(base_size.width() * 1.1))
+        self.assertEqual(panel.dialog.height(), round(base_size.height() * 1.1))
+
 
 class ViewRollLayoutRegressionTests(unittest.TestCase):
     """Geometry guards for the 0.75x-2.0x UI scale range.
