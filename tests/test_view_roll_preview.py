@@ -241,6 +241,18 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertEqual(codex._button_row.height(), kimi._button_row.height())
         self.assertEqual(codex._button_row.height(), 32)
         self.assertEqual(codex._footer.layout().contentsMargins().bottom(), 16)
+        self.assertIsNotNone(codex._footer_separator)
+        self.assertEqual(codex._footer_separator.height(), 1)
+        self.assertEqual(
+            len(
+                codex._footer_separator.findChildren(
+                    QtWidgets.QFrame, "RizumInsetSeparator"
+                )
+            ),
+            1,
+        )
+        self.assertIsNone(original._footer_separator)
+        self.assertIsNone(kimi._footer_separator)
         self.assertIsInstance(codex.restore_button, TextActionButton)
         restore_left = codex.restore_button.mapTo(
             codex.dialog, QtCore.QPoint(0, 0)

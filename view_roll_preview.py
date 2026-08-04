@@ -20,6 +20,7 @@ from rizum_ui import (
     PainterSettingsDialog,
     install_compact_tooltip,
     make_compact_stepper,
+    make_inset_separator,
     make_painter_title_bar,
     make_painter_window_content,
     make_segmented_control,
@@ -832,6 +833,11 @@ QFrame#RizumPainterWindowContent {
             )
 
         content_layout.addWidget(body, 1)
+        self._footer_separator = None
+        if self.design_variant == "codex":
+            self._footer_separator = make_inset_separator(20, thickness=1)
+            self._footer_separator.setObjectName("RizumViewRollFooterDivider")
+            content_layout.addWidget(self._footer_separator)
 
         footer = QtWidgets.QWidget()
         footer.setObjectName("RizumViewRollFooter")
@@ -1229,6 +1235,10 @@ QFrame#RizumPainterWindowContent {
         self._button_row.setFixedHeight(buttons_height)
         self._status_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
         self._button_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
+        if self._footer_separator is not None:
+            self._footer_separator.layout().setContentsMargins(
+                footer_margin, 0, footer_margin, 0
+            )
         self._section_rotation.setFixedHeight(
             self._metric(section_heights[0], round(section_heights[0] * 0.75))
         )
@@ -1478,6 +1488,7 @@ QWidget#RizumViewRollFooter,
 QWidget#RizumViewRollStatusLine,
 QWidget#RizumViewRollFooterRow,
 QWidget#RizumViewRollTexts,
+QWidget#RizumViewRollFooterDivider,
 QFrame#RizumViewRollReveal {{
     background: transparent;
     border: 0;
@@ -1486,6 +1497,9 @@ QFrame#RizumViewRollRow {{
     background: transparent;
     border: 0;
     border-radius: 6px;
+}}
+QWidget#RizumViewRollFooterDivider QFrame#RizumInsetSeparator {{
+    background: #3a3b3e;
 }}
 {variant_rules}
 QLabel#RizumSettingsFooterHint[tone="warn"] {{
