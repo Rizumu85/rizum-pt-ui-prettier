@@ -228,6 +228,17 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                     for other in rects[index + 1 :]:
                         self.assertFalse(rect.intersects(other))
 
+    def test_initial_show_preserves_view_roll_surface_rules(self):
+        panel = ViewRollConceptPanel()
+        self.addCleanup(panel.deleteLater)
+        concept_rule = "QWidget#RizumViewRollHeader"
+        self.assertIn(concept_rule, panel.dialog.settingsSurface().styleSheet())
+
+        panel.show()
+        QtWidgets.QApplication.processEvents()
+
+        self.assertIn(concept_rule, panel.dialog.settingsSurface().styleSheet())
+
     def test_footer_separates_restore_from_commit_actions(self):
         panel = self.make_panel(1.1)
         margins = panel._button_layout.contentsMargins()

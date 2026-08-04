@@ -105,10 +105,11 @@ class PainterSettingsDialog(QtWidgets.QDialog):
     def setSettingsUiScale(self, scale: float) -> None:
         scale = _bounded_ui_scale(scale)
         changed = abs(scale - self._settings_ui_scale) > 0.0001
+        if not changed:
+            return
         self._settings_ui_scale = scale
         self._update_surface_stylesheet()
-        if changed:
-            self.settingsUiScaleChanged.emit(scale)
+        self.settingsUiScaleChanged.emit(scale)
 
     def syncSettingsUiScale(self) -> None:
         self.setSettingsUiScale(_configured_ui_scale())
