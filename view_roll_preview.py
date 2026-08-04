@@ -403,6 +403,310 @@ class TextActionButton(QtWidgets.QAbstractButton):
         painter.end()
 
 
+class AnimatedSaveButton(QtWidgets.QAbstractButton):
+    """Save action whose light, pulse, and checkmark communicate state."""
+
+    BASE_HEIGHT = 28
+    MIN_HEIGHT = 21
+    ACTIVATION_DURATION = 140
+    FEEDBACK_DURATION = 500
+
+    def __init__(
+        self,
+        text,
+        disabled_background,
+        disabled_text,
+        active_background,
+        active_text,
+        radius,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self.setText(text)
+        self.setObjectName("RizumViewRollSave")
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAutoFillBackground(False)
+        self.setStyleSheet(
+            "QAbstractButton#RizumViewRollSave { background: transparent; border: 0; }"
+        )
+        self._disabled_background = QtGui.QColor(disabled_background)
+        self._disabled_text = QtGui.QColor(disabled_text)
+        self._active_background = QtGui.QColor(active_background)
+        self._active_text = QtGui.QColor(active_text)
+        self._radius = float(radius)
+        self._compact_height = self.BASE_HEIGHT
+        self._dirty = None
+        self._feedback_active = False
+        self._activation_progress = 0.0
+        self._pulse_progress = 0.0
+        self._check_progress = 0.0
+        self._state_animation = None
+        self._feedback_animation = None
+        self.setCompactHeight(self.BASE_HEIGHT)
+        self.setDirty(False, animate=False)
+
+    @staticmethod
+    def _blend(start, end, progress):
+        progress = max(0.0, min(1.0, float(progress)))
+        return QtGui.QColor(
+            round(start.red() + (end.red() - start.red()) * progress),
+            round(start.green() + (end.green() - start.green()) * progress),
+            round(start.blue() + (end.blue() - start.blue()) * progress),
+            round(start.alpha() + (end.alpha() - start.alpha()) * progress),
+        )
+
+    def _scale(self):
+        return self._compact_height / float(self.BASE_HEIGHT)
+
+    def _font(self):
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(max(9, int(round(12 * self._scale()))))
+        font.setWeight(QtGui.QFont.Weight.Normal)
+        return font
+
+    def sizeHint(self):
+        text_width = QtGui.QFontMetrics(self._font()).horizontalAdvance(self.text())
+        return QtCore.QSize(
+            text_width + 2 * FOOTER_BUTTON_PADDING_X + 2,
+            self._compact_height,
+        )
+
+    def setCompactHeight(self, height):
+        self._compact_height = max(self.MIN_HEIGHT, int(round(height)))
+        self.setFont(self._font())
+        self.setFixedHeight(self._compact_height)
+        self.updateGeometry()
+        self.update()
+
+    def activationDuration(self):
+        return self.ACTIVATION_DURATION
+
+    def feedbackDuration(self):
+        return self.FEEDBACK_DURATION
+
+    def feedbackActive(self):
+        return self._feedback_active
+
+    def activationProgress(self):
+        return self._activation_progress
+
+    def setActivationProgress(self, value):
+        self._activation_progress = max(0.0, min(1.0, float(value)))
+        self.update()
+
+    animatedActivationProgress = QtCore.Property(
+        float, activationProgress, setActivationProgress
+    )
+
+    def pulseProgress(self):
+        return self._pulse_progress
+
+    def setPulseProgress(self, value):
+        self._pulse_progress = max(0.0, min(1.0, float(value)))
+        self.update()
+
+    animatedPulseProgress = QtCore.Property(
+        float, pulseProgress, setPulseProgress
+    )
+
+    def checkProgress(self):
+        return self._check_progress
+
+    def setCheckProgress(self, value):
+        self._check_progress = max(0.0, min(1.0, float(value)))
+        self.update()
+
+    animatedCheckProgress = QtCore.Property(
+        float, checkProgress, setCheckProgress
+    )
+
+    def _stop_animation(self, attribute):
+        animation = getattr(self, attribute)
+        if animation is None:
+            return
+        animation.stop()
+        animation.deleteLater()
+        setattr(self, attribute, None)
+
+    def _clear_animation(self, attribute, animation):
+        if getattr(self, attribute) is animation:
+            setattr(self, attribute, None)
+        animation.deleteLater()
+
+    def setDirty(self, dirty, animate=True):
+        dirty = bool(dirty)
+        if self._feedback_active and not dirty:
+            self._dirty = False
+            return
+        if dirty and self._feedback_active:
+            self._stop_animation("_feedback_animation")
+            self._feedback_active = False
+            self.setCheckProgress(0.0)
+        if dirty == self._dirty and not self._feedback_active:
+            return
+        self._dirty = dirty
+        self._stop_animation("_state_animation")
+        self.setCursor(
+            QtCore.Qt.CursorShape.PointingHandCursor
+            if dirty
+            else QtCore.Qt.CursorShape.ArrowCursor
+        )
+        super().setEnabled(dirty)
+
+        target = 1.0 if dirty else 0.0
+        if not animate:
+            self.setActivationProgress(target)
+            self.setPulseProgress(0.0)
+            return
+
+        group = QtCore.QParallelAnimationGroup(self)
+        activation = QtCore.QPropertyAnimation(
+            self, b"animatedActivationProgress", group
+        )
+        activation.setDuration(self.ACTIVATION_DURATION if dirty else 120)
+        activation.setStartValue(self._activation_progress)
+        activation.setEndValue(target)
+        activation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        group.addAnimation(activation)
+        if dirty:
+            pulse = QtCore.QPropertyAnimation(
+                self, b"animatedPulseProgress", group
+            )
+            pulse.setDuration(190)
+            pulse.setStartValue(0.0)
+            pulse.setKeyValueAt(0.58, 0.0)
+            pulse.setKeyValueAt(0.78, 1.0)
+            pulse.setEndValue(0.0)
+            pulse.setEasingCurve(QtCore.QEasingCurve.Type.InOutSine)
+            group.addAnimation(pulse)
+        else:
+            self.setPulseProgress(0.0)
+        self._state_animation = group
+        group.finished.connect(
+            lambda: self._clear_animation("_state_animation", group)
+        )
+        group.start()
+
+    def showSavedFeedback(self):
+        if not self._dirty:
+            return
+        self._stop_animation("_state_animation")
+        self._stop_animation("_feedback_animation")
+        self._dirty = False
+        self._feedback_active = True
+        super().setEnabled(False)
+        self.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+        self.setActivationProgress(1.0)
+        self.setPulseProgress(0.0)
+        self.setCheckProgress(0.0)
+
+        group = QtCore.QParallelAnimationGroup(self)
+        check = QtCore.QPropertyAnimation(self, b"animatedCheckProgress", group)
+        check.setDuration(self.FEEDBACK_DURATION)
+        check.setStartValue(0.0)
+        check.setKeyValueAt(0.22, 1.0)
+        check.setKeyValueAt(0.72, 1.0)
+        check.setEndValue(0.0)
+        group.addAnimation(check)
+        activation = QtCore.QPropertyAnimation(
+            self, b"animatedActivationProgress", group
+        )
+        activation.setDuration(self.FEEDBACK_DURATION)
+        activation.setStartValue(1.0)
+        activation.setKeyValueAt(0.72, 1.0)
+        activation.setEndValue(0.0)
+        activation.setEasingCurve(QtCore.QEasingCurve.Type.InOutCubic)
+        group.addAnimation(activation)
+        self._feedback_animation = group
+
+        def finish():
+            self._feedback_active = False
+            self.setCheckProgress(0.0)
+            self.setActivationProgress(0.0)
+            self._clear_animation("_feedback_animation", group)
+
+        group.finished.connect(finish)
+        group.start()
+
+    def enterEvent(self, event):
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.update()
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.update()
+
+    def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
+        self.update()
+
+    def paintEvent(self, event):
+        del event
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
+
+        background = self._blend(
+            self._disabled_background,
+            self._active_background,
+            self._activation_progress,
+        )
+        if self._pulse_progress:
+            background = self._blend(
+                background, QtGui.QColor("#ffffff"), 0.12 * self._pulse_progress
+            )
+        if self._dirty and self.isEnabled():
+            if self.isDown():
+                background = background.darker(112)
+            elif self.underMouse():
+                background = background.lighter(104)
+        text_color = self._blend(
+            self._disabled_text,
+            self._active_text,
+            self._activation_progress,
+        )
+        radius = max(4.0, self._radius * self._scale())
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
+        painter.setBrush(background)
+        painter.drawRoundedRect(
+            QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5),
+            radius,
+            radius,
+        )
+
+        painter.setFont(self._font())
+        painter.setPen(text_color)
+        painter.setOpacity(1.0 - self._check_progress)
+        painter.drawText(self.rect(), QtCore.Qt.AlignmentFlag.AlignCenter, self.text())
+
+        painter.setOpacity(self._check_progress)
+        scale = self._scale()
+        center = QtCore.QPointF(self.rect().center())
+        pen = QtGui.QPen(text_color, max(1.4, 1.7 * scale))
+        pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.drawPolyline(
+            QtGui.QPolygonF(
+                [
+                    QtCore.QPointF(center.x() - 4.5 * scale, center.y()),
+                    QtCore.QPointF(
+                        center.x() - 1.2 * scale, center.y() + 3.0 * scale
+                    ),
+                    QtCore.QPointF(
+                        center.x() + 5.2 * scale, center.y() - 3.8 * scale
+                    ),
+                ]
+            )
+        )
+        painter.end()
+
+
 class ShortcutCaptureField(QtWidgets.QFrame):
     """Painted shortcut field with capture, clear, and conflict states."""
 
@@ -1195,9 +1499,19 @@ QFrame#RizumPainterWindowContent {
             _preview_text("cancel", "Cancel"), "dialog-secondary"
         )
         self.cancel_button.setObjectName("RizumViewRollCancel")
-        self.save_button = ActionButton.create(
-            _preview_text("save", "Save"), "dialog-primary"
-        )
+        if self.design_variant == "codex":
+            self.save_button = AnimatedSaveButton(
+                _preview_text("save", "Save"),
+                self._visual_style["control"],
+                self._visual_style["faint"],
+                self._visual_style["accent"],
+                self._visual_style["accent_text"],
+                default_theme.radius_small,
+            )
+        else:
+            self.save_button = ActionButton.create(
+                _preview_text("save", "Save"), "dialog-primary"
+            )
         self.save_button.setObjectName("RizumViewRollSave")
         self._button_layout.addWidget(self.restore_button)
         self._button_layout.addStretch(1)
@@ -1336,6 +1650,11 @@ QFrame#RizumPainterWindowContent {
         self._refresh_status()
 
     def save_changes(self):
+        show_feedback = self.is_dirty() and isinstance(
+            self.save_button, AnimatedSaveButton
+        )
+        if show_feedback:
+            self.save_button.showSavedFeedback()
         self._saved_state = self.current_state()
         self._refresh_status()
 
@@ -1396,7 +1715,10 @@ QFrame#RizumPainterWindowContent {
         )
         conflicted = self._conflicting_actions()
         dirty = self.is_dirty()
-        self.save_button.setEnabled(dirty)
+        if isinstance(self.save_button, AnimatedSaveButton):
+            self.save_button.setDirty(dirty)
+        else:
+            self.save_button.setEnabled(dirty)
         if capturing is not None:
             self._status_tone = ""
             self._status_text = _preview_text(
@@ -1645,6 +1967,13 @@ QFrame#RizumPainterWindowContent {
         ):
             if isinstance(button, TextActionButton):
                 button.setCompactHeight(footer_button_height)
+                continue
+            if isinstance(button, AnimatedSaveButton):
+                button.setCompactHeight(footer_button_height)
+                width = self._footer_button_width(
+                    button, minimum=minimum, maximum=maximum
+                )
+                button.setFixedSize(width, footer_button_height)
                 continue
             width = self._footer_button_width(
                 button, minimum=minimum, maximum=maximum

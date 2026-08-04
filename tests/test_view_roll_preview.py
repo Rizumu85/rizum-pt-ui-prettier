@@ -7,7 +7,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 
 from rizum_ui import (
     FOOTER_BUTTON_PADDING_X,
@@ -213,6 +213,38 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertFalse(panel.save_button.isEnabled())
         self.assertEqual(panel.status_reveal.progress(), 0.0)
         self.assertEqual(panel.status_label.text(), "")
+
+    def test_codex_save_button_animates_dirty_and_saved_feedback_in_place(self):
+        panel = ViewRollConceptPanel(design_variant="codex")
+        self.addCleanup(panel.deleteLater)
+        panel.show()
+        QtWidgets.QApplication.processEvents()
+        button = panel.save_button
+        resting_size = button.size()
+        self.assertFalse(button.isEnabled())
+        self.assertEqual(button.activationProgress(), 0.0)
+
+        panel.angle_stepper.setValue(90)
+        self.assertTrue(button.isEnabled())
+        self.assertEqual(button.activationDuration(), 140)
+        QtTest.QTest.qWait(160)
+        self.assertAlmostEqual(button.activationProgress(), 1.0, places=2)
+        self.assertEqual(button.size(), resting_size)
+
+        panel.save_changes()
+        self.assertFalse(button.isEnabled())
+        self.assertTrue(button.feedbackActive())
+        self.assertEqual(button.feedbackDuration(), 500)
+        QtTest.QTest.qWait(130)
+        self.assertGreater(button.checkProgress(), 0.8)
+        self.assertEqual(button.size(), resting_size)
+
+        QtTest.QTest.qWait(420)
+        self.assertFalse(button.feedbackActive())
+        self.assertEqual(button.checkProgress(), 0.0)
+        self.assertEqual(button.activationProgress(), 0.0)
+        self.assertEqual(button.text(), "Save")
+        self.assertEqual(button.size(), resting_size)
 
     def test_capture_hint_expands_and_collapses_status(self):
         panel = self.make_panel()
