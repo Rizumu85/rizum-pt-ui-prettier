@@ -1429,9 +1429,12 @@ QFrame#RizumPainterWindowContent {
         control_hover = self._visual_style.get("control_hover", "#3b3b3b")
         accent = self._visual_style.get("accent", theme.accent)
         accent_text = self._visual_style.get("accent_text", theme.accent_text)
-        button_radius = (
-            4 if self.design_variant in ("codex", "kimi") else 13
-        )
+        if self.design_variant == "kimi":
+            button_radius = 4
+        elif self.design_variant == "codex":
+            button_radius = theme.radius_small
+        else:
+            button_radius = 13
         variant_rules = ""
         if self.design_variant != "original":
             variant_rules = f"""

@@ -267,7 +267,7 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
             "QPushButton#RizumViewRollSave {\n"
             "    color: #202123;\n"
             "    background: #f2f2f2;\n"
-            "    border-radius: 4px;",
+            "    border-radius: 6px;",
             codex.dialog.settingsSurface().styleSheet(),
         )
         self.assertEqual(kimi.mode_segment._corner_radius, 4)
