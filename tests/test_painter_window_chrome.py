@@ -11,6 +11,7 @@ from preview import build_bridge_preview, build_settings_preview
 from rizum_ui import (
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
+    PAINTER_WINDOW_CONTENT_BOTTOM_RADIUS,
     PAINTER_WINDOW_CONTENT_RADIUS,
     make_painter_title_bar,
 )
@@ -82,7 +83,11 @@ class PainterWindowChromeTests(unittest.TestCase):
         content = panel.findChild(QtWidgets.QFrame, "RizumPainterWindowContent")
         self.assertIsNotNone(content)
         self.assertIn(
-            f"border-radius: {PAINTER_WINDOW_CONTENT_RADIUS}px",
+            f"border-top-left-radius: {PAINTER_WINDOW_CONTENT_RADIUS}px",
+            content.styleSheet(),
+        )
+        self.assertIn(
+            f"border-bottom-left-radius: {PAINTER_WINDOW_CONTENT_BOTTOM_RADIUS}px",
             content.styleSheet(),
         )
         self.assertIn(
