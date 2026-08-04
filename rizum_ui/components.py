@@ -1963,12 +1963,12 @@ def make_painter_title_bar(title, parent=None):
     from PySide6 import QtCore, QtGui, QtWidgets
 
     base_height = PAINTER_TITLE_BAR_HEIGHT
-    minimum_height = round(base_height * 0.75)
 
     class _PainterTitleBar(QtWidgets.QWidget):
         def __init__(self):
             super().__init__(parent)
             self.setObjectName("RizumPainterTitleBar")
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
             self._compact_height = base_height
             self._layout = QtWidgets.QHBoxLayout(self)
             self._layout.setSpacing(8)
@@ -1989,55 +1989,51 @@ def make_painter_title_bar(title, parent=None):
             self.setCompactHeight(base_height)
 
         def setCompactHeight(self, height):
-            self._compact_height = max(minimum_height, int(round(height)))
-            scale = self._compact_height / float(base_height)
-            icon_size = max(12, int(round(16 * scale)))
-            close_size = max(16, int(round(22 * scale)))
+            # This represents Windows chrome, not Painter content. Native title
+            # bars stay fixed when the Painter UI font scale changes.
+            self._compact_height = base_height
             self.setFixedHeight(self._compact_height)
-            self._layout.setContentsMargins(
-                max(8, int(round(10 * scale))),
-                0,
-                max(6, int(round(7 * scale))),
-                0,
-            )
-            self._layout.setSpacing(max(6, int(round(8 * scale))))
-            self._app_icon.setFixedSize(icon_size, icon_size)
-            self._close.setFixedSize(close_size, close_size)
+            self._layout.setContentsMargins(10, 0, 7, 0)
+            self._layout.setSpacing(8)
+            self._app_icon.setFixedSize(14, 14)
+            self._close.setFixedSize(22, 22)
 
-            title_font = QtGui.QFont(self.font())
-            title_font.setPixelSize(max(10, int(round(12 * scale))))
+            title_font = QtGui.QFont("Segoe UI")
+            title_font.setPixelSize(12)
             title_font.setWeight(QtGui.QFont.Weight.Normal)
             self._title.setFont(title_font)
             close_font = QtGui.QFont(title_font)
-            close_font.setPixelSize(max(14, int(round(18 * scale))))
+            close_font.setPixelSize(18)
             self._close.setFont(close_font)
             icon_font = QtGui.QFont(title_font)
-            icon_font.setPixelSize(max(7, int(round(8 * scale))))
+            icon_font.setPixelSize(8)
             icon_font.setWeight(QtGui.QFont.Weight.Bold)
             self._app_icon.setFont(icon_font)
 
-            radius = max(6, int(round(8 * scale)))
-            icon_radius = max(2, int(round(2 * scale)))
             self.setStyleSheet(
-                f"""
-                QWidget#RizumPainterTitleBar {{
-                    background: #f5f5f5;
+                """
+                QWidget#RizumPainterTitleBar {
+                    background: #f3f3f3;
                     border: 0;
-                    border-top-left-radius: {radius}px;
-                    border-top-right-radius: {radius}px;
-                }}
-                QLabel#RizumPainterTitleBarText,
-                QLabel#RizumPainterTitleBarClose {{
-                    color: #1b1b1b;
+                    border-top-left-radius: 8px;
+                    border-top-right-radius: 8px;
+                }
+                QLabel#RizumPainterTitleBarText {
+                    color: #202020;
                     background: transparent;
                     border: 0;
-                }}
-                QLabel#RizumPainterTitleBarIcon {{
-                    color: #10220d;
-                    background: #63b64b;
+                }
+                QLabel#RizumPainterTitleBarClose {
+                    color: #222222;
+                    background: transparent;
                     border: 0;
-                    border-radius: {icon_radius}px;
-                }}
+                }
+                QLabel#RizumPainterTitleBarIcon {
+                    color: #98e73f;
+                    background: #1e3101;
+                    border: 0;
+                    border-radius: 2px;
+                }
                 """
             )
             self.updateGeometry()

@@ -5,7 +5,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from preview import build_bridge_preview, build_settings_preview
 from rizum_ui import (
@@ -22,16 +22,19 @@ class PainterWindowChromeTests(unittest.TestCase):
         cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
         cls.app.setProperty("rizumUiFontScale", 1.0)
 
-    def test_title_bar_scales_all_fixed_metrics(self):
+    def test_title_bar_stays_at_native_metrics_when_content_scale_changes(self):
         title_bar = make_painter_title_bar("Export")
         self.addCleanup(title_bar.deleteLater)
 
         self.assertEqual(title_bar.height(), 32)
         title_bar.setCompactHeight(40)
-        self.assertEqual(title_bar.height(), 40)
-        self.assertGreater(
-            title_bar.findChild(QtWidgets.QLabel, "RizumPainterTitleBarIcon").width(),
-            16,
+        self.assertEqual(title_bar.height(), 32)
+        icon = title_bar.findChild(QtWidgets.QLabel, "RizumPainterTitleBarIcon")
+        title = title_bar.findChild(QtWidgets.QLabel, "RizumPainterTitleBarText")
+        self.assertEqual((icon.width(), icon.height()), (14, 14))
+        self.assertEqual(title.font().pixelSize(), 12)
+        self.assertTrue(
+            title_bar.testAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground)
         )
 
     def test_reference_panels_use_the_same_native_title_bar(self):
@@ -51,6 +54,16 @@ class PainterWindowChromeTests(unittest.TestCase):
                 ),
                 1,
             )
+
+    def test_panel_title_exists_only_in_native_chrome(self):
+        panels = [
+            (build_bridge_preview(QtWidgets), "RizumExportTitle"),
+            (build_settings_preview(QtWidgets), "RizumSettingsTitle"),
+            (ViewRollConceptPanel(), "RizumViewRollTitle"),
+        ]
+        for panel, old_title_name in panels:
+            self.addCleanup(panel.deleteLater)
+            self.assertIsNone(panel.findChild(QtWidgets.QLabel, old_title_name))
 
     def test_preview_footers_share_painter_edge_margins(self):
         bridge = build_bridge_preview(QtWidgets)

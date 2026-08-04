@@ -122,7 +122,7 @@ class SegmentedControlTests(unittest.TestCase):
         self.assertTrue(hasattr(controls[0], "setTheme"))
         self.assertEqual(
             len(window.findChildren(QtWidgets.QFrame, "RizumInsetSeparator")),
-            1,
+            0,
         )
 
     def test_bridge_preview_has_no_footer_separator(self):
@@ -133,7 +133,7 @@ class SegmentedControlTests(unittest.TestCase):
 
         self.assertEqual(
             len(window.findChildren(QtWidgets.QFrame, "RizumInsetSeparator")),
-            2,
+            1,
         )
 
 

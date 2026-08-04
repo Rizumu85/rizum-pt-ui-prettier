@@ -15,12 +15,10 @@ from rizum_ui import (
     FOOTER_BUTTON_PADDING_X,
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
-    PAINTER_TITLE_BAR_HEIGHT,
     ActionButton,
     PainterSettingsDialog,
     install_compact_tooltip,
     make_compact_stepper,
-    make_inset_separator,
     make_painter_title_bar,
     make_segmented_control,
     make_spin_input,
@@ -480,19 +478,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.native_title_bar = make_painter_title_bar("View Roll Settings")
         surface_layout.addWidget(self.native_title_bar)
 
-        header = QtWidgets.QWidget()
-        header.setObjectName("RizumViewRollHeader")
-        self._header = header
-        header_layout = QtWidgets.QHBoxLayout(header)
-        header_layout.setContentsMargins(16, 0, 16, 0)
-        header_layout.setSpacing(0)
-        title = QtWidgets.QLabel("View Roll")
-        title.setObjectName("RizumViewRollTitle")
-        header_layout.addWidget(title)
-        header_layout.addStretch(1)
-        surface_layout.addWidget(header)
-        surface_layout.addWidget(make_inset_separator(12, 1))
-
         body = QtWidgets.QWidget()
         body.setObjectName("RizumViewRollBody")
         self._body_layout = QtWidgets.QVBoxLayout(body)
@@ -869,7 +854,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
     def _apply_scale(self):
         """Scale every row, control, and footer button from the dialog scale."""
-        header_height = self._metric(40, 30)
         row_height = self._metric(40, 30)
         tall_height = self._metric(46, 35)
         status_height = self._metric(22, 17)
@@ -879,11 +863,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         footer_top = self._metric(6, 5)
         footer_bottom = self._metric(PAINTER_FOOTER_MARGIN_BOTTOM, 11)
 
-        self.native_title_bar.setCompactHeight(
-            self._metric(PAINTER_TITLE_BAR_HEIGHT, 24)
-        )
-
-        self._header.setFixedHeight(header_height)
         # The footer breathes like the body does: air around the separator,
         # the status hint, and below the buttons. Horizontal margins stay put.
         # The status row is collapsible, so its slice of the footer height
@@ -1038,7 +1017,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
     def _restyle(self):
         theme = default_theme
-        title_px = self._metric(13)
         hint_px = self._metric(11)
         # Rebuild the dialog's base stylesheet first so repeated restyles
         # never stack duplicate concept rules on top of each other.
@@ -1047,20 +1025,12 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         surface.setStyleSheet(
             surface.styleSheet()
             + f"""
-QWidget#RizumViewRollHeader,
 QWidget#RizumViewRollBody,
 QWidget#RizumViewRollFooter,
 QWidget#RizumViewRollStatusLine,
 QWidget#RizumViewRollFooterRow,
 QWidget#RizumViewRollTexts,
 QFrame#RizumViewRollReveal {{
-    background: transparent;
-    border: 0;
-}}
-QLabel#RizumViewRollTitle {{
-    color: {theme.text};
-    font-size: {title_px}px;
-    font-weight: 600;
     background: transparent;
     border: 0;
 }}

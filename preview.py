@@ -253,7 +253,7 @@ def build_bridge_preview(QtWidgets):
 
     window = QtWidgets.QFrame()
     window.setObjectName("RizumExportWindow")
-    window.setFixedSize(260, 295)
+    window.setFixedSize(260, 253)
     window.setSizePolicy(
         QtWidgets.QSizePolicy.Policy.Fixed,
         QtWidgets.QSizePolicy.Policy.Fixed,
@@ -274,16 +274,8 @@ QFrame#RizumExportWindow {
     border-radius: 10px;
     font-family: "__EXPORT_FAMILY__", "Segoe UI", Arial, sans-serif;
 }
-QFrame#RizumExportHeader,
 QWidget#RizumExportTopControls,
 QFrame#RizumExportFooter {
-    background: transparent;
-    border: 0;
-}
-QLabel#RizumExportTitle {
-    color: #e0e0e0;
-    font-size: 10pt;
-    font-weight: 400;
     background: transparent;
     border: 0;
 }
@@ -375,19 +367,6 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
     layout.addWidget(make_painter_title_bar("Export"))
-
-    header = QtWidgets.QFrame()
-    header.setObjectName("RizumExportHeader")
-    header.setFixedHeight(40)
-    header_layout = QtWidgets.QHBoxLayout(header)
-    header_layout.setContentsMargins(16, 0, 16, 0)
-    header_layout.setSpacing(0)
-    title = QtWidgets.QLabel("Export")
-    title.setObjectName("RizumExportTitle")
-    header_layout.addWidget(title)
-    header_layout.addStretch(1)
-    layout.addWidget(header)
-    layout.addWidget(make_inset_separator(12, thickness=2))
 
     mode_combo = make_combo_input(["All Sets", "Current Set"])
     mode_combo.setCompactHeight(26)
@@ -1041,24 +1020,7 @@ def build_settings_preview(QtWidgets):
     layout = _QtWidgets.QVBoxLayout(window)
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
-
-    header = _QtWidgets.QWidget()
-    header.setObjectName("RizumSettingsHeader")
     layout.addWidget(make_painter_title_bar("Settings"))
-    header.setFixedHeight(40)
-    header_outer = _QtWidgets.QVBoxLayout(header)
-    header_outer.setContentsMargins(0, 0, 0, 0)
-    header_outer.setSpacing(0)
-    header_row = _QtWidgets.QWidget()
-    header_row.setObjectName("RizumSettingsHeaderRow")
-    header_layout = _QtWidgets.QHBoxLayout(header_row)
-    header_layout.setContentsMargins(16, 0, 16, 0)
-    header_layout.setSpacing(0)
-    header_layout.addWidget(make_label("Settings", "RizumSettingsTitle"))
-    header_layout.addStretch(1)
-    header_outer.addWidget(header_row, 1)
-    header_outer.addWidget(make_inset_separator(12, 1))
-    layout.addWidget(header)
 
     body = _QtWidgets.QWidget()
     body.setObjectName("RizumSettingsBody")
@@ -1187,8 +1149,6 @@ QFrame#RizumSettingsWindow QFrame#RizumInsetSeparator {{
     background: {theme["border"]};
     border: 0;
 }}
-QWidget#RizumSettingsHeader,
-QWidget#RizumSettingsHeaderRow,
 QWidget#RizumSettingsBody,
 QWidget#RizumSettingsFooter,
 QWidget#RizumSettingsFooterRow,
@@ -1196,13 +1156,6 @@ QWidget#RizumSettingsPaddingStack,
 QWidget#RizumSettingsTexts,
 QWidget#RizumSettingsStepper,
 QFrame#RizumSettingsRevealRow {{
-    background: transparent;
-    border: 0;
-}}
-QLabel#RizumSettingsTitle {{
-    color: {theme["text"]};
-    font-size: 13px;
-    font-weight: 600;
     background: transparent;
     border: 0;
 }}

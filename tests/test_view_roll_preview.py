@@ -194,7 +194,7 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertEqual(panel.dialog.width(), round(base_size.width() * 1.1))
         self.assertAlmostEqual(
             panel.dialog.height(),
-            round(base_size.height() * 1.1),
+            32 + round((base_size.height() - 32) * 1.1),
             delta=1,
         )
 
@@ -259,7 +259,7 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
     def test_initial_show_preserves_view_roll_surface_rules(self):
         panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
-        concept_rule = "QWidget#RizumViewRollHeader"
+        concept_rule = "QWidget#RizumViewRollBody"
         self.assertIn(concept_rule, panel.dialog.settingsSurface().styleSheet())
 
         panel.show()
