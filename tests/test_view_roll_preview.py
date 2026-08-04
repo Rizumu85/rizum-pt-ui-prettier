@@ -228,6 +228,7 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
 
         self.assertIsNone(original.mode_segment._corner_radius)
         self.assertEqual(codex._visual_style["surface"], "#202123")
+        self.assertEqual(codex.mode_segment._corner_radius, 8)
         body_margins = codex._body_layout.contentsMargins()
         self.assertEqual((body_margins.left(), body_margins.right()), (20, 20))
         mode_margins = codex.mode_segment.parentWidget().layout().contentsMargins()

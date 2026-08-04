@@ -760,6 +760,10 @@ QFrame#RizumPainterWindowContent {
             if self.design_variant == "kimi":
                 segment_theme["segment_slider_border"] = "#565b63"
                 self.mode_segment.setCornerRadius(4)
+            elif self.design_variant == "codex":
+                # The shared medium radius gives both end caps a readable
+                # curve at 30px high; the default 7px edge looked clipped.
+                self.mode_segment.setCornerRadius(default_theme.radius)
             self.mode_segment.setTheme(segment_theme)
         mode_row, mode_layout = self._make_row()
         mode_layout.addWidget(self._make_name(_preview_text("mode", "Mode")))
