@@ -49,10 +49,6 @@ DEFAULTS = {
     },
 }
 
-DESIGN_DIALOG_WIDTH = 439
-DESIGN_DIALOG_HEIGHT = 380
-
-
 def _copy_state(state):
     return {
         "mode": state["mode"],
@@ -462,6 +458,8 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.setObjectName("RizumViewRollPreview")
         self._saved_state = _copy_state(DEFAULTS)
         self._base_height = None
+        self._design_dialog_width = None
+        self._design_base_height = None
         self._footer_metrics = None
         self._restoring = False
         self._syncing_scale = False
@@ -983,7 +981,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
     def _required_dialog_width(self):
         scale = self.dialog.settingsUiScale()
-        proportional_base = int(round(DESIGN_DIALOG_WIDTH * scale))
+        base = self._metric(300, 240)
         footer_margin = self._metric(16, 12)
         row_margin = 8
         row_spacing = 8
@@ -1021,10 +1019,15 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         )
 
         content_need = max(footer_need, stepper_need, shortcut_need)
-        return max(
-            proportional_base,
+        measured_width = max(
+            base,
             content_need + 2 * self.dialog.settingsFrameWidth() + 2,
         )
+        if self._design_dialog_width is None:
+            normalizer = scale if scale >= 1.0 else 1.0
+            self._design_dialog_width = int(round(measured_width / normalizer))
+        proportional_width = int(round(self._design_dialog_width * scale))
+        return max(measured_width, proportional_width)
 
     def _restyle(self):
         theme = default_theme
@@ -1107,9 +1110,11 @@ QLabel#RizumViewRollScaleHint {{
         self.dialog.setMaximumHeight(16777215)
         hint = self.dialog.sizeHint().height()
         measured_base = max(1, hint - self._current_extra_height())
-        proportional_base = int(
-            round(DESIGN_DIALOG_HEIGHT * self.dialog.settingsUiScale())
-        )
+        scale = self.dialog.settingsUiScale()
+        if self._design_base_height is None:
+            normalizer = scale if scale >= 1.0 else 1.0
+            self._design_base_height = int(round(measured_base / normalizer))
+        proportional_base = int(round(self._design_base_height * scale))
         self._base_height = max(measured_base, proportional_base)
         self._sync_dialog_height()
 
