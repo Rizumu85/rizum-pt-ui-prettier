@@ -443,35 +443,32 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                 status_height = panel._metric(22, 17)
                 gap = panel._metric(8, 6)
 
-                # Idle: the reveal is fully collapsed; separator and buttons
-                # keep the two layout gaps around the empty slot.
+                # Idle: the reveal is fully collapsed and spacing alone
+                # separates the buttons from the body.
                 footer = self.rect_in_dialog(panel, panel._footer)
-                separator = self.rect_in_dialog(panel, panel._footer_separator)
                 buttons = self.rect_in_dialog(panel, panel._button_row)
                 self.assertEqual(panel.status_reveal.height(), 0)
                 self.assertEqual(
-                    separator.top() - footer.top(), panel._metric(6, 5)
+                    buttons.top() - footer.top(), panel._metric(6, 5) + gap
                 )
-                # QRect.bottom() is inclusive; +1 converts to a pixel gap.
-                self.assertEqual(buttons.top() - separator.bottom() - 1, 2 * gap)
                 self.assertEqual(
                     footer.bottom() - buttons.bottom(), panel._metric(12, 9)
                 )
                 collapsed_footer_height = panel._footer.height()
                 collapsed_dialog_height = panel.dialog.height()
 
-                # Active status: the reveal opens between separator and
-                # actions with the same gap rhythm; footer and dialog grow
-                # by exactly the status height.
+                # Active status: the hint opens directly above the actions;
+                # footer and dialog grow by exactly the status height.
                 panel.shortcut_fields["roll_right"].setShortcut("Alt+Left")
                 panel.status_reveal.setExpanded(True, animate=False)
                 QtWidgets.QApplication.processEvents()
                 footer = self.rect_in_dialog(panel, panel._footer)
-                separator = self.rect_in_dialog(panel, panel._footer_separator)
                 status = self.rect_in_dialog(panel, panel._status_line)
                 buttons = self.rect_in_dialog(panel, panel._button_row)
                 self.assertEqual(status.height(), status_height)
-                self.assertEqual(status.top() - separator.bottom() - 1, gap)
+                self.assertEqual(
+                    status.top() - footer.top(), panel._metric(6, 5)
+                )
                 self.assertEqual(buttons.top() - status.bottom() - 1, gap)
                 self.assertEqual(
                     panel._footer.height(), collapsed_footer_height + status_height
@@ -483,6 +480,11 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                 margins = panel._button_layout.contentsMargins()
                 self.assertEqual(margins.left(), panel._metric(16, 12))
                 self.assertEqual(margins.right(), panel._metric(16, 12))
+
+                separators = panel._footer.findChildren(
+                    QtWidgets.QFrame, "RizumInsetSeparator"
+                )
+                self.assertEqual(separators, [])
 
     def test_segmented_control_paints_fills_without_edge_stroke(self):
         """Focus raises the track fill; no 1px outline is ever drawn."""

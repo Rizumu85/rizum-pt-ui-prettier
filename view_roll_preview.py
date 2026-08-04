@@ -565,8 +565,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         footer_outer = QtWidgets.QVBoxLayout(footer)
         footer_outer.setContentsMargins(0, 0, 0, 0)
         footer_outer.setSpacing(0)
-        self._footer_separator = make_inset_separator(12, 1)
-        footer_outer.addWidget(self._footer_separator)
         # The status hint lives in a collapsible reveal above the actions: it
         # only claims footer height while there is something worth reporting,
         # so the idle footer is just the compact action row. Height-only
@@ -1089,16 +1087,14 @@ QLabel#RizumViewRollScaleHint {{
     def _sync_footer_height(self):
         """Footer fixed height tracks the status reveal's animated height.
 
-        When the reveal is collapsed the two layout gaps around its empty
-        slot remain, which reads as normal air above the action row.
+        The top margin and the single gap around the collapsed status slot
+        keep the action row separated from the body without drawing a rule.
         """
         if self._footer_metrics is None:
             return
         top, gap, buttons_height, bottom = self._footer_metrics
         self._footer.setFixedHeight(
             top
-            + self._footer_separator.sizeHint().height()
-            + gap
             + self.status_reveal.height()
             + gap
             + buttons_height

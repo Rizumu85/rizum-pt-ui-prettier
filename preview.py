@@ -480,7 +480,6 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     export = ActionButton.create("Export", "dialog-primary")
     footer_layout.addWidget(cancel)
     footer_layout.addWidget(export)
-    layout.addWidget(make_inset_separator(12, thickness=2))
     layout.addWidget(footer)
 
     expand_btn.clicked.connect(lambda: [group["widget"].setExpanded(True) for group in groups])
@@ -1139,7 +1138,6 @@ def build_settings_preview(QtWidgets):
     footer_outer = _QtWidgets.QVBoxLayout(footer)
     footer_outer.setContentsMargins(0, 0, 0, 0)
     footer_outer.setSpacing(0)
-    footer_outer.addWidget(make_inset_separator(12, 1))
     footer_row = _QtWidgets.QWidget()
     footer_row.setObjectName("RizumSettingsFooterRow")
     footer_layout = _QtWidgets.QHBoxLayout(footer_row)

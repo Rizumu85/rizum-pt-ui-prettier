@@ -120,6 +120,21 @@ class SegmentedControlTests(unittest.TestCase):
         self.assertEqual(len(controls), 1)
         self.assertEqual(controls[0].currentData(), "dark")
         self.assertTrue(hasattr(controls[0], "setTheme"))
+        self.assertEqual(
+            len(window.findChildren(QtWidgets.QFrame, "RizumInsetSeparator")),
+            1,
+        )
+
+    def test_bridge_preview_has_no_footer_separator(self):
+        from preview import build_bridge_preview
+
+        window = build_bridge_preview(QtWidgets)
+        self.addCleanup(window.deleteLater)
+
+        self.assertEqual(
+            len(window.findChildren(QtWidgets.QFrame, "RizumInsetSeparator")),
+            2,
+        )
 
 
 if __name__ == "__main__":
