@@ -19,6 +19,7 @@ Every shared compact component that paints its own glyphs or has a fixed pixel s
 | Stepper / multi-button glyph (`_StepperButtons`) | `setButtonSize(px)` | Fixed widget size + internal symbol geometry |
 | Single chevron / arrow glyph (`_ChevronDown`) | `setSize(px)` | Fixed widget size + painted point coords |
 | Mock checkbox (`_Checkbox`) | `setSize(px)` | Fixed widget size + painted box/checkmark coords |
+| Compact tooltip / hover popup (`install_compact_tooltip`) | `setCompactTooltipScale(scale)` | Tooltip font, padding, corner radius, and popup offset |
 | Container control with fixed height (`_SpinInput`, `_ComboInput`) | `setCompactHeight(px)` | Own height + margins + label height + delegate to child glyph setters |
 | Field row wrapper (`make_field_row`) | (no setter — caller sets `row.setFixedHeight(h)` and calls `control.setCompactHeight(h)`) | Outer row height; caller drives the inner control |
 | Footer / dialog button | width via `set_compact_footer_button_width(..., height=h)` | Pass `height=` so width+height set together |
@@ -30,6 +31,8 @@ Every shared compact component that paints its own glyphs or has a fixed pixel s
 3. **Scale internal glyph geometry proportionally.** Fixed point coordinates in `paintEvent` must multiply by a ratio derived from the new size vs. the default size (e.g. `s = self._size / 10.0` for a glyph authored at 10px).
 4. **Keep a sane floor, unified across all components.** Setters clamp to a minimum so the control never collapses below legibility. **All floors must use `base × 0.75`** (the same ratio as the row-height floor 24/32), so proportions stay consistent even when floors trigger at small scales. Example: a glyph authored at 10px floors at `max(8, …)` (round(10×0.75)=8); a button at 28px floors at `max(21, …)` (round(28×0.75)=21). Mismatched floors (e.g. 22px button flooring at 18 while 32px row floors at 24) break proportions at small scales.
 5. **Container controls delegate.** `setCompactHeight` on a container must call the child glyph's size setter (e.g. `_SpinInput.setCompactHeight` calls `self._stepper_buttons.setButtonSize(...)`, `_ComboInput.setCompactHeight` calls `self._arrow.setSize(...)`), scaled by `child_default * new_height / default_height`.
+6. **Popup metrics use design tokens, not owner-font normalization.** A tooltip keeps the owner's family and weight, but its font uses a fixed pixel baseline and scales only through `setCompactTooltipScale`. Deriving popup size from `QFontMetrics(owner.font())` makes the same scale value render differently across Painter, the standalone preview, DPI modes, and font families.
+7. **Top-level popups must defend against host QSS.** Painter applies generic rules such as `QLabel { font-size: ... }` after a popup is polished. Calling `setFont()` alone is therefore insufficient; the popup's local stylesheet must declare its resolved family, pixel size, weight, and style so the host cannot silently shrink it.
 
 ## Caller side — `rizum-pt-ui-font` pattern
 
@@ -59,6 +62,8 @@ def _apply_compact_heights(self, scale):
             continue
         btn.setFixedSize(icon_btn_size, icon_btn_size)
         btn.setPaintedIconSize(icon_px)  # without this, only the frame scales
+        if hasattr(btn, "setCompactTooltipScale"):
+            btn.setCompactTooltipScale(scale)
 
     # Footer buttons: pass height= so setFixedSize covers both dimensions
     footer_btn_h = max(22, int(round(26 * scale)))

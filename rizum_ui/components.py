@@ -550,6 +550,235 @@ def _is_qt_object_alive(obj):
         return True
 
 
+def install_compact_tooltip(widget, text):
+    """Install a compact tooltip with deterministic, UI-scale-aware metrics."""
+    if not text:
+        widget.setToolTip("")
+        return widget
+
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    base_font_px = 14
+    base_margin_x = 12
+    base_margin_y = 7
+    base_radius = 7
+
+    def scaled(value, scale):
+        return max(int(round(value * 0.75)), int(round(value * scale)))
+
+    def tooltip_font(source_font, scale):
+        font = QtGui.QFont(source_font)
+        font.setPixelSize(scaled(base_font_px, scale))
+        return font
+
+    def tooltip_label_stylesheet(font):
+        family = font.family().replace("\\", "\\\\").replace('"', '\\"')
+        style = "italic" if font.italic() else "normal"
+        return (
+            "background: transparent; border: 0; color: #e0e0e0; "
+            f'font-family: "{family}"; font-size: {font.pixelSize()}px; '
+            f"font-weight: {font.weight()}; font-style: {style};"
+        )
+
+    class _CompactTooltip(QtWidgets.QFrame):
+        def __init__(self, owner):
+            flags = (
+                QtCore.Qt.WindowType.ToolTip
+                | QtCore.Qt.WindowType.FramelessWindowHint
+                | QtCore.Qt.WindowType.NoDropShadowWindowHint
+            )
+            super().__init__(None, flags)
+            self._owner = owner
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+            self.setAutoFillBackground(False)
+            self.setObjectName("RizumCompactToolTip")
+            self._scale_override = None
+            self._scale = 1.0
+            self._radius = 5
+            layout = QtWidgets.QHBoxLayout(self)
+            layout.setContentsMargins(9, 5, 9, 5)
+            layout.setSpacing(0)
+            self._layout = layout
+            self._label = QtWidgets.QLabel(text)
+            self._label.setObjectName("RizumCompactToolTipLabel")
+            self._label.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+            layout.addWidget(self._label)
+
+        def setText(self, next_text):
+            self._label.setText(next_text)
+            self.adjustSize()
+
+        def setScale(self, scale):
+            self._scale_override = None if scale is None else max(0.75, float(scale))
+            self.polishMetrics()
+
+        def scale(self):
+            return self._scale
+
+        def polishMetrics(self):
+            self._scale = self._scale_override if self._scale_override is not None else 1.0
+            font = tooltip_font(self._owner.font(), self._scale)
+            self._label.setFont(font)
+            # Painter's application stylesheet assigns a generic QLabel font.
+            # A local declaration is required or it silently replaces the
+            # runtime pixel size set above when the tooltip is polished.
+            self._label.setStyleSheet(tooltip_label_stylesheet(font))
+            self._radius = scaled(base_radius, self._scale)
+            self._layout.setContentsMargins(
+                scaled(base_margin_x, self._scale),
+                scaled(base_margin_y, self._scale),
+                scaled(base_margin_x, self._scale),
+                scaled(base_margin_y, self._scale),
+            )
+            self.updateGeometry()
+            self.update()
+
+        def paintEvent(self, event):
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+            rect = QtCore.QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
+            painter.setPen(QtGui.QPen(QtGui.QColor("#414141"), 1))
+            painter.setBrush(QtGui.QColor("#1b1b1b"))
+            painter.drawRoundedRect(rect, self._radius, self._radius)
+            painter.end()
+
+    class _CompactTooltipFilter(QtCore.QObject):
+        def __init__(self, owner):
+            super().__init__(owner)
+            self._owner = owner
+            self._tooltip = None
+            self._text = str(text)
+            self._scale_override = None
+            self._last_global_pos = None
+            self._timer = QtCore.QTimer(self)
+            self._timer.setSingleShot(True)
+            self._timer.setInterval(420)
+            self._timer.timeout.connect(self._show_delayed)
+
+        def _ensure_tooltip(self):
+            if _is_qt_object_alive(self._tooltip):
+                return self._tooltip
+            self._tooltip = _CompactTooltip(self._owner)
+            self._tooltip.setScale(self._scale_override)
+            return self._tooltip
+
+        def _hide_tooltip(self):
+            self._timer.stop()
+            if _is_qt_object_alive(self._tooltip):
+                self._tooltip.hide()
+
+        def setScale(self, scale):
+            self._scale_override = None if scale is None else max(0.75, float(scale))
+            if _is_qt_object_alive(self._tooltip):
+                self._tooltip.setScale(self._scale_override)
+                self._tooltip.adjustSize()
+
+        def refreshMetrics(self):
+            if _is_qt_object_alive(self._tooltip):
+                self._tooltip.setScale(self._scale_override)
+                self._tooltip.adjustSize()
+
+        def _event_global_pos(self, obj, event):
+            if hasattr(event, "globalPosition"):
+                return event.globalPosition().toPoint()
+            if hasattr(event, "globalPos"):
+                return event.globalPos()
+            try:
+                return obj.mapToGlobal(event.position().toPoint())
+            except Exception:
+                try:
+                    return obj.mapToGlobal(event.pos())
+                except Exception:
+                    return QtGui.QCursor.pos()
+
+        def _schedule_tooltip(self, global_pos):
+            self._last_global_pos = QtCore.QPoint(global_pos)
+            if _is_qt_object_alive(self._tooltip) and self._tooltip.isVisible():
+                self._show_tooltip(self._last_global_pos)
+                return
+            self._timer.start()
+
+        def _show_delayed(self):
+            if not _is_qt_object_alive(self._owner) or not self._owner.underMouse():
+                return
+            self._show_tooltip(self._last_global_pos or QtGui.QCursor.pos())
+
+        def _show_tooltip(self, global_pos):
+            tooltip = self._ensure_tooltip()
+            tooltip.polishMetrics()
+            tooltip.setText(self._text)
+            tooltip.adjustSize()
+            scale = tooltip.scale()
+            offset_x = scaled(8, scale)
+            offset_y = scaled(14, scale)
+            screen_pad = scaled(4, scale)
+            pos = QtCore.QPoint(global_pos) + QtCore.QPoint(offset_x, offset_y)
+            screen = QtGui.QGuiApplication.screenAt(global_pos)
+            if screen is None:
+                screen = QtWidgets.QApplication.primaryScreen()
+            if screen is not None:
+                bounds = screen.availableGeometry()
+                if pos.x() + tooltip.width() > bounds.right():
+                    pos.setX(
+                        max(bounds.left(), bounds.right() - tooltip.width() - screen_pad)
+                    )
+                if pos.y() + tooltip.height() > bounds.bottom():
+                    pos.setY(
+                        max(
+                            bounds.top(),
+                            global_pos.y() - tooltip.height() - scaled(12, scale),
+                        )
+                    )
+            tooltip.move(pos)
+            tooltip.show()
+
+        def eventFilter(self, obj, event):
+            event_type = event.type()
+            if event_type == QtCore.QEvent.Type.ToolTip:
+                return True
+            if event_type in (
+                QtCore.QEvent.Type.Enter,
+                QtCore.QEvent.Type.HoverEnter,
+            ):
+                self._schedule_tooltip(self._event_global_pos(obj, event))
+            elif event_type in (
+                QtCore.QEvent.Type.MouseMove,
+                QtCore.QEvent.Type.HoverMove,
+            ):
+                self._last_global_pos = self._event_global_pos(obj, event)
+                if _is_qt_object_alive(self._tooltip) and self._tooltip.isVisible():
+                    self._show_tooltip(self._last_global_pos)
+            if event_type in (
+                QtCore.QEvent.Type.Leave,
+                QtCore.QEvent.Type.HoverLeave,
+                QtCore.QEvent.Type.MouseButtonPress,
+                QtCore.QEvent.Type.Hide,
+                QtCore.QEvent.Type.Destroy,
+                QtCore.QEvent.Type.WindowDeactivate,
+            ):
+                self._hide_tooltip()
+            elif event_type in (
+                QtCore.QEvent.Type.FontChange,
+                QtCore.QEvent.Type.ApplicationFontChange,
+            ):
+                self.refreshMetrics()
+            return False
+
+    widget.setToolTip("")
+    widget.setMouseTracking(True)
+    widget.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
+    previous = getattr(widget, "_rizum_compact_tooltip_filter", None)
+    if previous is not None:
+        widget.removeEventFilter(previous)
+    tooltip_filter = _CompactTooltipFilter(widget)
+    widget.installEventFilter(tooltip_filter)
+    widget._rizum_compact_tooltip_filter = tooltip_filter
+    widget.setCompactTooltipScale = tooltip_filter.setScale
+    widget.refreshCompactTooltip = tooltip_filter.refreshMetrics
+    return widget
+
+
 class Card:
     """Factory for a compact framed surface."""
 
@@ -678,8 +907,6 @@ def make_dock_action_button(label, icon_name, primary=False, tooltip="", parent=
             )
             self._visual_scale = 1.0
             self._animation = None
-            if tooltip:
-                self.setToolTip(tooltip)
 
         def getVisualScale(self):
             return self._visual_scale
@@ -793,7 +1020,10 @@ def make_dock_action_button(label, icon_name, primary=False, tooltip="", parent=
             )
             painter.end()
 
-    return _DockActionButton()
+    button = _DockActionButton()
+    if tooltip:
+        install_compact_tooltip(button, tooltip)
+    return button
 
 
 def make_dock_actions_panel(actions=None, width=260, parent=None):
@@ -1192,7 +1422,7 @@ def update_compact_field_row(row_widget, label_width=None, control_width=None):
 
 def compact_text_width(text, widget=None, minimum=0, maximum=None, padding=0):
     """Return a clamped text width using the active Qt font metrics."""
-    from PySide6 import QtGui, QtWidgets
+    from PySide6 import QtCore, QtGui, QtWidgets
 
     if widget is not None:
         font = widget.font()
@@ -2171,6 +2401,7 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
                 pass
             self._pixmap_cache = {}
             self._icon_size = int(size)
+            self._button_base_size = 22 if compact else 32
             self._visual_scale = 1.0
             self._visual_opacity = 1.0
             self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
@@ -2291,10 +2522,19 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
             # so the highlight sits 1px inside the button edge, with 6px corners.
             if self.isEnabled() and (self.underMouse() or self.isDown()):
                 bg_alpha = 75 if self.isDown() else 30
+                frame_size = max(1, min(self.width(), self.height()))
+                frame_scale = max(0.75, frame_size / float(self._button_base_size))
+                hover_inset = max(1, int(round(1 * frame_scale)))
+                hover_radius = max(5, int(round(6 * frame_scale)))
                 painter.setPen(QtCore.Qt.PenStyle.NoPen)
                 painter.setBrush(QtGui.QColor(255, 255, 255, bg_alpha))
-                rect = QtCore.QRectF(self.rect()).adjusted(1, 1, -1, -1)
-                painter.drawRoundedRect(rect, 6, 6)
+                rect = QtCore.QRectF(self.rect()).adjusted(
+                    hover_inset,
+                    hover_inset,
+                    -hover_inset,
+                    -hover_inset,
+                )
+                painter.drawRoundedRect(rect, hover_radius, hover_radius)
             # Priority: disabled > hover > accent > default. Hover must come
             # before accent so accent buttons still get a visible hover change
             # (accent default #e0e0e0 -> hover #ffffff) instead of staying
@@ -2329,7 +2569,7 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
     else:
         button.setMinimumHeight(32)
     if tooltip:
-        button.setToolTip(tooltip)
+        install_compact_tooltip(button, tooltip)
     return button
 
 
@@ -2639,6 +2879,7 @@ def make_drag_tree_item(
     removable=False,
     on_remove=None,
     masked=False,
+    mapped=False,
     child=True,
     parent=None,
 ):
@@ -2653,6 +2894,7 @@ def make_drag_tree_item(
             self.setObjectName("RizumDragTreeItem")
             self.setProperty("child", "true" if child else "false")
             self.setProperty("folder", bool(folder))
+            self.setProperty("mapped", bool(mapped))
             self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
             self.setMouseTracking(True)
             self.setCursor(
