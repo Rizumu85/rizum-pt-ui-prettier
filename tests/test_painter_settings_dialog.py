@@ -5,7 +5,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from rizum_ui import PainterSettingsDialog
 
@@ -27,12 +27,20 @@ class PainterSettingsDialogTests(unittest.TestCase):
         )
         self.assertEqual(dialog.settingsFrameWidth(), 2)
         self.assertEqual(dialog.settingsWindowRadius(), 10.0)
+        self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceRadius(), 8.0)
         self.assertTrue(
             dialog.testAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         )
         self.assertIn("background: #1b1b1b", dialog.settingsSurface().styleSheet())
-        self.assertIn("border-radius: 8px", dialog.settingsSurface().styleSheet())
+        self.assertIn(
+            "border-top-left-radius: 10px",
+            dialog.settingsSurface().styleSheet(),
+        )
+        self.assertIn(
+            "border-bottom-left-radius: 8px",
+            dialog.settingsSurface().styleSheet(),
+        )
 
     def test_frame_width_recomputes_parallel_inner_curve(self):
         dialog = PainterSettingsDialog()
@@ -45,7 +53,11 @@ class PainterSettingsDialogTests(unittest.TestCase):
             (3, 0, 3, 3),
         )
         self.assertEqual(dialog.settingsSurfaceRadius(), 7.0)
-        self.assertIn("border-radius: 7px", dialog.settingsSurface().styleSheet())
+        self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
+        self.assertIn(
+            "border-bottom-left-radius: 7px",
+            dialog.settingsSurface().styleSheet(),
+        )
 
     def test_settings_typography_tracks_ui_font_scale(self):
         dialog = PainterSettingsDialog()
@@ -92,6 +104,34 @@ class PainterSettingsDialogTests(unittest.TestCase):
             "            QLabel#RizumSettingsFooterHint {\n"
             "                background: transparent;",
             stylesheet,
+        )
+
+    def test_consumer_stylesheet_cannot_square_off_window_frame(self):
+        previous_stylesheet = self.app.styleSheet()
+        self.addCleanup(self.app.setStyleSheet, previous_stylesheet)
+        self.app.setStyleSheet(
+            "QDialog { background: #aa0000; } "
+            "QFrame { background: #aa0000; border-radius: 0; }"
+        )
+        dialog = PainterSettingsDialog()
+        self.addCleanup(dialog.deleteLater)
+        dialog.setObjectName("ConsumerSettingsDialog")
+        dialog.setStyleSheet("QLabel { color: white; }")
+        dialog.resize(120, 80)
+        dialog.show()
+        self.app.processEvents()
+
+        image = dialog.grab().toImage().convertToFormat(
+            QtGui.QImage.Format.Format_ARGB32
+        )
+        self.assertEqual(
+            image.pixelColor(0, 0).alpha(),
+            0,
+            "the outer frame corner must remain transparent under Painter QSS",
+        )
+        self.assertIn(
+            'QDialog[rizumPainterSettingsDialog="true"]',
+            dialog.styleSheet(),
         )
 
 

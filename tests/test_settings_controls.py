@@ -5,12 +5,13 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from rizum_ui import (
     AnimatedSaveButton,
     ModeParameterSlot,
     SecondaryActionButton,
+    ShortcutCaptureField,
     TextActionButton,
 )
 
@@ -70,6 +71,37 @@ class SettingsControlTests(unittest.TestCase):
 
         slot.setMode("step_15")
         self.assertEqual(slot.height(), 0)
+
+    def test_shortcut_rounding_survives_painter_qframe_style(self):
+        host = QtWidgets.QWidget()
+        self.addCleanup(host.deleteLater)
+        host.setStyleSheet(
+            """
+QWidget { background: #202123; }
+QFrame { background: #aa0000; border: 0; border-radius: 0; }
+"""
+        )
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(8, 8, 8, 8)
+        field = ShortcutCaptureField(
+            "Roll 3D Left",
+            "Shift+Num+4",
+            visual_style={"control": "#303236", "field_radius": 6},
+        )
+        field.setFixedWidth(150)
+        layout.addWidget(field)
+        host.show()
+        self.app.processEvents()
+
+        image = host.grab().toImage().convertToFormat(
+            QtGui.QImage.Format.Format_ARGB32
+        )
+        origin = field.mapTo(host, QtCore.QPoint(0, 0))
+        self.assertEqual(
+            image.pixelColor(origin).name(),
+            "#202123",
+            "Painter's generic QFrame fill must not square off the field corner",
+        )
 
 
 if __name__ == "__main__":
