@@ -2014,7 +2014,7 @@ def build_preview(window, QtWidgets, watch_enabled, rebuild_callback=None):
         view_roll_preview.build_view_roll_preview(QtWidgets),
         1,
     )
-    tabs.addTab(view_roll_page, preview_text("view_roll", "View Roll Concept"))
+    tabs.addTab(view_roll_page, preview_text("view_roll", "View Roll"))
 
     tab_index = int(window.property("rizumPreviewTabIndex") or 0)
     tabs.setCurrentIndex(max(0, min(tab_index, tabs.count() - 1)))
