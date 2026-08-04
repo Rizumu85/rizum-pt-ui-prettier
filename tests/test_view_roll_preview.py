@@ -227,6 +227,13 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
 
         self.assertIsNone(original.mode_segment._corner_radius)
         self.assertEqual(codex._visual_style["surface"], "#202123")
+        self.assertIn(
+            "QPushButton#RizumViewRollSave {\n"
+            "    color: #202123;\n"
+            "    background: #f2f2f2;\n"
+            "    border-radius: 4px;",
+            codex.dialog.settingsSurface().styleSheet(),
+        )
         self.assertEqual(kimi.mode_segment._corner_radius, 4)
         self.assertEqual(kimi._visual_style["surface"], "#26282c")
         for panel in (codex, kimi):
