@@ -229,6 +229,18 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertEqual(codex._visual_style["surface"], "#202123")
         self.assertEqual(kimi.mode_segment._corner_radius, 4)
         self.assertEqual(kimi._visual_style["surface"], "#26282c")
+        for panel in (codex, kimi):
+            stylesheet = panel.dialog.settingsSurface().styleSheet()
+            self.assertIn(
+                "QPushButton#RizumViewRollRestore {\n"
+                "    color:",
+                stylesheet,
+            )
+            self.assertIn("background: transparent;\n    border: 0;", stylesheet)
+            self.assertIn(
+                "QPushButton#RizumViewRollRestore:hover",
+                stylesheet,
+            )
         self.assertEqual(
             [DESIGN_VARIANTS[key]["label"] for key in ("original", "codex", "kimi")],
             ["Original", "Codex", "Kimi K3"],

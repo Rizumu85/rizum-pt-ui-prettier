@@ -1336,15 +1336,30 @@ QLabel#RizumViewRollScaleHint {{
 }}
 """
         )
+        if self.design_variant in ("codex", "kimi"):
+            restore_color = (
+                "#8f949b"
+                if self.design_variant == "kimi"
+                else self._visual_style["muted"]
+            )
+            surface.setStyleSheet(
+                surface.styleSheet()
+                + f"""
+QPushButton#RizumViewRollRestore {{
+    color: {restore_color};
+    background: transparent;
+    border: 0;
+}}
+QPushButton#RizumViewRollRestore:hover {{
+    color: {text};
+    background: {control_hover};
+}}
+"""
+            )
         if self.design_variant == "kimi":
             surface.setStyleSheet(
                 surface.styleSheet()
                 + """
-QPushButton#RizumViewRollRestore {
-    color: #8f949b;
-    background: transparent;
-    border: 0;
-}
 QPushButton#RizumViewRollCancel {
     background: transparent;
     border: 1px solid #4a4e55;
