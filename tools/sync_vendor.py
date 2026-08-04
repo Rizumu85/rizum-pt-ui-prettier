@@ -98,7 +98,7 @@ def git_value(*args: str) -> str:
         )
     except Exception:
         return "unknown"
-    return result.stdout.strip() or "unknown"
+    return result.stdout.strip()
 
 
 def target_paths(paths: list[Path] | None) -> list[Path]:
