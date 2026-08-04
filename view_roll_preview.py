@@ -23,7 +23,6 @@ from rizum_ui import (
     make_painter_title_bar,
     make_painter_window_content,
     make_segmented_control,
-    make_spin_input,
     set_compact_footer_button_width,
 )
 from rizum_ui.theme import default_theme
@@ -51,6 +50,49 @@ DEFAULTS = {
         "roll_reset": "Alt+0",
     },
 }
+
+_VIEW_ROLL_TEXT = {
+    "zh_CN": {
+        "title": "视图旋转设置",
+        "rotation": "旋转",
+        "mode": "模式",
+        "continuous": "无极",
+        "custom": "自定义",
+        "speed": "速度",
+        "angle": "角度",
+        "shortcuts": "快捷键",
+        "roll_left": "3D 视图左转",
+        "roll_right": "3D 视图右转",
+        "roll_reset": "重置 3D 旋转",
+        "restore": "恢复默认",
+        "cancel": "取消",
+        "save": "保存",
+        "shortcut_tip": "点击后录入新快捷键。Esc 取消，Delete 清除。",
+    },
+    "ja_JP": {
+        "title": "ビュー回転設定",
+        "rotation": "回転",
+        "mode": "モード",
+        "continuous": "連続",
+        "custom": "カスタム",
+        "speed": "速度",
+        "angle": "角度",
+        "shortcuts": "ショートカット",
+        "roll_left": "3Dビューを左に回転",
+        "roll_right": "3Dビューを右に回転",
+        "roll_reset": "3D回転をリセット",
+        "restore": "初期設定に戻す",
+        "cancel": "キャンセル",
+        "save": "保存",
+        "shortcut_tip": "クリックしてショートカットを入力。Escで取消、Deleteで消去。",
+    },
+}
+
+
+def _preview_text(key, fallback):
+    app = QtWidgets.QApplication.instance()
+    language = str(app.property("rizumPreviewLanguage") or "en") if app else "en"
+    return _VIEW_ROLL_TEXT.get(language, {}).get(key, fallback)
 
 def _copy_state(state):
     return {
@@ -454,7 +496,7 @@ class _RevealRow(QtWidgets.QFrame):
 
 
 class ViewRollConceptPanel(QtWidgets.QWidget):
-    """Tab content: the concept dialog plus a preview-only UI scale driver."""
+    """Tab content for the View Roll settings concept."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -465,7 +507,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self._design_base_height = None
         self._footer_metrics = None
         self._restoring = False
-        self._syncing_scale = False
         self._name_labels = []
         self._texts_blocks = []
 
@@ -477,7 +518,9 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
         surface_layout = self.dialog.settingsSurfaceLayout()
 
-        self.native_title_bar = make_painter_title_bar("View Roll Settings")
+        self.native_title_bar = make_painter_title_bar(
+            _preview_text("title", "View Roll Settings")
+        )
         surface_layout.addWidget(self.native_title_bar)
 
         content = make_painter_window_content(default_theme.surface)
@@ -490,14 +533,21 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self._body_layout.setContentsMargins(12, 8, 12, 16)
         self._body_layout.setSpacing(2)
 
-        self._section_rotation = self._make_section("Rotation", first=True)
+        self._section_rotation = self._make_section(
+            _preview_text("rotation", "Rotation"), first=True
+        )
         self._body_layout.addWidget(self._section_rotation)
 
+        localized_modes = [
+            (_preview_text("continuous", "Continuous"), "continuous"),
+            ("15°", "step_15"),
+            (_preview_text("custom", "Custom"), "custom"),
+        ]
         self.mode_segment = make_segmented_control(
-            ROTATION_MODES, current=self._saved_state["mode"]
+            localized_modes, current=self._saved_state["mode"]
         )
         mode_row, mode_layout = self._make_row()
-        mode_layout.addWidget(self._make_name("Mode"))
+        mode_layout.addWidget(self._make_name(_preview_text("mode", "Mode")))
         mode_layout.addStretch(1)
         mode_layout.addWidget(self.mode_segment)
         self._body_layout.addWidget(mode_row)
@@ -506,7 +556,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             self._saved_state["speed"], minimum=1, maximum=360, step=5, decimals=0
         )
         speed_row, speed_layout = self._make_row(tall=True)
-        self.speed_texts = self._make_texts("Speed", "°/s")
+        self.speed_texts = self._make_texts(_preview_text("speed", "Speed"), "°/s")
         speed_layout.addWidget(
             self.speed_texts, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
         )
@@ -520,7 +570,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             self._saved_state["angle"], minimum=1, maximum=180, step=1, decimals=0
         )
         angle_row, angle_layout = self._make_row(tall=True)
-        self.angle_texts = self._make_texts("Angle", "°")
+        self.angle_texts = self._make_texts(_preview_text("angle", "Angle"), "°")
         angle_layout.addWidget(
             self.angle_texts, 0, QtCore.Qt.AlignmentFlag.AlignVCenter
         )
@@ -530,15 +580,22 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.angle_reveal.setGeometryCallback(self._sync_dialog_height)
         self._body_layout.addWidget(self.angle_reveal)
 
-        self._section_shortcuts = self._make_section("Shortcuts")
+        self._section_shortcuts = self._make_section(
+            _preview_text("shortcuts", "Shortcuts")
+        )
         self._body_layout.addWidget(self._section_shortcuts)
 
         self.shortcut_fields = {}
         for action_id, action_name in SHORTCUT_ACTIONS:
+            action_name = _preview_text(action_id, action_name)
             field = ShortcutCaptureField(action_name)
             field.setShortcut(self._saved_state["shortcuts"][action_id], emit=False)
             install_compact_tooltip(
-                field, "Click to capture a new shortcut. Esc cancels, Delete clears."
+                field,
+                _preview_text(
+                    "shortcut_tip",
+                    "Click to capture a new shortcut. Esc cancels, Delete clears.",
+                ),
             )
             row, row_layout = self._make_row()
             name_label = self._make_name(action_name)
@@ -589,9 +646,15 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self._button_layout = QtWidgets.QHBoxLayout(button_row)
         self._button_layout.setContentsMargins(16, 0, 16, 0)
         self._button_layout.setSpacing(8)
-        self.restore_button = ActionButton.create("Restore", "dialog-secondary")
-        self.cancel_button = ActionButton.create("Cancel", "dialog-secondary")
-        self.save_button = ActionButton.create("Save", "dialog-primary")
+        self.restore_button = ActionButton.create(
+            _preview_text("restore", "Restore"), "dialog-secondary"
+        )
+        self.cancel_button = ActionButton.create(
+            _preview_text("cancel", "Cancel"), "dialog-secondary"
+        )
+        self.save_button = ActionButton.create(
+            _preview_text("save", "Save"), "dialog-primary"
+        )
         self._button_layout.addWidget(self.restore_button)
         self._button_layout.addStretch(1)
         self._button_layout.addWidget(self.cancel_button)
@@ -599,17 +662,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         footer_outer.addWidget(button_row)
         content_layout.addWidget(footer)
 
-        scale_row = QtWidgets.QHBoxLayout()
-        scale_row.setContentsMargins(2, 0, 2, 0)
-        scale_row.setSpacing(8)
-        scale_hint = QtWidgets.QLabel("Preview UI Scale")
-        scale_hint.setObjectName("RizumViewRollScaleHint")
-        self.scale_input = make_spin_input(1.0, minimum=0.75, maximum=2.0, step=0.05)
-        self.scale_input.setCompactHeight(26)
-        scale_row.addWidget(scale_hint)
-        scale_row.addWidget(self.scale_input)
-        scale_row.addStretch(1)
-        outer.addLayout(scale_row)
         outer.addWidget(
             self.dialog,
             0,
@@ -624,16 +676,12 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.cancel_button.clicked.connect(self.cancel_changes)
         self.save_button.clicked.connect(self.save_changes)
         self.dialog.settingsUiScaleChanged.connect(self._on_ui_scale_changed)
-        self.scale_input.valueChanged.connect(self._on_scale_input_changed)
 
         self._apply_mode_reveals(animate=False)
         self._apply_scale()
         self._remeasure_base_height()
         self._refresh_conflicts()
         self._refresh_status()
-        self._syncing_scale = True
-        self.scale_input.setValue(self.dialog.settingsUiScale())
-        self._syncing_scale = False
 
     # --- widget helpers -------------------------------------------------
 
@@ -787,7 +835,8 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             )
         elif conflicted:
             names = " and ".join(
-                dict(SHORTCUT_ACTIONS)[action_id] for action_id in sorted(conflicted)
+                self.shortcut_fields[action_id].actionName()
+                for action_id in sorted(conflicted)
             )
             self._status_tone = "warn"
             self._status_text = f"{names} use the same shortcut."
@@ -847,16 +896,9 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
     # --- UI font scale ----------------------------------------------------
 
-    def _on_scale_input_changed(self, value):
-        if not self._syncing_scale:
-            self.dialog.setSettingsUiScale(value)
-
     def _on_ui_scale_changed(self, scale):
         self._apply_scale()
         self._remeasure_base_height()
-        self._syncing_scale = True
-        self.scale_input.setValue(scale)
-        self._syncing_scale = False
 
     def _apply_scale(self):
         """Scale every row, control, and footer button from the dialog scale."""

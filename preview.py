@@ -67,6 +67,78 @@ WATCHED_MODULES = [
     "rizum_ui",
     "view_roll_preview",
 ]
+
+PREVIEW_LANGUAGES = (
+    ("English", "en"),
+    ("简体中文", "zh_CN"),
+    ("日本語", "ja_JP"),
+)
+_PREVIEW_TEXT = {
+    "zh_CN": {
+        "overview": "概览",
+        "drag_drop": "拖放",
+        "settings": "设置",
+        "view_roll": "视图旋转",
+        "reload": "重新载入",
+        "language": "语言",
+        "export": "导出",
+        "current_stack": "当前堆栈",
+        "all_stacks": "所有堆栈",
+        "cancel": "取消",
+        "appearance": "外观",
+        "theme": "主题",
+        "light": "浅色",
+        "dark": "深色",
+        "system": "跟随系统",
+        "padding": "边缘扩展",
+        "infinite": "无限",
+        "auto_open": "自动打开 Photoshop",
+        "auto_open_meta": "导出成功后启动",
+        "photoshop": "Photoshop",
+        "about": "关于",
+        "version": "版本",
+        "auto_save": "更改会自动保存",
+        "done": "完成",
+    },
+    "ja_JP": {
+        "overview": "概要",
+        "drag_drop": "ドラッグ＆ドロップ",
+        "settings": "設定",
+        "view_roll": "ビュー回転",
+        "reload": "再読み込み",
+        "language": "言語",
+        "export": "書き出し",
+        "current_stack": "現在のスタック",
+        "all_stacks": "すべてのスタック",
+        "cancel": "キャンセル",
+        "appearance": "外観",
+        "theme": "テーマ",
+        "light": "ライト",
+        "dark": "ダーク",
+        "system": "システム",
+        "padding": "パディング",
+        "infinite": "無限",
+        "auto_open": "Photoshopを自動起動",
+        "auto_open_meta": "書き出し成功後に起動",
+        "photoshop": "Photoshop",
+        "about": "情報",
+        "version": "バージョン",
+        "auto_save": "変更は自動的に保存されます",
+        "done": "完了",
+    },
+}
+
+
+def preview_language():
+    from PySide6 import QtWidgets
+
+    app = QtWidgets.QApplication.instance()
+    value = app.property("rizumPreviewLanguage") if app is not None else None
+    return str(value or "en")
+
+
+def preview_text(key, fallback):
+    return _PREVIEW_TEXT.get(preview_language(), {}).get(key, fallback)
 WATCHED_FILES = sorted(
     [PREVIEW_FILE, ROOT / "view_roll_preview.py"]
     + list((ROOT / "rizum_ui").glob("*.py"))
@@ -372,7 +444,7 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     layout = QtWidgets.QVBoxLayout(window)
     layout.setContentsMargins(2, 0, 2, 2)
     layout.setSpacing(0)
-    layout.addWidget(make_painter_title_bar("Export"))
+    layout.addWidget(make_painter_title_bar(preview_text("export", "Export")))
     content = make_painter_window_content("#1b1b1b")
     content_layout = content.contentLayout()
     layout.addWidget(content, 1)
@@ -478,8 +550,8 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     )
     footer_layout.setSpacing(8)
     footer_layout.addStretch(1)
-    cancel = ActionButton.create("Cancel", "dialog-secondary")
-    export = ActionButton.create("Export", "dialog-primary")
+    cancel = ActionButton.create(preview_text("cancel", "Cancel"), "dialog-secondary")
+    export = ActionButton.create(preview_text("export", "Export"), "dialog-primary")
     footer_layout.addWidget(cancel)
     footer_layout.addWidget(export)
     content_layout.addWidget(footer)
@@ -1029,7 +1101,7 @@ def build_settings_preview(QtWidgets):
     layout = _QtWidgets.QVBoxLayout(window)
     layout.setContentsMargins(2, 0, 2, 2)
     layout.setSpacing(0)
-    layout.addWidget(make_painter_title_bar("Settings"))
+    layout.addWidget(make_painter_title_bar(preview_text("settings", "Settings")))
     content = make_painter_window_content(themes["dark"]["window_bg"])
     content_layout = content.contentLayout()
     layout.addWidget(content, 1)
@@ -1040,26 +1112,36 @@ def build_settings_preview(QtWidgets):
     body_layout.setContentsMargins(12, 8, 12, 16)
     body_layout.setSpacing(2)
 
-    body_layout.addWidget(make_section("Appearance", first=True))
+    body_layout.addWidget(
+        make_section(preview_text("appearance", "Appearance"), first=True)
+    )
     theme_row, theme_layout = make_row(40)
     theme_layout.setContentsMargins(8, 5, 8, 5)
-    theme_layout.addWidget(make_label("Theme", "RizumSettingsItemName"))
+    theme_layout.addWidget(
+        make_label(preview_text("theme", "Theme"), "RizumSettingsItemName")
+    )
     theme_layout.addStretch(1)
     theme_control = make_segmented_control(
-        [("Light", "light"), ("Dark", "dark"), ("System", "system")],
+        [
+            (preview_text("light", "Light"), "light"),
+            (preview_text("dark", "Dark"), "dark"),
+            (preview_text("system", "System"), "system"),
+        ],
         current="dark",
     )
     theme_layout.addWidget(theme_control)
     body_layout.addWidget(theme_row)
 
-    body_layout.addWidget(make_section("Export"))
+    body_layout.addWidget(make_section(preview_text("export", "Export")))
     padding_stack = _QtWidgets.QWidget()
     padding_stack.setObjectName("RizumSettingsPaddingStack")
     padding_stack_layout = _QtWidgets.QVBoxLayout(padding_stack)
     padding_stack_layout.setContentsMargins(0, 0, 0, 0)
     padding_stack_layout.setSpacing(0)
     padding_row, padding_layout = make_row(51)
-    padding_texts = make_text_block("Padding", "Infinite")
+    padding_texts = make_text_block(
+        preview_text("padding", "Padding"), preview_text("infinite", "Infinite")
+    )
     padding_meta = padding_texts.findChild(_QtWidgets.QLabel, "RizumSettingsItemMeta")
     padding_layout.addWidget(padding_texts)
     padding_layout.addStretch(1)
@@ -1084,7 +1166,7 @@ def build_settings_preview(QtWidgets):
     auto_layout.addWidget(auto_toggle)
     body_layout.addWidget(auto_row)
 
-    body_layout.addWidget(make_section("Photoshop"))
+    body_layout.addWidget(make_section(preview_text("photoshop", "Photoshop")))
     path_row, path_layout = make_row(45)
     path_layout.setContentsMargins(8, 5, 8, 5)
     path_select = _QtWidgets.QFrame()
@@ -1111,9 +1193,11 @@ def build_settings_preview(QtWidgets):
     path_layout.addWidget(browse_btn)
     body_layout.addWidget(path_row)
 
-    body_layout.addWidget(make_section("About"))
+    body_layout.addWidget(make_section(preview_text("about", "About")))
     version_row, version_layout = make_row(34)
-    version_layout.addWidget(make_label("Version", "RizumSettingsItemName"))
+    version_layout.addWidget(
+        make_label(preview_text("version", "Version"), "RizumSettingsItemName")
+    )
     version_layout.addStretch(1)
     version_layout.addWidget(make_label("2.0.0", "RizumSettingsItemMeta"))
     body_layout.addWidget(version_row)
@@ -1136,9 +1220,16 @@ def build_settings_preview(QtWidgets):
         PAINTER_FOOTER_MARGIN_BOTTOM,
     )
     footer_layout.setSpacing(0)
-    footer_layout.addWidget(make_label("Changes save automatically", "RizumSettingsFooterHint"))
+    footer_layout.addWidget(
+        make_label(
+            preview_text("auto_save", "Changes save automatically"),
+            "RizumSettingsFooterHint",
+        )
+    )
     footer_layout.addStretch(1)
-    done_button = ActionButton.create("Done", "dialog-primary")
+    done_button = ActionButton.create(
+        preview_text("done", "Done"), "dialog-primary"
+    )
     done_button.refreshLayout(minimum=72, maximum=112)
     footer_layout.addWidget(done_button)
     footer_outer.addWidget(footer_row, 1)
@@ -1766,9 +1857,12 @@ def clear_layout(layout):
             widget.deleteLater()
 
 
-def build_preview(window, QtWidgets, watch_enabled):
+def build_preview(window, QtWidgets, watch_enabled, rebuild_callback=None):
     from PySide6 import QtCore
 
+    old_tabs = window.findChild(QtWidgets.QTabWidget, "RizumPreviewTabs")
+    if old_tabs is not None:
+        window.setProperty("rizumPreviewTabIndex", old_tabs.currentIndex())
     layout = window.layout()
     if layout is None:
         layout = QtWidgets.QVBoxLayout(window)
@@ -1786,9 +1880,49 @@ def build_preview(window, QtWidgets, watch_enabled):
         1,
     )
 
-    reload_button = ActionButton.create("Reload", "ghost")
+    scale_label = QtWidgets.QLabel("UI Scale")
+    scale_label.setObjectName("RizumPreviewToolLabel")
+    title_row.addWidget(scale_label)
+    app = QtWidgets.QApplication.instance()
+    scale = float(window.property("rizumPreviewUiScale") or 1.0)
+    scale_input = make_spin_input(scale, minimum=0.75, maximum=2.0, step=0.05)
+    scale_input.setObjectName("RizumPreviewScaleInput")
+    scale_input.setCompactHeight(26)
+    title_row.addWidget(scale_input)
+
+    language_label = QtWidgets.QLabel(preview_text("language", "Language"))
+    language_label.setObjectName("RizumPreviewToolLabel")
+    title_row.addWidget(language_label)
+    language_input = make_combo_input(PREVIEW_LANGUAGES)
+    language_input.setObjectName("RizumPreviewLanguageInput")
+    language_input.setCompactHeight(26)
+    language_input.setCurrentIndex(
+        max(0, language_input.findData(preview_language()))
+    )
+    title_row.addWidget(language_input)
+
+    reload_button = ActionButton.create(preview_text("reload", "Reload"), "ghost")
     title_row.addWidget(reload_button)
     layout.addLayout(title_row)
+
+    if rebuild_callback is not None:
+        reload_button.clicked.connect(rebuild_callback)
+
+        def request_scale(value):
+            value = float(value)
+            window.setProperty("rizumPreviewUiScale", value)
+            if app is not None:
+                app.setProperty("rizumUiFontScale", value)
+            QtCore.QTimer.singleShot(0, rebuild_callback)
+
+        def request_language(_index):
+            language = language_input.currentData() or "en"
+            if app is not None:
+                app.setProperty("rizumPreviewLanguage", language)
+            QtCore.QTimer.singleShot(0, rebuild_callback)
+
+        scale_input.valueChanged.connect(request_scale)
+        language_input.currentIndexChanged.connect(request_language)
 
     tabs = QtWidgets.QTabWidget()
     tabs.setObjectName("RizumPreviewTabs")
@@ -1823,7 +1957,7 @@ def build_preview(window, QtWidgets, watch_enabled):
     grid.setColumnStretch(0, 0)
     grid.setColumnStretch(1, 1)
     overview_layout.addLayout(grid, 1)
-    tabs.addTab(overview, "Overview")
+    tabs.addTab(overview, preview_text("overview", "Overview"))
 
     drag_page = QtWidgets.QWidget()
     drag_layout = QtWidgets.QVBoxLayout(drag_page)
@@ -1835,7 +1969,7 @@ def build_preview(window, QtWidgets, watch_enabled):
         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
     )
     drag_layout.addStretch(1)
-    tabs.addTab(drag_page, "Drag Drop")
+    tabs.addTab(drag_page, preview_text("drag_drop", "Drag Drop"))
 
     settings_page = QtWidgets.QWidget()
     settings_layout = QtWidgets.QVBoxLayout(settings_page)
@@ -1847,7 +1981,7 @@ def build_preview(window, QtWidgets, watch_enabled):
         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
     )
     settings_layout.addStretch(1)
-    tabs.addTab(settings_page, "Settings")
+    tabs.addTab(settings_page, preview_text("settings", "Settings"))
 
     import view_roll_preview
 
@@ -1861,11 +1995,17 @@ def build_preview(window, QtWidgets, watch_enabled):
         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
     )
     view_roll_layout.addStretch(1)
-    tabs.addTab(view_roll_page, "View Roll Concept")
+    tabs.addTab(view_roll_page, preview_text("view_roll", "View Roll Concept"))
+
+    tab_index = int(window.property("rizumPreviewTabIndex") or 0)
+    tabs.setCurrentIndex(max(0, min(tab_index, tabs.count() - 1)))
+    tabs.currentChanged.connect(
+        lambda index: window.setProperty("rizumPreviewTabIndex", index)
+    )
 
     layout.addWidget(tabs, 1)
 
-    return reload_button
+    return tabs
 
 
 def main():
@@ -1904,12 +2044,13 @@ def main():
             + build_stylesheet(mode="full" if full_mode else "overlay")
             + PREVIEW_CANVAS_STYLESHEET
         )
-        reload_button = build_preview(window, QtWidgets, watch_enabled)
-        reload_button.clicked.connect(refresh_preview)
+        build_preview(window, QtWidgets, watch_enabled, refresh_preview)
         mtimes = snapshot_mtimes()
 
-    reload_button = build_preview(window, QtWidgets, watch_enabled)
-    reload_button.clicked.connect(refresh_preview)
+    app.setProperty("rizumPreviewLanguage", "en")
+    app.setProperty("rizumUiFontScale", 1.0)
+    window.setProperty("rizumPreviewUiScale", 1.0)
+    build_preview(window, QtWidgets, watch_enabled, refresh_preview)
 
     if watch_enabled:
         timer = QtCore.QTimer(window)
