@@ -933,7 +933,7 @@ QFrame#RizumPainterWindowContent {
         label.setObjectName("RizumSettingsSection")
         label._rizum_first = first
         if self.design_variant == "codex":
-            height = 32 if first else 36
+            height = 26 if first else 36
         elif self.design_variant == "kimi":
             height = 26 if first else 30
         else:
@@ -1168,9 +1168,9 @@ QFrame#RizumPainterWindowContent {
             row_base, tall_base = 40, 46
             body_margins = (20, 12, 20, 20)
             row_margins = (0, 5, 0, 5)
-            section_heights = (32, 36)
+            section_heights = (26, 36)
             control_heights = (30, 32, 30)
-            footer_values = (20, 8, 8, 36, 20)
+            footer_values = (20, 8, 8, 32, 16)
         else:
             row_base, tall_base = 40, 46
             body_margins = (12, 8, 12, 16)
