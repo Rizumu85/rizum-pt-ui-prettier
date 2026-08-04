@@ -91,9 +91,25 @@ class ShortcutCaptureFieldTests(unittest.TestCase):
 
         field.startCapture()
 
+        self.assertEqual(field._display_text(), "Type shortcut…")
         self.assertEqual(field.width(), resting_width)
         field.cancelCapture()
         self.assertEqual(field.width(), resting_width)
+
+    def test_conflict_feedback_stays_inside_the_field_without_resizing_it(self):
+        field = ShortcutCaptureField("Roll 3D Left")
+        self.addCleanup(field.deleteLater)
+        field.setShortcut("Alt+Left", emit=False)
+        resting_width = field.width()
+
+        field.setConflicted(True)
+
+        self.assertEqual(field.width(), resting_width)
+        self.assertFalse(field._conflict_rect().isEmpty())
+        self.assertEqual(field.accessibleDescription(), "Shortcut conflict")
+        field.setConflicted(False)
+        self.assertTrue(field._conflict_rect().isEmpty())
+        self.assertEqual(field.accessibleDescription(), "")
 
 
 class ViewRollConceptPanelTests(unittest.TestCase):
@@ -176,43 +192,45 @@ class ViewRollConceptPanelTests(unittest.TestCase):
 
     def test_duplicate_shortcuts_flag_conflict(self):
         panel = self.make_panel()
+        footer_height = panel._footer.height()
 
         panel.shortcut_fields["roll_right"].setShortcut("Alt+Left")
         self.assertTrue(panel.shortcut_fields["roll_left"]._conflicted)
         self.assertTrue(panel.shortcut_fields["roll_right"]._conflicted)
         self.assertFalse(panel.shortcut_fields["roll_reset"]._conflicted)
+        self.assertFalse(
+            panel.shortcut_fields["roll_left"]._conflict_rect().isEmpty()
+        )
+        self.assertEqual(panel._footer.height(), footer_height)
 
         panel.shortcut_fields["roll_right"].setShortcut("Alt+Right")
         self.assertFalse(panel.shortcut_fields["roll_left"]._conflicted)
         self.assertFalse(panel.shortcut_fields["roll_right"]._conflicted)
 
-    def test_status_reveal_collapses_when_nothing_to_report(self):
+    def test_footer_has_no_persistent_status_slot(self):
         panel = self.make_panel()
 
-        self.assertEqual(panel.status_reveal.progress(), 0.0)
-        self.assertEqual(panel.status_reveal.height(), 0)
-        self.assertEqual(panel.status_label.text(), "")
+        self.assertFalse(hasattr(panel, "status_reveal"))
+        self.assertEqual(
+            panel._footer.findChildren(
+                QtWidgets.QLabel, "RizumSettingsFooterHint"
+            ),
+            [],
+        )
 
     def test_save_button_carries_dirty_state_without_a_footer_message(self):
         panel = self.make_panel()
 
         panel.angle_stepper.setValue(90)
         self.assertTrue(panel.save_button.isEnabled())
-        self.assertEqual(panel.status_reveal.progress(), 0.0)
-        self.assertEqual(panel.status_label.text(), "")
 
         panel.save_changes()
         self.assertFalse(panel.save_button.isEnabled())
-        self.assertEqual(panel.status_reveal.progress(), 0.0)
-        self.assertEqual(panel.status_label.text(), "")
 
         panel.speed_stepper.setValue(120)
         self.assertTrue(panel.save_button.isEnabled())
-        self.assertEqual(panel.status_reveal.progress(), 0.0)
         panel.cancel_changes()
         self.assertFalse(panel.save_button.isEnabled())
-        self.assertEqual(panel.status_reveal.progress(), 0.0)
-        self.assertEqual(panel.status_label.text(), "")
 
     def test_codex_save_button_animates_dirty_and_saved_feedback_in_place(self):
         panel = ViewRollConceptPanel(design_variant="codex")
@@ -246,28 +264,53 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertEqual(button.text(), "Save")
         self.assertEqual(button.size(), resting_size)
 
-    def test_capture_hint_expands_and_collapses_status(self):
+    def test_capture_prompt_stays_inside_the_field(self):
         panel = self.make_panel()
-
         field = panel.shortcut_fields["roll_left"]
+        footer_height = panel._footer.height()
+
         field.startCapture()
-        self.assertEqual(panel.status_reveal.progress(), 1.0)
-        self.assertIn("Editing", panel.status_label.text())
+
+        self.assertEqual(field._display_text(), "Type shortcut…")
+        self.assertEqual(panel._footer.height(), footer_height)
         field.cancelCapture()
-        self.assertEqual(panel.status_reveal.progress(), 0.0)
-        self.assertEqual(panel.status_label.text(), "")
+        self.assertEqual(field._display_text(), "Alt+Left")
+        self.assertEqual(panel._footer.height(), footer_height)
+
+    def test_save_failure_uses_a_transient_overlay_without_committing(self):
+        def fail_save(_state):
+            raise OSError("Read-only settings store")
+
+        panel = ViewRollConceptPanel(save_handler=fail_save)
+        self.addCleanup(panel.deleteLater)
+        panel.show()
+        QtWidgets.QApplication.processEvents()
+        stable_size = panel.dialog.size()
+        panel.angle_stepper.setValue(90)
+
+        self.assertFalse(panel.save_changes())
+
+        self.assertTrue(panel.is_dirty())
+        self.assertTrue(panel.save_button.isEnabled())
+        self.assertTrue(panel.error_notice.isVisible())
+        self.assertEqual(panel.error_notice.message(), "Could not save changes.")
+        self.assertIsNot(panel.error_notice.parentWidget(), panel._footer)
+        self.assertEqual(panel.dialog.size(), stable_size)
 
     def test_ui_scale_scales_rows_and_shortcut_fields(self):
         panel = self.make_panel()
 
         self.assertEqual(panel.shortcut_fields["roll_left"].height(), 30)
+        self.assertEqual(panel.error_notice.height(), 32)
         panel.dialog.setSettingsUiScale(1.5)
         self.assertEqual(panel.shortcut_fields["roll_left"].height(), 45)
         self.assertEqual(panel.mode_segment.height(), 45)
+        self.assertEqual(panel.error_notice.height(), 48)
 
         panel.dialog.setSettingsUiScale(0.5)  # bounded to the 0.75 floor
         self.assertEqual(panel.shortcut_fields["roll_left"].height(), 23)
         self.assertEqual(panel.mode_segment.height(), 23)
+        self.assertEqual(panel.error_notice.height(), 24)
 
     def test_ui_scale_preserves_the_one_x_dialog_proportions(self):
         panel = self.make_panel()
@@ -364,13 +407,9 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertEqual(codex._section_rotation.height(), 26)
         self.assertEqual(codex._button_row.height(), kimi._button_row.height())
         self.assertEqual(codex._button_row.height(), 32)
+        self.assertEqual(codex._footer.layout().contentsMargins().top(), 14)
         self.assertEqual(codex._footer.layout().contentsMargins().bottom(), 16)
-        self.assertEqual(codex.status_reveal.expandedHeight(), 18)
-        self.assertEqual(codex._footer.layout().spacing(), 6)
-        self.assertTrue(
-            codex.status_label.alignment() & QtCore.Qt.AlignmentFlag.AlignRight
-        )
-        self.assertEqual(codex._status_font().weight(), QtGui.QFont.Weight.Normal)
+        self.assertEqual(codex._footer.layout().spacing(), 0)
         self.assertIsNotNone(codex._footer_separator)
         self.assertEqual(codex._footer_separator.height(), 1)
         self.assertEqual(
@@ -442,9 +481,9 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
 class ViewRollLayoutRegressionTests(unittest.TestCase):
     """Geometry guards for the 0.75x-2.0x UI scale range.
 
-    Reproduces the defects seen in the launched 1.10x preview: status text
-    overlapping the footer actions, clipped Restore/Cancel buttons, and a
-    truncated shortcut capture placeholder.
+    Reproduces the defects seen in the launched 1.10x preview: feedback
+    changing footer geometry, clipped Restore/Cancel buttons, and a truncated
+    shortcut capture placeholder.
     """
 
     @classmethod
@@ -541,35 +580,25 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
             panel._metric(6, 5),
         )
 
-    def test_status_line_never_overlaps_footer_buttons(self):
+    def test_shortcut_feedback_never_changes_footer_geometry(self):
         for scale in REPRESENTATIVE_SCALES:
             with self.subTest(scale=scale):
                 panel = self.make_panel(scale)
-                # Longest status: a two-way shortcut conflict warning. The
-                # panel is shown, so the reveal animates; settle it to make
-                # the geometry assertions deterministic.
-                panel.shortcut_fields["roll_right"].setShortcut("Alt+Left")
-                panel.status_reveal.setExpanded(True, animate=False)
-                QtWidgets.QApplication.processEvents()
+                stable_footer_height = panel._footer.height()
+                stable_dialog_height = panel.dialog.height()
 
-                status_rect = self.rect_in_dialog(panel, panel.status_label)
-                self.assertGreaterEqual(status_rect.left(), 0)
-                self.assertLessEqual(status_rect.right(), panel.dialog.width() - 1)
-                for button in (
-                    panel.restore_button,
-                    panel.cancel_button,
-                    panel.save_button,
-                ):
-                    self.assertFalse(
-                        status_rect.intersects(
-                            self.rect_in_dialog(panel, button)
-                        )
-                    )
-                # Whatever text is shown must fit the line it sits on.
-                shown_width = QtGui.QFontMetrics(
-                    panel._status_font()
-                ).horizontalAdvance(panel.status_label.text())
-                self.assertLessEqual(shown_width, panel.status_label.width() + 1)
+                field = panel.shortcut_fields["roll_left"]
+                field.startCapture()
+                self.assertEqual(field._display_text(), "Type shortcut…")
+                self.assertEqual(panel._footer.height(), stable_footer_height)
+                self.assertEqual(panel.dialog.height(), stable_dialog_height)
+                field.cancelCapture()
+
+                panel.shortcut_fields["roll_right"].setShortcut("Alt+Left")
+                QtWidgets.QApplication.processEvents()
+                self.assertFalse(field._conflict_rect().isEmpty())
+                self.assertEqual(panel._footer.height(), stable_footer_height)
+                self.assertEqual(panel.dialog.height(), stable_dialog_height)
 
     def test_shortcut_fields_fit_placeholder_at_every_scale(self):
         for scale in REPRESENTATIVE_SCALES:
@@ -680,18 +709,14 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                     )
 
     def test_footer_rhythm_keeps_vertical_breathing_room(self):
-        """Collapsed footer is actions-only; an active hint expands it."""
+        """The actions-only footer keeps a fixed visual rhythm."""
         for scale in REPRESENTATIVE_SCALES:
             with self.subTest(scale=scale):
                 panel = self.make_panel(scale)
-                status_height = panel._metric(22, 17)
                 gap = panel._metric(8, 6)
 
-                # Idle: the reveal is fully collapsed and spacing alone
-                # separates the buttons from the body.
                 footer = self.rect_in_dialog(panel, panel._footer)
                 buttons = self.rect_in_dialog(panel, panel._button_row)
-                self.assertEqual(panel.status_reveal.height(), 0)
                 self.assertEqual(
                     buttons.top() - footer.top(), panel._metric(6, 5) + gap
                 )
@@ -702,26 +727,15 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                 collapsed_footer_height = panel._footer.height()
                 collapsed_dialog_height = panel.dialog.height()
 
-                # Active status: the hint opens directly above the actions;
-                # footer and dialog grow by exactly the status height.
+                panel.shortcut_fields["roll_left"].startCapture()
                 panel.shortcut_fields["roll_right"].setShortcut("Alt+Left")
-                panel.status_reveal.setExpanded(True, animate=False)
                 QtWidgets.QApplication.processEvents()
-                footer = self.rect_in_dialog(panel, panel._footer)
-                status = self.rect_in_dialog(panel, panel._status_line)
-                buttons = self.rect_in_dialog(panel, panel._button_row)
-                self.assertEqual(status.height(), status_height)
                 self.assertEqual(
-                    status.top() - footer.top(), panel._metric(6, 5)
-                )
-                self.assertEqual(buttons.top() - status.bottom() - 1, gap)
-                self.assertEqual(
-                    panel._footer.height(), collapsed_footer_height + status_height
+                    panel._footer.height(), collapsed_footer_height
                 )
                 self.assertEqual(
-                    panel.dialog.height(), collapsed_dialog_height + status_height
+                    panel.dialog.height(), collapsed_dialog_height
                 )
-                # Breathing room is vertical only: side margins stay compact.
                 margins = panel._button_layout.contentsMargins()
                 self.assertEqual(margins.left(), panel._metric(16, 12))
                 self.assertEqual(margins.right(), panel._metric(16, 12))

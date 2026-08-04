@@ -100,9 +100,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "Abbrechen",
         "save": "Speichern",
         "shortcut_tip": "Klicken, um ein neues Tastenkürzel einzugeben. Esc bricht ab, Entf löscht.",
-        "editing_shortcut": "{action} bearbeiten — Tasten drücken, Esc zum Abbrechen.",
-        "same_shortcut": "{names} verwenden dasselbe Tastenkürzel.",
-        "name_joiner": " und ",
+        "shortcut_capture": "Tastenkürzel eingeben…",
+        "shortcut_unset": "Nicht festgelegt",
+        "shortcut_conflict": "Tastenkürzelkonflikt",
+        "save_failed": "Änderungen konnten nicht gespeichert werden.",
     },
     "es": {
         "title": "Ajustes de rotación de vista",
@@ -120,9 +121,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "Cancelar",
         "save": "Guardar",
         "shortcut_tip": "Haz clic para introducir un atajo nuevo. Esc cancela; Supr borra.",
-        "editing_shortcut": "Editando {action} — pulsa las teclas; Esc cancela.",
-        "same_shortcut": "{names} usan el mismo atajo.",
-        "name_joiner": " y ",
+        "shortcut_capture": "Pulsa el atajo…",
+        "shortcut_unset": "Sin asignar",
+        "shortcut_conflict": "Conflicto de atajos",
+        "save_failed": "No se pudieron guardar los cambios.",
     },
     "fr": {
         "title": "Paramètres de rotation de la vue",
@@ -140,9 +142,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "Annuler",
         "save": "Enregistrer",
         "shortcut_tip": "Cliquez pour saisir un nouveau raccourci. Échap annule, Suppr efface.",
-        "editing_shortcut": "Modification de {action} — appuyez sur les touches, Échap pour annuler.",
-        "same_shortcut": "{names} utilisent le même raccourci.",
-        "name_joiner": " et ",
+        "shortcut_capture": "Saisissez le raccourci…",
+        "shortcut_unset": "Non défini",
+        "shortcut_conflict": "Conflit de raccourcis",
+        "save_failed": "Impossible d’enregistrer les modifications.",
     },
     "it": {
         "title": "Impostazioni rotazione vista",
@@ -160,9 +163,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "Annulla",
         "save": "Salva",
         "shortcut_tip": "Fai clic per inserire una nuova scorciatoia. Esc annulla, Canc elimina.",
-        "editing_shortcut": "Modifica di {action} — premi i tasti, Esc per annullare.",
-        "same_shortcut": "{names} usano la stessa scorciatoia.",
-        "name_joiner": " e ",
+        "shortcut_capture": "Inserisci scorciatoia…",
+        "shortcut_unset": "Non impostata",
+        "shortcut_conflict": "Conflitto di scorciatoie",
+        "save_failed": "Impossibile salvare le modifiche.",
     },
     "ko": {
         "title": "뷰 회전 설정",
@@ -180,9 +184,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "취소",
         "save": "저장",
         "shortcut_tip": "클릭하여 새 단축키를 입력합니다. Esc는 취소, Delete는 지우기입니다.",
-        "editing_shortcut": "{action} 편집 중 — 키를 누르세요. Esc는 취소입니다.",
-        "same_shortcut": "{names}에 같은 단축키가 사용됩니다.",
-        "name_joiner": " 및 ",
+        "shortcut_capture": "단축키 입력…",
+        "shortcut_unset": "설정 안 함",
+        "shortcut_conflict": "단축키 충돌",
+        "save_failed": "변경 내용을 저장할 수 없습니다.",
     },
     "pt": {
         "title": "Configurações de rotação da vista",
@@ -200,9 +205,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "Cancelar",
         "save": "Salvar",
         "shortcut_tip": "Clique para inserir um novo atalho. Esc cancela; Delete limpa.",
-        "editing_shortcut": "Editando {action} — pressione as teclas; Esc cancela.",
-        "same_shortcut": "{names} usam o mesmo atalho.",
-        "name_joiner": " e ",
+        "shortcut_capture": "Digite o atalho…",
+        "shortcut_unset": "Não definido",
+        "shortcut_conflict": "Conflito de atalhos",
+        "save_failed": "Não foi possível salvar as alterações.",
     },
     "zh_CN": {
         "title": "视图旋转设置",
@@ -220,9 +226,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "取消",
         "save": "保存",
         "shortcut_tip": "点击后录入新快捷键。Esc 取消，Delete 清除。",
-        "editing_shortcut": "正在编辑 {action} — 请按键，按 Esc 取消。",
-        "same_shortcut": "{names} 使用了相同的快捷键。",
-        "name_joiner": "和",
+        "shortcut_capture": "请按快捷键…",
+        "shortcut_unset": "未设置",
+        "shortcut_conflict": "快捷键冲突",
+        "save_failed": "无法保存更改。",
     },
     "ja_JP": {
         "title": "ビュー回転設定",
@@ -240,9 +247,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "キャンセル",
         "save": "保存",
         "shortcut_tip": "クリックしてショートカットを入力。Escで取消、Deleteで消去。",
-        "editing_shortcut": "{action}を編集中 — キーを押してください。Escで取消。",
-        "same_shortcut": "{names}に同じショートカットが使われています。",
-        "name_joiner": "と",
+        "shortcut_capture": "ショートカットを入力…",
+        "shortcut_unset": "未設定",
+        "shortcut_conflict": "ショートカットの競合",
+        "save_failed": "変更を保存できませんでした。",
     },
 }
 
@@ -707,6 +715,165 @@ class AnimatedSaveButton(QtWidgets.QAbstractButton):
         painter.end()
 
 
+class TransientErrorNotice(QtWidgets.QFrame):
+    """Layout-independent error notice for failures that need interruption."""
+
+    BASE_HEIGHT = 32
+    MIN_HEIGHT = 24
+    FADE_IN_DURATION = 120
+    DISPLAY_DURATION = 1800
+    FADE_OUT_DURATION = 180
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("RizumViewRollErrorNotice")
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(
+            QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+        )
+        self.setAutoFillBackground(False)
+        self._compact_height = self.BASE_HEIGHT
+        self._animation = None
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setSpacing(0)
+        self._layout = layout
+        self._label = QtWidgets.QLabel("")
+        self._label.setObjectName("RizumViewRollErrorNoticeText")
+        self._label.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+        self._label.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignLeft
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        layout.addWidget(self._label)
+
+        self._opacity_effect = QtWidgets.QGraphicsOpacityEffect(self)
+        self._opacity_effect.setOpacity(0.0)
+        self.setGraphicsEffect(self._opacity_effect)
+        self.setCompactHeight(self.BASE_HEIGHT)
+        self.hide()
+
+    def _scale(self):
+        return self._compact_height / float(self.BASE_HEIGHT)
+
+    def _scaled(self, value):
+        return max(int(round(value * 0.75)), int(round(value * self._scale())))
+
+    def _font(self):
+        font = QtGui.QFont(self.font())
+        font.setPixelSize(self._scaled(11))
+        font.setWeight(QtGui.QFont.Weight.Medium)
+        return font
+
+    def setCompactHeight(self, height):
+        self._compact_height = max(self.MIN_HEIGHT, int(round(height)))
+        font = self._font()
+        family = font.family().replace("\\", "\\\\").replace('"', '\\"')
+        self._label.setFont(font)
+        self._label.setStyleSheet(
+            "background: transparent; border: 0; color: #f0f0f0; "
+            f'font-family: "{family}"; font-size: {font.pixelSize()}px; '
+            f"font-weight: {font.weight()};"
+        )
+        self._layout.setContentsMargins(
+            self._scaled(34), 0, self._scaled(12), 0
+        )
+        self.setFixedHeight(self._compact_height)
+        self.updateGeometry()
+        self.update()
+
+    def message(self):
+        return self._label.text()
+
+    def sizeHint(self):
+        margins = self._layout.contentsMargins()
+        text_width = QtGui.QFontMetrics(self._font()).horizontalAdvance(
+            self._label.text()
+        )
+        return QtCore.QSize(
+            margins.left() + text_width + margins.right(),
+            self._compact_height,
+        )
+
+    def showMessage(self, message, duration=None):
+        self._label.setText(str(message))
+        width = self.sizeHint().width()
+        if self.parentWidget() is not None:
+            width = min(
+                width,
+                max(self._scaled(120), self.parentWidget().width() - 24),
+            )
+        self.setFixedSize(width, self._compact_height)
+
+        if self._animation is not None:
+            self._animation.stop()
+            self._animation.deleteLater()
+        self._opacity_effect.setOpacity(0.0)
+        self.show()
+        self.raise_()
+
+        sequence = QtCore.QSequentialAnimationGroup(self)
+        fade_in = QtCore.QPropertyAnimation(
+            self._opacity_effect, b"opacity", sequence
+        )
+        fade_in.setDuration(self.FADE_IN_DURATION)
+        fade_in.setStartValue(0.0)
+        fade_in.setEndValue(1.0)
+        fade_in.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        sequence.addAnimation(fade_in)
+        sequence.addPause(
+            self.DISPLAY_DURATION if duration is None else max(0, int(duration))
+        )
+        fade_out = QtCore.QPropertyAnimation(
+            self._opacity_effect, b"opacity", sequence
+        )
+        fade_out.setDuration(self.FADE_OUT_DURATION)
+        fade_out.setStartValue(1.0)
+        fade_out.setEndValue(0.0)
+        fade_out.setEasingCurve(QtCore.QEasingCurve.Type.InCubic)
+        sequence.addAnimation(fade_out)
+
+        def finish():
+            self.hide()
+            if self._animation is sequence:
+                self._animation = None
+            sequence.deleteLater()
+
+        sequence.finished.connect(finish)
+        self._animation = sequence
+        sequence.start()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
+        rect = QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        radius = float(self._scaled(default_theme.radius_small))
+        border = QtGui.QColor(default_theme.danger)
+        border.setAlpha(190)
+        painter.setPen(QtGui.QPen(border, 1))
+        painter.setBrush(QtGui.QColor("#2a2223"))
+        painter.drawRoundedRect(rect, radius, radius)
+
+        icon_size = self._scaled(12)
+        icon_rect = QtCore.QRectF(
+            self._scaled(12),
+            (self.height() - icon_size) / 2,
+            icon_size,
+            icon_size,
+        )
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
+        painter.setBrush(QtGui.QColor(default_theme.danger))
+        painter.drawEllipse(icon_rect)
+        icon_font = QtGui.QFont(self._font())
+        icon_font.setPixelSize(self._scaled(9))
+        icon_font.setWeight(QtGui.QFont.Weight.Bold)
+        painter.setFont(icon_font)
+        painter.setPen(QtGui.QColor("#21191a"))
+        painter.drawText(icon_rect, QtCore.Qt.AlignmentFlag.AlignCenter, "!")
+        painter.end()
+
+
 class ShortcutCaptureField(QtWidgets.QFrame):
     """Painted shortcut field with capture, clear, and conflict states."""
 
@@ -716,15 +883,25 @@ class ShortcutCaptureField(QtWidgets.QFrame):
     BASE_HEIGHT = 30
     MIN_HEIGHT = 23  # BASE_HEIGHT x 0.75, per the font-scale contract
 
-    def __init__(self, action_name, parent=None, visual_style=None):
+    def __init__(
+        self,
+        action_name,
+        parent=None,
+        visual_style=None,
+        capture_text="Type shortcut…",
+        empty_text="Not set",
+        conflict_text="Shortcut conflict",
+    ):
         super().__init__(parent)
         self.setObjectName("RizumShortcutCapture")
         self._action_name = action_name
         self._visual_style = dict(visual_style or {})
+        self._capture_text = str(capture_text)
+        self._empty_text = str(empty_text)
+        self._conflict_text = str(conflict_text)
         self._shortcut = ""
         self._capturing = False
         self._conflicted = False
-        self._pending_modifiers = ""
         self._compact_height = self.BASE_HEIGHT
         self._hovered = False
         self._hover_clear = False
@@ -761,6 +938,7 @@ class ShortcutCaptureField(QtWidgets.QFrame):
         if conflicted == self._conflicted:
             return
         self._conflicted = conflicted
+        self.setAccessibleDescription(self._conflict_text if conflicted else "")
         self.update()
 
     def setCompactHeight(self, height):
@@ -790,8 +968,8 @@ class ShortcutCaptureField(QtWidgets.QFrame):
 
     def _display_text(self):
         if self._capturing:
-            return self._pending_modifiers or "Type shortcut…"
-        return self._shortcut or "Not set"
+            return self._capture_text
+        return self._shortcut or self._empty_text
 
     def _clear_slot_width(self):
         return self._scaled(22) if self._shortcut and not self._capturing else 0
@@ -805,9 +983,14 @@ class ShortcutCaptureField(QtWidgets.QFrame):
             return QtCore.QRectF()
         return QtCore.QRectF(self.width() - slot, 0, slot, self.height())
 
+    def _conflict_rect(self):
+        if not self._conflicted or self._capturing:
+            return QtCore.QRectF()
+        return self._clear_rect()
+
     def sizeHint(self):
         metrics = QtGui.QFontMetrics(self._font())
-        candidates = [self._display_text(), "Type shortcut…", "Not set"]
+        candidates = [self._display_text(), self._capture_text, self._empty_text]
         if self._shortcut:
             candidates.append(self._shortcut)
         text_width = max(metrics.horizontalAdvance(text) for text in candidates)
@@ -826,7 +1009,6 @@ class ShortcutCaptureField(QtWidgets.QFrame):
         if self._capturing:
             return
         self._capturing = True
-        self._pending_modifiers = ""
         self.setFocus(QtCore.Qt.FocusReason.MouseFocusReason)
         self.refreshMetrics()
         self.update()
@@ -836,14 +1018,12 @@ class ShortcutCaptureField(QtWidgets.QFrame):
         if not self._capturing:
             return
         self._capturing = False
-        self._pending_modifiers = ""
         self.refreshMetrics()
         self.update()
         self.captureStateChanged.emit(False)
 
     def _finish_capture(self, text):
         self._capturing = False
-        self._pending_modifiers = ""
         self.setShortcut(text)
         self.captureStateChanged.emit(False)
 
@@ -865,18 +1045,6 @@ class ShortcutCaptureField(QtWidgets.QFrame):
                 QtCore.Qt.Key.Key_Meta,
                 QtCore.Qt.Key.Key_unknown,
             ):
-                parts = []
-                modifiers = event.modifiers()
-                if modifiers & QtCore.Qt.KeyboardModifier.ControlModifier:
-                    parts.append("Ctrl")
-                if modifiers & QtCore.Qt.KeyboardModifier.AltModifier:
-                    parts.append("Alt")
-                if modifiers & QtCore.Qt.KeyboardModifier.ShiftModifier:
-                    parts.append("Shift")
-                if modifiers & QtCore.Qt.KeyboardModifier.MetaModifier:
-                    parts.append("Meta")
-                self._pending_modifiers = "+".join(parts) + ("+" if parts else "")
-                self.update()
                 event.accept()
                 return
             if key in (QtCore.Qt.Key.Key_Tab, QtCore.Qt.Key.Key_Backtab):
@@ -1014,8 +1182,29 @@ class ShortcutCaptureField(QtWidgets.QFrame):
         baseline = rect.center().y() + (metrics.ascent() - metrics.descent()) / 2
         painter.drawText(QtCore.QPointF(self._scaled(10), baseline), text)
 
+        conflict_rect = self._conflict_rect()
+        if not conflict_rect.isEmpty() and not self._hover_clear:
+            marker_size = self._scaled(10)
+            marker = QtCore.QRectF(
+                conflict_rect.center().x() - marker_size / 2,
+                conflict_rect.center().y() - marker_size / 2,
+                marker_size,
+                marker_size,
+            )
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(QtGui.QColor(theme.warning))
+            painter.drawEllipse(marker)
+            marker_font = QtGui.QFont(font)
+            marker_font.setPixelSize(self._scaled(8))
+            marker_font.setWeight(QtGui.QFont.Weight.Bold)
+            painter.setFont(marker_font)
+            painter.setPen(background)
+            painter.drawText(marker, QtCore.Qt.AlignmentFlag.AlignCenter, "!")
+
         clear_rect = self._clear_rect()
-        if not clear_rect.isEmpty():
+        if not clear_rect.isEmpty() and (
+            not self._conflicted or self._hover_clear
+        ):
             glyph_color = (
                 QtGui.QColor(self._visual_style.get("text", theme.text))
                 if self._hover_clear
@@ -1269,7 +1458,9 @@ class _ParameterSlot(QtWidgets.QFrame):
 class ViewRollConceptPanel(QtWidgets.QWidget):
     """Tab content for the View Roll settings concept."""
 
-    def __init__(self, parent=None, design_variant="original"):
+    def __init__(
+        self, parent=None, design_variant="original", save_handler=None
+    ):
         super().__init__(parent)
         self.setObjectName("RizumViewRollPreview")
         if design_variant not in DESIGN_VARIANTS:
@@ -1283,6 +1474,8 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self._design_base_height = None
         self._footer_metrics = None
         self._restoring = False
+        self._save_handler = save_handler
+        self._last_save_error = None
         self._name_labels = []
         self._texts_blocks = []
 
@@ -1413,6 +1606,13 @@ QFrame#RizumPainterWindowContent {
                 visual_style=(
                     self._visual_style if self.design_variant != "original" else None
                 ),
+                capture_text=_preview_text(
+                    "shortcut_capture", "Type shortcut…"
+                ),
+                empty_text=_preview_text("shortcut_unset", "Not set"),
+                conflict_text=_preview_text(
+                    "shortcut_conflict", "Shortcut conflict"
+                ),
             )
             field.setShortcut(self._saved_state["shortcuts"][action_id], emit=False)
             install_compact_tooltip(
@@ -1431,9 +1631,6 @@ QFrame#RizumPainterWindowContent {
             field._rizum_name_label = name_label
             self.shortcut_fields[action_id] = field
             field.shortcutChanged.connect(self._on_shortcut_changed)
-            field.captureStateChanged.connect(
-                lambda _capturing: self._refresh_status()
-            )
 
         content_layout.addWidget(body, 1)
         self._footer_separator = None
@@ -1448,36 +1645,6 @@ QFrame#RizumPainterWindowContent {
         footer_outer = QtWidgets.QVBoxLayout(footer)
         footer_outer.setContentsMargins(0, 0, 0, 0)
         footer_outer.setSpacing(0)
-        # The status hint lives in a collapsible reveal above the actions: it
-        # only claims footer height while there is something worth reporting,
-        # so the idle footer is just the compact action row. Height-only
-        # animation, same language as the speed/angle reveals.
-        status_line = QtWidgets.QWidget()
-        status_line.setObjectName("RizumViewRollStatusLine")
-        self._status_line = status_line
-        self._status_layout = QtWidgets.QHBoxLayout(status_line)
-        self._status_layout.setContentsMargins(16, 0, 16, 0)
-        self._status_layout.setSpacing(0)
-        self._status_text = ""
-        self._status_tone = ""
-        self.status_label = QtWidgets.QLabel("")
-        self.status_label.setObjectName("RizumSettingsFooterHint")
-        self.status_label.setAlignment(
-            (
-                QtCore.Qt.AlignmentFlag.AlignRight
-                if self.design_variant == "codex"
-                else QtCore.Qt.AlignmentFlag.AlignLeft
-            )
-            | QtCore.Qt.AlignmentFlag.AlignVCenter
-        )
-        self.status_label.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Ignored,
-            QtWidgets.QSizePolicy.Policy.Preferred,
-        )
-        self._status_layout.addWidget(self.status_label)
-        self.status_reveal = _RevealRow(status_line, 22)
-        self.status_reveal.setGeometryCallback(self._on_status_geometry)
-        footer_outer.addWidget(self.status_reveal)
         button_row = QtWidgets.QWidget()
         button_row.setObjectName("RizumViewRollFooterRow")
         self._button_row = button_row
@@ -1519,6 +1686,7 @@ QFrame#RizumPainterWindowContent {
         self._button_layout.addWidget(self.save_button)
         footer_outer.addWidget(button_row)
         content_layout.addWidget(footer)
+        self.error_notice = TransientErrorNotice(content)
 
         outer.addWidget(
             self.dialog,
@@ -1539,7 +1707,7 @@ QFrame#RizumPainterWindowContent {
         self._apply_scale()
         self._remeasure_base_height()
         self._refresh_conflicts()
-        self._refresh_status()
+        self._refresh_save_state()
 
     # --- widget helpers -------------------------------------------------
 
@@ -1647,16 +1815,32 @@ QFrame#RizumPainterWindowContent {
         finally:
             self._restoring = False
         self._refresh_conflicts()
-        self._refresh_status()
+        self._refresh_save_state()
 
     def save_changes(self):
-        show_feedback = self.is_dirty() and isinstance(
+        next_state = self.current_state()
+        if next_state == self._saved_state:
+            self._refresh_save_state()
+            return True
+        show_feedback = isinstance(
             self.save_button, AnimatedSaveButton
         )
+        if self._save_handler is not None:
+            try:
+                saved = self._save_handler(_copy_state(next_state))
+                if saved is False:
+                    raise RuntimeError("Save handler rejected the settings")
+            except Exception as error:
+                self._last_save_error = error
+                self.show_save_error()
+                self._refresh_save_state()
+                return False
+        self._last_save_error = None
+        self._saved_state = next_state
         if show_feedback:
             self.save_button.showSavedFeedback()
-        self._saved_state = self.current_state()
-        self._refresh_status()
+        self._refresh_save_state()
+        return True
 
     def cancel_changes(self):
         self._apply_state(self._saved_state)
@@ -1669,7 +1853,7 @@ QFrame#RizumPainterWindowContent {
     def _on_mode_changed(self, _data):
         self._apply_mode_reveals(animate=True)
         if not self._restoring:
-            self._refresh_status()
+            self._refresh_save_state()
 
     def _apply_mode_reveals(self, animate):
         mode = self.mode_segment.currentData()
@@ -1683,13 +1867,13 @@ QFrame#RizumPainterWindowContent {
 
     def _on_value_edited(self, _value):
         if not self._restoring:
-            self._refresh_status()
+            self._refresh_save_state()
 
     def _on_shortcut_changed(self, _text):
         if self._restoring:
             return
         self._refresh_conflicts()
-        self._refresh_status()
+        self._refresh_save_state()
 
     def _conflicting_actions(self):
         owners = {}
@@ -1708,50 +1892,19 @@ QFrame#RizumPainterWindowContent {
         for action_id, field in self.shortcut_fields.items():
             field.setConflicted(action_id in conflicted)
 
-    def _refresh_status(self):
-        capturing = next(
-            (field for field in self.shortcut_fields.values() if field.isCapturing()),
-            None,
-        )
-        conflicted = self._conflicting_actions()
+    def _refresh_save_state(self):
         dirty = self.is_dirty()
         if isinstance(self.save_button, AnimatedSaveButton):
             self.save_button.setDirty(dirty)
         else:
             self.save_button.setEnabled(dirty)
-        if capturing is not None:
-            self._status_tone = ""
-            self._status_text = _preview_text(
-                "editing_shortcut",
-                "Editing {action} — press keys, Esc to cancel.",
-            ).format(action=capturing.actionName())
-        elif conflicted:
-            names = _preview_text("name_joiner", " and ").join(
-                self.shortcut_fields[action_id].actionName()
-                for action_id in sorted(conflicted)
-            )
-            self._status_tone = "warn"
-            self._status_text = _preview_text(
-                "same_shortcut", "{names} use the same shortcut."
-            ).format(names=names)
-        else:
-            self._status_tone = ""
-            self._status_text = ""
-        self._sync_status_text()
-        # Animate only when on screen; setup and tests settle instantly.
-        self.status_reveal.setExpanded(
-            bool(self._status_text), animate=self.isVisible()
-        )
 
-    def _status_font(self):
-        font = QtGui.QFont(self.font())
-        font.setPixelSize(self._metric(11))
-        font.setWeight(
-            QtGui.QFont.Weight.Normal
-            if self.design_variant == "codex"
-            else QtGui.QFont.Weight.Medium
+    def show_save_error(self, message=None):
+        self.error_notice.showMessage(
+            message
+            or _preview_text("save_failed", "Could not save changes.")
         )
-        return font
+        self._position_error_notice()
 
     def _name_font(self):
         """Matches the surface stylesheet's RizumSettingsItemName rule."""
@@ -1766,28 +1919,6 @@ QFrame#RizumPainterWindowContent {
         font.setPixelSize(self._metric(11))
         font.setWeight(QtGui.QFont.Weight.Medium)
         return font
-
-    def _sync_status_text(self):
-        """Elide the status hint to the width its line actually has."""
-        text = self._status_text
-        if text:
-            frame = self.dialog.settingsFrameWidth()
-            margins = self._status_layout.contentsMargins()
-            available = (
-                self.dialog.width()
-                - 2 * frame
-                - margins.left()
-                - margins.right()
-            )
-            if available > 0:
-                metrics = QtGui.QFontMetrics(self._status_font())
-                text = metrics.elidedText(
-                    text, QtCore.Qt.TextElideMode.ElideRight, available
-                )
-        self.status_label.setProperty("tone", self._status_tone)
-        self.status_label.setText(text)
-        self.status_label.style().unpolish(self.status_label)
-        self.status_label.style().polish(self.status_label)
 
     # --- UI font scale ----------------------------------------------------
 
@@ -1831,11 +1962,6 @@ QFrame#RizumPainterWindowContent {
         else:
             row_height = self._metric(row_base, round(row_base * 0.75))
             tall_height = self._metric(tall_base, round(tall_base * 0.75))
-        status_height = (
-            self._metric(18, 14)
-            if self.design_variant == "codex"
-            else self._metric(22, 17)
-        )
         if self.design_variant == "original":
             footer_margin = self._metric(PAINTER_FOOTER_MARGIN_X, 12)
             footer_top = self._metric(6, 5)
@@ -1859,19 +1985,16 @@ QFrame#RizumPainterWindowContent {
                 footer_values[4], round(footer_values[4] * 0.75)
             )
 
-        # The footer breathes like the body does: air around the separator,
-        # the status hint, and below the buttons. Horizontal margins stay put.
-        # The status row is collapsible, so its slice of the footer height
-        # comes from the reveal, not a fixed slot (see _sync_footer_height).
+        # Preserve the established separator-to-action rhythm without keeping
+        # an empty status row in the footer.
         footer_outer = self._footer.layout()
-        footer_outer.setContentsMargins(0, footer_top, 0, footer_bottom)
-        footer_outer.setSpacing(footer_gap)
+        footer_outer.setContentsMargins(
+            0, footer_top + footer_gap, 0, footer_bottom
+        )
+        footer_outer.setSpacing(0)
         self._footer_metrics = (footer_top, footer_gap, buttons_height, footer_bottom)
-        self.status_reveal.setExpandedHeight(status_height)
         self._sync_footer_height()
-        self._status_line.setFixedHeight(status_height)
         self._button_row.setFixedHeight(buttons_height)
-        self._status_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
         self._button_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
         if self._footer_separator is not None:
             self._footer_separator.layout().setContentsMargins(
@@ -1962,7 +2085,7 @@ QFrame#RizumPainterWindowContent {
         )
         for button, minimum, maximum in (
             (self.restore_button, 56, 112),
-            (self.cancel_button, 56, 96),
+            (self.cancel_button, 56, 112),
             (self.save_button, 52, 92),
         ):
             if isinstance(button, TextActionButton):
@@ -1981,12 +2104,13 @@ QFrame#RizumPainterWindowContent {
             set_compact_footer_button_width(
                 button, width, height=footer_button_height
             )
+        self.error_notice.setCompactHeight(self._metric(32, 24))
 
         # Width is measured, not fixed: stay at the compact baseline unless
         # the scaled footer buttons or field rows genuinely need more room.
         self.dialog.setFixedWidth(self._required_dialog_width())
         self._restyle()
-        self._sync_status_text()
+        self._position_error_notice()
 
     def _footer_button_font(self):
         """The font the dialog stylesheet renders footer buttons in.
@@ -2131,7 +2255,6 @@ QFrame#RizumPainterSettingsSurface {{
 }}
 QWidget#RizumViewRollBody,
 QWidget#RizumViewRollFooter,
-QWidget#RizumViewRollStatusLine,
 QWidget#RizumViewRollFooterRow,
 QWidget#RizumViewRollTexts,
 QWidget#RizumViewRollFooterDivider,
@@ -2149,9 +2272,6 @@ QWidget#RizumViewRollFooterDivider QFrame#RizumInsetSeparator {{
     background: #3a3b3e;
 }}
 {variant_rules}
-QLabel#RizumSettingsFooterHint[tone="warn"] {{
-    color: {theme.warning};
-}}
 QLabel#RizumViewRollScaleHint {{
     color: {theme.text_faint};
     font-size: {hint_px}px;
@@ -2180,16 +2300,6 @@ QPushButton#RizumViewRollRestore:hover {{
 }}
 """
             )
-        if self.design_variant == "codex":
-            surface.setStyleSheet(
-                surface.styleSheet()
-                + f"""
-QLabel#RizumSettingsFooterHint {{
-    color: {faint};
-    font-weight: 400;
-}}
-"""
-            )
         if self.design_variant == "kimi":
             surface.setStyleSheet(
                 surface.styleSheet()
@@ -2214,31 +2324,29 @@ QPushButton#RizumViewRollCancel {
                 round(reveal.expandedHeight() * reveal.progress())
                 for reveal in (self.speed_reveal, self.angle_reveal)
             )
-        extra += round(
-            self.status_reveal.expandedHeight() * self.status_reveal.progress()
-        )
         return extra
 
-    def _on_status_geometry(self, _progress):
-        self._sync_footer_height()
-        self._sync_dialog_height()
-
     def _sync_footer_height(self):
-        """Footer fixed height tracks the status reveal's animated height.
-
-        The top margin and the single gap around the collapsed status slot
-        keep the action row separated from the body without drawing a rule.
-        """
+        """Keep the footer rhythm fixed while all feedback stays elsewhere."""
         if self._footer_metrics is None:
             return
         top, gap, buttons_height, bottom = self._footer_metrics
-        self._footer.setFixedHeight(
-            top
-            + self.status_reveal.height()
-            + gap
-            + buttons_height
-            + bottom
+        self._footer.setFixedHeight(top + gap + buttons_height + bottom)
+
+    def _position_error_notice(self):
+        if not hasattr(self, "error_notice"):
+            return
+        content = self.error_notice.parentWidget()
+        if content is None or not self.error_notice.isVisible():
+            return
+        footer_top = self._footer.mapTo(content, QtCore.QPoint(0, 0)).y()
+        x = max(0, (content.width() - self.error_notice.width()) // 2)
+        y = max(
+            0,
+            footer_top - self.error_notice.height() - self._metric(8, 6),
         )
+        self.error_notice.move(x, y)
+        self.error_notice.raise_()
 
     def _remeasure_base_height(self):
         self.dialog.setMinimumHeight(0)
@@ -2257,6 +2365,7 @@ QPushButton#RizumViewRollCancel {
         if self._base_height is None:
             return
         self.dialog.setFixedHeight(self._base_height + self._current_extra_height())
+        self._position_error_notice()
 
 
 class ViewRollComparisonPanel(QtWidgets.QScrollArea):
