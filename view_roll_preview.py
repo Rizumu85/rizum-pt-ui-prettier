@@ -1156,7 +1156,9 @@ QFrame#RizumPainterWindowContent {
         for field in self.shortcut_fields.values():
             field.parentWidget().setFixedHeight(row_height)
 
-        footer_button_base = 28 if self.design_variant == "kimi" else 26
+        footer_button_base = (
+            28 if self.design_variant in ("codex", "kimi") else 26
+        )
         footer_button_height = self._metric(
             footer_button_base, round(footer_button_base * 0.75)
         )
