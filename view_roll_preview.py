@@ -649,13 +649,11 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self._button_layout = QtWidgets.QHBoxLayout(button_row)
         self._button_layout.setContentsMargins(16, 0, 16, 0)
         self._button_layout.setSpacing(8)
-        self._button_layout.addStretch(1)
-        # Compact footer: "Restore defaults" cannot stay unclipped inside the
-        # dialog's measured-width budget at 1.5x-2.0x UI scale.
         self.restore_button = ActionButton.create("Restore", "dialog-secondary")
         self.cancel_button = ActionButton.create("Cancel", "dialog-secondary")
         self.save_button = ActionButton.create("Save", "dialog-primary")
         self._button_layout.addWidget(self.restore_button)
+        self._button_layout.addStretch(1)
         self._button_layout.addWidget(self.cancel_button)
         self._button_layout.addWidget(self.save_button)
         footer_outer.addWidget(button_row)
@@ -995,7 +993,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
         footer_button_height = self._metric(26, 20)
         for button, minimum, maximum in (
-            (self.restore_button, 108, 150),
+            (self.restore_button, 56, 112),
             (self.cancel_button, 56, 96),
             (self.save_button, 52, 92),
         ):

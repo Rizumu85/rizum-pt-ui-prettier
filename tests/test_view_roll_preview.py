@@ -228,6 +228,32 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                     for other in rects[index + 1 :]:
                         self.assertFalse(rect.intersects(other))
 
+    def test_footer_separates_restore_from_commit_actions(self):
+        panel = self.make_panel(1.1)
+        margins = panel._button_layout.contentsMargins()
+        spacing = panel._button_layout.spacing()
+        restore = self.rect_in_dialog(panel, panel.restore_button)
+        cancel = self.rect_in_dialog(panel, panel.cancel_button)
+        save = self.rect_in_dialog(panel, panel.save_button)
+        row = self.rect_in_dialog(panel, panel._button_row)
+
+        self.assertEqual(restore.left(), row.left() + margins.left())
+        self.assertEqual(save.right(), row.right() - margins.right())
+        self.assertEqual(save.left() - cancel.right() - 1, spacing)
+        self.assertGreater(cancel.left() - restore.right() - 1, spacing)
+
+    def test_restore_button_width_tracks_its_label(self):
+        panel = self.make_panel(1.1)
+        text_width = QtGui.QFontMetrics(
+            panel._footer_button_font()
+        ).horizontalAdvance(panel.restore_button.text())
+        chrome_width = 2 * FOOTER_BUTTON_PADDING_X + 2
+
+        self.assertLessEqual(
+            panel.restore_button.width() - text_width - chrome_width,
+            panel._metric(6, 5),
+        )
+
     def test_status_line_never_overlaps_footer_buttons(self):
         for scale in REPRESENTATIVE_SCALES:
             with self.subTest(scale=scale):
