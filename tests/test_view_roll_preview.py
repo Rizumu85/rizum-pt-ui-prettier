@@ -251,6 +251,14 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
 
         self.assertIn(concept_rule, panel.dialog.settingsSurface().styleSheet())
 
+    def test_noninteractive_rows_have_no_hover_surface(self):
+        panel = self.make_panel(1.0)
+
+        self.assertNotIn(
+            "QFrame#RizumViewRollRow:hover",
+            panel.dialog.settingsSurface().styleSheet(),
+        )
+
     def test_footer_separates_restore_from_commit_actions(self):
         panel = self.make_panel(1.1)
         margins = panel._button_layout.contentsMargins()

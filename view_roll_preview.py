@@ -1110,10 +1110,6 @@ QFrame#RizumViewRollRow {{
     border: 0;
     border-radius: 6px;
 }}
-QFrame#RizumViewRollRow:hover {{
-    background: {theme.surface_hover};
-    border: 0;
-}}
 QLabel#RizumSettingsFooterHint[tone="warn"] {{
     color: {theme.warning};
 }}
