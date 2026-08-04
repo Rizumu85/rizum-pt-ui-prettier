@@ -243,7 +243,7 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
                 footer_metrics.horizontalAdvance(button.text())
                 + 2 * FOOTER_BUTTON_PADDING_X
                 + 2
-                + 8
+                + 14
             )
             self.assertGreaterEqual(button.width(), expected)
         self.assertIn(

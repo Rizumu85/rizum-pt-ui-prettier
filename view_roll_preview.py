@@ -1199,7 +1199,7 @@ QFrame#RizumPainterWindowContent {
         if self.design_variant == "codex":
             # The square footer silhouette needs more air than the original
             # pill buttons; distribute this extra width evenly around the text.
-            width += self._metric(10, 8)
+            width += self._metric(16, 12)
         return max(
             self._metric(minimum),
             min(int(round(maximum * scale)), width),
