@@ -63,6 +63,23 @@ class SegmentedControlTests(unittest.TestCase):
 
         self.assertEqual(control.currentData(), "custom")
 
+    def test_selection_motion_matches_bridge_theme_switch(self):
+        control = self.make_control()
+        control.show()
+        self.app.processEvents()
+
+        control.setCurrentData("custom", animate=True)
+
+        self.assertIsInstance(control._animation, QtCore.QParallelAnimationGroup)
+        self.assertEqual(control._animation.animationCount(), 2)
+        for index in range(control._animation.animationCount()):
+            animation = control._animation.animationAt(index)
+            self.assertEqual(animation.duration(), 220)
+            self.assertEqual(
+                animation.easingCurve().type(),
+                QtCore.QEasingCurve.Type.OutBack,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -146,11 +146,11 @@ def make_segmented_control(options=None, current=None, parent=None):
                 (b"sliderWidth", self._slider_width, target.width()),
             ):
                 animation = QtCore.QPropertyAnimation(self, prop, group)
-                animation.setDuration(180)
+                animation.setDuration(220)
                 animation.setStartValue(start)
                 animation.setEndValue(end)
                 animation.setEasingCurve(
-                    QtCore.QEasingCurve.Type.OutCubic
+                    QtCore.QEasingCurve.Type.OutBack
                 )
                 group.addAnimation(animation)
             self._animation = group
