@@ -2711,6 +2711,8 @@ def make_compact_stepper(
     """Create a compact editable numeric stepper with Painter-style controls."""
     from PySide6 import QtCore, QtGui, QtWidgets
 
+    from .theme import default_theme
+
     class _CompactStepper(QtWidgets.QWidget):
         valueChanged = QtCore.Signal(object)
 
@@ -2740,21 +2742,24 @@ def make_compact_stepper(
             self._edit_text = self._formatted_value(self._value)
             self._replace_edit_text = False
             self._theme = {
-                "background": "#1b1b1b",
-                "text": "#e0e0e0",
-                "muted": "#9e9e9e",
-                "hover": "rgba(255, 255, 255, 0.04)",
+                "background": default_theme.surface,
+                "text": default_theme.text,
+                "muted": default_theme.text_muted,
+                "hover": default_theme.surface_child_hover,
             }
             self.setValue(value, emit=False)
 
         def setTheme(self, theme):
             self._theme = {
-                "background": theme.get("window_bg", "#1b1b1b"),
-                "text": theme.get("text", "#e0e0e0"),
-                "muted": theme.get("muted", theme.get("text_secondary", "#9e9e9e")),
+                "background": theme.get("window_bg", default_theme.surface),
+                "text": theme.get("text", default_theme.text),
+                "muted": theme.get(
+                    "muted",
+                    theme.get("text_secondary", default_theme.text_muted),
+                ),
                 "hover": theme.get(
                     "control_hover",
-                    theme.get("hover", "rgba(255, 255, 255, 0.04)"),
+                    theme.get("hover", default_theme.surface_child_hover),
                 ),
             }
             self.update()
@@ -2848,7 +2853,7 @@ def make_compact_stepper(
             return rect.adjusted(1, 1, -1, -1)
 
         def _hover_color(self):
-            color = self._theme.get("hover", "rgba(255, 255, 255, 0.04)")
+            color = self._theme.get("hover", default_theme.surface_child_hover)
             if isinstance(color, QtGui.QColor):
                 parsed = QtGui.QColor(color)
                 return self._composited_hover_color(parsed)
@@ -2869,9 +2874,9 @@ def make_compact_stepper(
         def _composited_hover_color(self, overlay):
             if overlay.alpha() >= 255:
                 return overlay
-            base = QtGui.QColor(self._theme.get("background", "#1b1b1b"))
+            base = QtGui.QColor(self._theme.get("background", default_theme.surface))
             if not base.isValid():
-                base = QtGui.QColor("#1b1b1b")
+                base = QtGui.QColor(default_theme.surface)
             alpha = overlay.alphaF()
             return QtGui.QColor(
                 round(overlay.red() * alpha + base.red() * (1 - alpha)),

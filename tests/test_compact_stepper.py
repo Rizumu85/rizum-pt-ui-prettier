@@ -42,6 +42,23 @@ class CompactStepperTests(unittest.TestCase):
         self.assertEqual(stepper.value(), 8)
         self.assertIsInstance(stepper.value(), int)
 
+    def test_default_hover_matches_pt_bridge_dark_theme(self):
+        shared_default = make_compact_stepper(8)
+        bridge_themed = make_compact_stepper(8)
+        bridge_themed.setTheme(
+            {
+                "window_bg": "#1b1b1b",
+                "text": "#e0e0e0",
+                "muted": "#9e9e9e",
+                "control_hover": "rgba(255, 255, 255, 0.08)",
+            }
+        )
+
+        self.assertEqual(
+            shared_default._hover_color().rgba(),
+            bridge_themed._hover_color().rgba(),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
