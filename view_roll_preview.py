@@ -613,16 +613,28 @@ class ShortcutCaptureField(QtWidgets.QFrame):
 class _RevealRow(QtWidgets.QFrame):
     """Height-animated collapsible row, mirroring the settings preview."""
 
-    def __init__(self, content, expanded_height, parent=None):
+    def __init__(
+        self,
+        content,
+        expanded_height,
+        parent=None,
+        fade_content=False,
+        duration=320,
+    ):
         super().__init__(parent)
         self.setObjectName("RizumViewRollReveal")
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAutoFillBackground(False)
         self._expanded_height = int(expanded_height)
+        self._duration = int(duration)
         self._progress = 1.0
         self._expanded = True
         self._animation = None
         self._geometry_callback = None
+        self._fade_effect = None
+        if fade_content:
+            self._fade_effect = QtWidgets.QGraphicsOpacityEffect(content)
+            content.setGraphicsEffect(self._fade_effect)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -645,6 +657,12 @@ class _RevealRow(QtWidgets.QFrame):
     def _sync_geometry(self):
         progress = max(0.0, min(1.0, self._progress))
         self.setFixedHeight(round(self._expanded_height * progress))
+        if self._fade_effect is not None:
+            # Keep clipped text quiet until enough row height exists to read
+            # it. This also turns Continuous <-> Custom into a soft crossfade
+            # instead of two labels visibly shearing through one another.
+            fade = max(0.0, min(1.0, (progress - 0.12) / 0.88))
+            self._fade_effect.setOpacity(fade * fade * (3.0 - 2.0 * fade))
         if self._geometry_callback is not None:
             self._geometry_callback(progress)
 
@@ -673,10 +691,16 @@ class _RevealRow(QtWidgets.QFrame):
             QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, not expanded
         )
         animation = QtCore.QPropertyAnimation(self, b"revealProgress", self)
-        animation.setDuration(max(120, round(320 * abs(target - self._progress))))
+        animation.setDuration(
+            max(100, round(self._duration * abs(target - self._progress)))
+        )
         animation.setStartValue(self._progress)
         animation.setEndValue(target)
-        animation.setEasingCurve(QtCore.QEasingCurve.Type.OutQuart)
+        animation.setEasingCurve(
+            QtCore.QEasingCurve.Type.InOutCubic
+            if self._fade_effect is not None
+            else QtCore.QEasingCurve.Type.OutQuart
+        )
         self._animation = animation
         animation.start()
 
@@ -782,7 +806,12 @@ QFrame#RizumPainterWindowContent {
         )
         speed_layout.addStretch(1)
         speed_layout.addWidget(self.speed_stepper)
-        self.speed_reveal = _RevealRow(speed_row, speed_row.height())
+        self.speed_reveal = _RevealRow(
+            speed_row,
+            speed_row.height(),
+            fade_content=self.design_variant == "codex",
+            duration=220 if self.design_variant == "codex" else 320,
+        )
         self.speed_reveal.setGeometryCallback(self._sync_dialog_height)
         self._body_layout.addWidget(self.speed_reveal)
 
@@ -797,7 +826,12 @@ QFrame#RizumPainterWindowContent {
         )
         angle_layout.addStretch(1)
         angle_layout.addWidget(self.angle_stepper)
-        self.angle_reveal = _RevealRow(angle_row, angle_row.height())
+        self.angle_reveal = _RevealRow(
+            angle_row,
+            angle_row.height(),
+            fade_content=self.design_variant == "codex",
+            duration=220 if self.design_variant == "codex" else 320,
+        )
         self.angle_reveal.setGeometryCallback(self._sync_dialog_height)
         self._body_layout.addWidget(self.angle_reveal)
 
