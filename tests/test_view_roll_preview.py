@@ -57,6 +57,18 @@ class ShortcutCaptureFieldTests(unittest.TestCase):
         self.assertFalse(field.isCapturing())
         self.assertEqual(field.shortcut(), "Alt+Left")
 
+    def test_capture_keeps_the_existing_field_width(self):
+        field = ShortcutCaptureField("Roll 3D Left")
+        self.addCleanup(field.deleteLater)
+        field.setShortcut("Alt+Left", emit=False)
+        resting_width = field.width()
+
+        field.startCapture()
+
+        self.assertEqual(field.width(), resting_width)
+        field.cancelCapture()
+        self.assertEqual(field.width(), resting_width)
+
 
 class ViewRollConceptPanelTests(unittest.TestCase):
     @classmethod

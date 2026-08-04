@@ -202,6 +202,9 @@ class ShortcutCaptureField(QtWidgets.QFrame):
     def _clear_slot_width(self):
         return self._scaled(22) if self._shortcut and not self._capturing else 0
 
+    def _reserved_clear_slot_width(self):
+        return self._scaled(22) if self._shortcut else 0
+
     def _clear_rect(self):
         slot = self._clear_slot_width()
         if not slot:
@@ -217,7 +220,7 @@ class ShortcutCaptureField(QtWidgets.QFrame):
         width = (
             self._scaled(10)
             + text_width
-            + self._clear_slot_width()
+            + self._reserved_clear_slot_width()
             + self._scaled(8)
         )
         return QtCore.QSize(max(self._scaled(64), width), self._compact_height)
