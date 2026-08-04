@@ -88,6 +88,39 @@ class SegmentedControlTests(unittest.TestCase):
                 QtCore.QEasingCurve.Type.OutBack,
             )
 
+    def test_theme_palette_is_configured_on_the_shared_component(self):
+        control = self.make_control()
+
+        control.setTheme(
+            {
+                "segment_bg": "#eaeaea",
+                "segment_slider_bg": "#ffffff",
+                "segment_active_text": "#1d1d1f",
+                "muted": "#86868b",
+                "hover": "rgba(0, 0, 0, 0.03)",
+            }
+        )
+
+        self.assertEqual(control._theme["track"].name(), "#eaeaea")
+        self.assertEqual(control._theme["slider"].name(), "#ffffff")
+        self.assertEqual(control._theme["active_text"].name(), "#1d1d1f")
+        self.assertEqual(control._theme["muted"].name(), "#86868b")
+
+    def test_pt_bridge_preview_uses_the_shared_segmented_control(self):
+        from preview import build_settings_preview
+
+        window = build_settings_preview(QtWidgets)
+        self.addCleanup(window.deleteLater)
+        controls = [
+            child
+            for child in window.findChildren(QtWidgets.QFrame)
+            if child.objectName() == "RizumSegmentedControl"
+        ]
+
+        self.assertEqual(len(controls), 1)
+        self.assertEqual(controls[0].currentData(), "dark")
+        self.assertTrue(hasattr(controls[0], "setTheme"))
+
 
 if __name__ == "__main__":
     unittest.main()

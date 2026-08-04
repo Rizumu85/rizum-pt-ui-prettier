@@ -50,61 +50,6 @@ DEFAULTS = {
 }
 
 
-def _fill_segmented_paint_event(control, event):
-    """Fill-driven paint for the shared segmented control.
-
-    The library paintEvent ends with a 1px focus outline; this dialog speaks
-    purely in fills, so focus raises the track fill instead of drawing a
-    stroke. ``make_segmented_control`` builds a fresh closure class per call,
-    so rebinding ``paintEvent`` only affects this panel's instance.
-    """
-    painter = QtGui.QPainter(control)
-    painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
-    if not control.isEnabled():
-        painter.setOpacity(0.45)
-
-    outer_radius = float(control._scaled(7, 5))
-    slider_radius = float(control._scaled(6, 5))
-    outer = QtCore.QRectF(control.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-
-    track = QtGui.QColor(default_theme.surface_control)
-    if control.hasFocus():
-        track = track.lighter(112)
-    painter.setPen(QtCore.Qt.PenStyle.NoPen)
-    painter.setBrush(track)
-    painter.drawRoundedRect(outer, outer_radius, outer_radius)
-
-    rects = control._segment_rects()
-    if (
-        0 <= control._hovered_index < len(rects)
-        and control._hovered_index != control._current_index
-    ):
-        painter.setBrush(QtGui.QColor(255, 255, 255, 13))
-        painter.drawRoundedRect(
-            rects[control._hovered_index], slider_radius, slider_radius
-        )
-
-    inset = float(control._scaled(2, 2))
-    slider = QtCore.QRectF(
-        control._slider_x,
-        inset,
-        control._slider_width,
-        max(0.0, control.height() - inset * 2.0),
-    )
-    painter.setBrush(QtGui.QColor(default_theme.accent))
-    painter.drawRoundedRect(slider, slider_radius, slider_radius)
-
-    painter.setFont(control._font())
-    for index, ((label, _data), rect) in enumerate(zip(control._items, rects)):
-        painter.setPen(
-            QtGui.QColor(default_theme.accent_text)
-            if index == control._current_index
-            else QtGui.QColor(default_theme.text_muted)
-        )
-        painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignCenter, label)
-    painter.end()
-
-
 def _copy_state(state):
     return {
         "mode": state["mode"],
@@ -554,9 +499,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.mode_segment = make_segmented_control(
             ROTATION_MODES, current=self._saved_state["mode"]
         )
-        # Fill-only restyle: drop the library's 1px focus outline (see the
-        # painter's docstring); track, selection, and hover stay as shipped.
-        type(self.mode_segment).paintEvent = _fill_segmented_paint_event
         mode_row, mode_layout = self._make_row()
         mode_layout.addWidget(self._make_name("Mode"))
         mode_layout.addStretch(1)

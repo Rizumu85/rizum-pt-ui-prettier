@@ -50,10 +50,63 @@ def make_segmented_control(options=None, current=None, parent=None):
             self._slider_x = 2.0
             self._slider_width = 0.0
             self._animation = None
+            self._theme = {}
+            self.setTheme({})
             self.setFixedHeight(base_height)
             self.setItems(options or [])
             if current is not None:
                 self.setCurrentData(current, emit=False)
+
+        def setTheme(self, theme):
+            theme = theme or {}
+
+            def color(keys, fallback):
+                for key in keys:
+                    if key in theme:
+                        value = theme[key]
+                        break
+                else:
+                    value = fallback
+                if isinstance(value, QtGui.QColor):
+                    return QtGui.QColor(value)
+                text = str(value).strip()
+                if text.startswith("rgba(") and text.endswith(")"):
+                    parts = [part.strip() for part in text[5:-1].split(",")]
+                    if len(parts) == 4:
+                        red, green, blue = (int(float(part)) for part in parts[:3])
+                        alpha_value = float(parts[3])
+                        alpha = (
+                            round(alpha_value * 255)
+                            if alpha_value <= 1
+                            else round(alpha_value)
+                        )
+                        return QtGui.QColor(
+                            red,
+                            green,
+                            blue,
+                            max(0, min(255, alpha)),
+                        )
+                return QtGui.QColor(text)
+
+            shadow = theme.get("segment_slider_shadow")
+            self._theme = {
+                "track": color(
+                    ("segment_bg", "secondary"),
+                    default_theme.surface_control,
+                ),
+                "slider": color(("segment_slider_bg",), default_theme.accent),
+                "active_text": color(
+                    ("segment_active_text",),
+                    default_theme.accent_text,
+                ),
+                "muted": color(
+                    ("muted", "text_secondary"),
+                    default_theme.text_muted,
+                ),
+                "hover": color(("hover",), default_theme.surface_hover),
+                "shadow": None if shadow is None else QtGui.QColor(shadow),
+            }
+            self.update()
 
         def getSliderX(self):
             return self._slider_x
@@ -335,8 +388,11 @@ def make_segmented_control(options=None, current=None, parent=None):
                 -0.5,
                 -0.5,
             )
+            track = QtGui.QColor(self._theme["track"])
+            if self.hasFocus():
+                track = track.lighter(112)
             painter.setPen(QtCore.Qt.PenStyle.NoPen)
-            painter.setBrush(QtGui.QColor(default_theme.surface_control))
+            painter.setBrush(track)
             painter.drawRoundedRect(outer, outer_radius, outer_radius)
 
             rects = self._segment_rects()
@@ -344,7 +400,7 @@ def make_segmented_control(options=None, current=None, parent=None):
                 0 <= self._hovered_index < len(rects)
                 and self._hovered_index != self._current_index
             ):
-                painter.setBrush(QtGui.QColor(255, 255, 255, 13))
+                painter.setBrush(self._theme["hover"])
                 painter.drawRoundedRect(
                     rects[self._hovered_index],
                     slider_radius,
@@ -357,7 +413,15 @@ def make_segmented_control(options=None, current=None, parent=None):
                 self._slider_width,
                 max(0.0, self.height() - self._scaled(2, 2) * 2.0),
             )
-            painter.setBrush(QtGui.QColor(default_theme.accent))
+            shadow = self._theme["shadow"]
+            if shadow is not None:
+                painter.setBrush(shadow)
+                painter.drawRoundedRect(
+                    slider.translated(0, self._scaled(1, 1)),
+                    slider_radius,
+                    slider_radius,
+                )
+            painter.setBrush(self._theme["slider"])
             painter.drawRoundedRect(
                 slider,
                 slider_radius,
@@ -369,9 +433,9 @@ def make_segmented_control(options=None, current=None, parent=None):
                 zip(self._items, rects)
             ):
                 painter.setPen(
-                    QtGui.QColor(default_theme.accent_text)
+                    self._theme["active_text"]
                     if index == self._current_index
-                    else QtGui.QColor(default_theme.text_muted)
+                    else self._theme["muted"]
                 )
                 painter.drawText(
                     rect,
@@ -379,16 +443,6 @@ def make_segmented_control(options=None, current=None, parent=None):
                     label,
                 )
 
-            if self.hasFocus():
-                painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
-                painter.setPen(
-                    QtGui.QPen(QtGui.QColor(default_theme.border), 1)
-                )
-                painter.drawRoundedRect(
-                    outer,
-                    outer_radius,
-                    outer_radius,
-                )
             painter.end()
 
     return _SegmentedControl()

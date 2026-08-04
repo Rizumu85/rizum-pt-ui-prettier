@@ -15,7 +15,6 @@ from view_roll_preview import (
     SHORTCUT_ACTIONS,
     ShortcutCaptureField,
     ViewRollConceptPanel,
-    _fill_segmented_paint_event,
 )
 
 REPRESENTATIVE_SCALES = (0.75, 1.0, 1.1, 1.5, 2.0)
@@ -476,7 +475,6 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
         """Focus raises the track fill; no 1px outline is ever drawn."""
         panel = self.make_panel(1.0)
         control = panel.mode_segment
-        self.assertIs(type(control).paintEvent, _fill_segmented_paint_event)
 
         def grab_focused(focused):
             if focused:

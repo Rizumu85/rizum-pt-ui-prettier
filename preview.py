@@ -41,6 +41,7 @@ from rizum_ui import (
     make_inline_checkbox_row,
     make_mock_checkbox,
     make_progress_panel,
+    make_segmented_control,
     make_spin_input,
     make_svg_label,
     set_compact_footer_button_width,
@@ -162,6 +163,7 @@ def reload_ui_kit():
     global make_inline_checkbox_row
     global make_mock_checkbox
     global make_progress_panel
+    global make_segmented_control
     global make_spin_input
     global make_svg_label
     global set_compact_footer_button_width
@@ -210,6 +212,7 @@ def reload_ui_kit():
     make_inline_checkbox_row = rizum_ui.make_inline_checkbox_row
     make_mock_checkbox = rizum_ui.make_mock_checkbox
     make_progress_panel = rizum_ui.make_progress_panel
+    make_segmented_control = rizum_ui.make_segmented_control
     make_spin_input = rizum_ui.make_spin_input
     make_svg_label = rizum_ui.make_svg_label
     set_compact_footer_button_width = rizum_ui.set_compact_footer_button_width
@@ -824,135 +827,6 @@ def build_settings_preview(QtWidgets):
         },
     }
 
-    class ThemeSegmentControl(_QtWidgets.QFrame):
-        def __init__(self):
-            super().__init__()
-            self._options = ["Light", "Dark", "System"]
-            self._padding = 2.0
-            self._widths = [54.55, 52.50, 67.88]
-            self._positions = [2.0, 56.55, 109.05]
-            self._active = 1
-            self._theme = themes["dark"]
-            self._animation = None
-            self._callback = None
-            self.setObjectName("RizumSettingsThemeSegment")
-            self.setFixedSize(179, 30)
-            self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-            self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
-            self._slider_x = self._positions[self._active]
-            self._slider_width = self._widths[self._active]
-
-        def setChangedCallback(self, callback):
-            self._callback = callback
-
-        def setTheme(self, theme):
-            self._theme = theme
-            self.update()
-
-        def getSliderX(self):
-            return self._slider_x
-
-        def setSliderX(self, value):
-            self._slider_x = float(value)
-            self.update()
-
-        def getSliderWidth(self):
-            return self._slider_width
-
-        def setSliderWidth(self, value):
-            self._slider_width = float(value)
-            self.update()
-
-        sliderX = QtCore.Property(float, getSliderX, setSliderX)
-        sliderWidth = QtCore.Property(float, getSliderWidth, setSliderWidth)
-
-        def setActive(self, name, animate=True, emit=False):
-            index = {"light": 0, "dark": 1, "system": 2}.get(str(name).lower(), 1)
-            if index == self._active and not emit:
-                self.update()
-                return
-            self._active = index
-            end_x = self._positions[index]
-            end_width = self._widths[index]
-            if self._animation is not None:
-                self._animation.stop()
-            if animate:
-                group = QtCore.QParallelAnimationGroup(self)
-                for prop, start, end in (
-                    (b"sliderX", self._slider_x, end_x),
-                    (b"sliderWidth", self._slider_width, end_width),
-                ):
-                    animation = QtCore.QPropertyAnimation(self, prop, self)
-                    animation.setDuration(220)
-                    animation.setStartValue(start)
-                    animation.setEndValue(end)
-                    animation.setEasingCurve(QtCore.QEasingCurve.Type.OutBack)
-                    group.addAnimation(animation)
-                self._animation = group
-                group.start()
-            else:
-                self._slider_x = end_x
-                self._slider_width = end_width
-                self.update()
-            if emit and self._callback is not None:
-                self._callback(self._options[index].lower())
-
-        def mousePressEvent(self, event):
-            if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                x = event.position().x()
-                for index, start in enumerate(self._positions):
-                    end = start + self._widths[index]
-                    if start <= x <= end:
-                        self.setActive(self._options[index].lower(), animate=True, emit=True)
-                        break
-            super().mousePressEvent(event)
-
-        def paintEvent(self, event):
-            painter = QtGui.QPainter(self)
-            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
-            painter.setPen(QtCore.Qt.PenStyle.NoPen)
-            painter.setBrush(self._theme["segment_bg"])
-            painter.drawRoundedRect(QtCore.QRectF(0, 0, self.width(), self.height()), 7, 7)
-            slider_rect = QtCore.QRectF(
-                self._slider_x,
-                self._padding,
-                self._slider_width,
-                self.height() - self._padding * 2.0,
-            )
-            shadow = self._theme.get("segment_slider_shadow")
-            if shadow is not None:
-                painter.setBrush(QtGui.QColor(shadow.red(), shadow.green(), shadow.blue(), 10))
-                painter.drawRoundedRect(slider_rect.translated(0, 2).adjusted(0, 0, 0, 1), 5, 5)
-                painter.setBrush(shadow)
-                painter.drawRoundedRect(slider_rect.translated(0, 1), 4, 4)
-            painter.setBrush(QtGui.QColor(self._theme["segment_slider_bg"]))
-            painter.drawRoundedRect(
-                slider_rect,
-                6,
-                6,
-            )
-            font = QtGui.QFont(self.font())
-            font.setPixelSize(12)
-            font.setWeight(QtGui.QFont.Weight.Medium)
-            painter.setFont(font)
-            for index, label in enumerate(self._options):
-                painter.setPen(
-                    QtGui.QColor(self._theme["segment_active_text"])
-                    if index == self._active
-                    else QtGui.QColor(self._theme["muted"])
-                )
-                painter.drawText(
-                    QtCore.QRectF(
-                        self._positions[index],
-                        self._padding,
-                        self._widths[index],
-                        self.height() - self._padding * 2.0,
-                    ),
-                    QtCore.Qt.AlignmentFlag.AlignCenter,
-                    label,
-                )
-            painter.end()
-
     class ToggleSwitch(_QtWidgets.QFrame):
         def __init__(self, on=False):
             super().__init__()
@@ -1184,7 +1058,10 @@ def build_settings_preview(QtWidgets):
     theme_layout.setContentsMargins(8, 5, 8, 5)
     theme_layout.addWidget(make_label("Theme", "RizumSettingsItemName"))
     theme_layout.addStretch(1)
-    theme_control = ThemeSegmentControl()
+    theme_control = make_segmented_control(
+        [("Light", "light"), ("Dark", "dark"), ("System", "system")],
+        current="dark",
+    )
     theme_layout.addWidget(theme_control)
     body_layout.addWidget(theme_row)
 
@@ -1419,7 +1296,7 @@ QFrame#RizumSettingsWindow QPushButton[variant="dialog-primary"]:pressed {{
         )
         theme_control.setTheme(theme)
         if update_control:
-            theme_control.setActive(name, animate=False)
+            theme_control.setCurrentData(name, animate=False, emit=False)
         stepper.setTheme(theme)
         for toggle in toggles:
             toggle.setTheme(theme)
@@ -1427,7 +1304,9 @@ QFrame#RizumSettingsWindow QPushButton[variant="dialog-primary"]:pressed {{
         browse_btn.setProperty("iconHoverColor", theme["text"])
         browse_btn.update()
 
-    theme_control.setChangedCallback(lambda name: apply_theme(name, update_control=False))
+    theme_control.currentDataChanged.connect(
+        lambda name: apply_theme(name, update_control=False)
+    )
     base_window_height = None
 
     def sync_window_height(reveal_progress=0.0):
