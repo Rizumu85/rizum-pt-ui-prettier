@@ -51,6 +51,37 @@ DEFAULTS = {
     },
 }
 
+DESIGN_VARIANTS = {
+    "original": {
+        "label": "Original",
+        "surface": default_theme.surface,
+    },
+    "codex": {
+        "label": "Codex",
+        "surface": "#202123",
+        "control": "#303236",
+        "control_hover": "#383a3e",
+        "text": "#f0f0f0",
+        "muted": "#a8acb2",
+        "faint": "#858a90",
+        "accent": "#f2f2f2",
+        "accent_text": "#202123",
+    },
+    "kimi": {
+        "label": "Kimi K3",
+        "surface": "#26282c",
+        "control": "#33363b",
+        "control_hover": "#3d4046",
+        "border": "#494d54",
+        "text": "#e6e8ea",
+        "muted": "#9ba0a6",
+        "faint": "#7e838a",
+        "accent": "#3a3e44",
+        "accent_text": "#f2f2f2",
+        "field_radius": 4,
+    },
+}
+
 _VIEW_ROLL_TEXT = {
     "zh_CN": {
         "title": "视图旋转设置",
@@ -112,10 +143,11 @@ class ShortcutCaptureField(QtWidgets.QFrame):
     BASE_HEIGHT = 30
     MIN_HEIGHT = 23  # BASE_HEIGHT x 0.75, per the font-scale contract
 
-    def __init__(self, action_name, parent=None):
+    def __init__(self, action_name, parent=None, visual_style=None):
         super().__init__(parent)
         self.setObjectName("RizumShortcutCapture")
         self._action_name = action_name
+        self._visual_style = dict(visual_style or {})
         self._shortcut = ""
         self._capturing = False
         self._conflicted = False
@@ -351,12 +383,15 @@ class ShortcutCaptureField(QtWidgets.QFrame):
         painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
 
         theme = default_theme
-        radius = float(self._scaled(6))
+        radius = float(self._scaled(self._visual_style.get("field_radius", 6)))
         rect = QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
 
-        background = QtGui.QColor(theme.surface_control)
+        background = QtGui.QColor(
+            self._visual_style.get("control", theme.surface_control)
+        )
         if self._hovered or self._capturing:
-            background = background.lighter(112)
+            hover = self._visual_style.get("control_hover")
+            background = QtGui.QColor(hover) if hover else background.lighter(112)
         painter.setPen(QtCore.Qt.PenStyle.NoPen)
         painter.setBrush(background)
         painter.drawRoundedRect(rect, radius, radius)
@@ -368,6 +403,8 @@ class ShortcutCaptureField(QtWidgets.QFrame):
             border_color = QtGui.QColor(theme.warning)
         elif self.hasFocus():
             border_color = QtGui.QColor(theme.border)
+        elif self._visual_style.get("border"):
+            border_color = QtGui.QColor(self._visual_style["border"])
         if border_color is not None:
             painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
             painter.setPen(QtGui.QPen(border_color, 1))
@@ -377,11 +414,15 @@ class ShortcutCaptureField(QtWidgets.QFrame):
         if self._conflicted and not self._capturing:
             text_color = QtGui.QColor(theme.warning)
         elif self._capturing:
-            text_color = QtGui.QColor(theme.text_muted)
+            text_color = QtGui.QColor(
+                self._visual_style.get("muted", theme.text_muted)
+            )
         elif self._shortcut:
-            text_color = QtGui.QColor(theme.text)
+            text_color = QtGui.QColor(self._visual_style.get("text", theme.text))
         else:
-            text_color = QtGui.QColor(theme.text_faint)
+            text_color = QtGui.QColor(
+                self._visual_style.get("faint", theme.text_faint)
+            )
         font = self._font()
         painter.setFont(font)
         painter.setPen(text_color)
@@ -403,9 +444,11 @@ class ShortcutCaptureField(QtWidgets.QFrame):
         clear_rect = self._clear_rect()
         if not clear_rect.isEmpty():
             glyph_color = (
-                QtGui.QColor(theme.text)
+                QtGui.QColor(self._visual_style.get("text", theme.text))
                 if self._hover_clear
-                else QtGui.QColor(theme.text_faint)
+                else QtGui.QColor(
+                    self._visual_style.get("faint", theme.text_faint)
+                )
             )
             scale = self._scale()
             pen = QtGui.QPen(glyph_color, max(1.2, 1.4 * scale))
@@ -498,9 +541,14 @@ class _RevealRow(QtWidgets.QFrame):
 class ViewRollConceptPanel(QtWidgets.QWidget):
     """Tab content for the View Roll settings concept."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, design_variant="original"):
         super().__init__(parent)
         self.setObjectName("RizumViewRollPreview")
+        if design_variant not in DESIGN_VARIANTS:
+            raise ValueError(f"Unknown View Roll design variant: {design_variant}")
+        self.design_variant = design_variant
+        self._visual_style = DESIGN_VARIANTS[design_variant]
+        self.setProperty("designVariant", design_variant)
         self._saved_state = _copy_state(DEFAULTS)
         self._base_height = None
         self._design_dialog_width = None
@@ -523,7 +571,19 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         )
         surface_layout.addWidget(self.native_title_bar)
 
-        content = make_painter_window_content(default_theme.surface)
+        content = make_painter_window_content(self._visual_style["surface"])
+        if self.design_variant == "kimi":
+            content.setStyleSheet(
+                content.styleSheet()
+                + """
+QFrame#RizumPainterWindowContent {
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
+    border-bottom-left-radius: 2px;
+    border-bottom-right-radius: 2px;
+}
+"""
+            )
         content_layout = content.contentLayout()
         surface_layout.addWidget(content, 1)
 
@@ -546,6 +606,18 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.mode_segment = make_segmented_control(
             localized_modes, current=self._saved_state["mode"]
         )
+        if self.design_variant != "original":
+            segment_theme = {
+                "segment_bg": self._visual_style["control"],
+                "segment_slider_bg": self._visual_style["accent"],
+                "segment_active_text": self._visual_style["accent_text"],
+                "muted": self._visual_style["muted"],
+                "hover": self._visual_style["control_hover"],
+            }
+            if self.design_variant == "kimi":
+                segment_theme["segment_slider_border"] = "#565b63"
+                self.mode_segment.setCornerRadius(4)
+            self.mode_segment.setTheme(segment_theme)
         mode_row, mode_layout = self._make_row()
         mode_layout.addWidget(self._make_name(_preview_text("mode", "Mode")))
         mode_layout.addStretch(1)
@@ -555,6 +627,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.speed_stepper = make_compact_stepper(
             self._saved_state["speed"], minimum=1, maximum=360, step=5, decimals=0
         )
+        self._theme_stepper(self.speed_stepper)
         speed_row, speed_layout = self._make_row(tall=True)
         self.speed_texts = self._make_texts(_preview_text("speed", "Speed"), "°/s")
         speed_layout.addWidget(
@@ -569,6 +642,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.angle_stepper = make_compact_stepper(
             self._saved_state["angle"], minimum=1, maximum=180, step=1, decimals=0
         )
+        self._theme_stepper(self.angle_stepper)
         angle_row, angle_layout = self._make_row(tall=True)
         self.angle_texts = self._make_texts(_preview_text("angle", "Angle"), "°")
         angle_layout.addWidget(
@@ -588,7 +662,12 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.shortcut_fields = {}
         for action_id, action_name in SHORTCUT_ACTIONS:
             action_name = _preview_text(action_id, action_name)
-            field = ShortcutCaptureField(action_name)
+            field = ShortcutCaptureField(
+                action_name,
+                visual_style=(
+                    self._visual_style if self.design_variant != "original" else None
+                ),
+            )
             field.setShortcut(self._saved_state["shortcuts"][action_id], emit=False)
             install_compact_tooltip(
                 field,
@@ -649,12 +728,15 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.restore_button = ActionButton.create(
             _preview_text("restore", "Restore"), "dialog-secondary"
         )
+        self.restore_button.setObjectName("RizumViewRollRestore")
         self.cancel_button = ActionButton.create(
             _preview_text("cancel", "Cancel"), "dialog-secondary"
         )
+        self.cancel_button.setObjectName("RizumViewRollCancel")
         self.save_button = ActionButton.create(
             _preview_text("save", "Save"), "dialog-primary"
         )
+        self.save_button.setObjectName("RizumViewRollSave")
         self._button_layout.addWidget(self.restore_button)
         self._button_layout.addStretch(1)
         self._button_layout.addWidget(self.cancel_button)
@@ -685,11 +767,29 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
     # --- widget helpers -------------------------------------------------
 
+    def _theme_stepper(self, stepper):
+        if self.design_variant == "original":
+            return
+        stepper.setTheme(
+            {
+                "window_bg": self._visual_style["surface"],
+                "text": self._visual_style["text"],
+                "muted": self._visual_style["muted"],
+                "control_hover": self._visual_style["control_hover"],
+            }
+        )
+
     def _make_section(self, text, first=False):
         label = QtWidgets.QLabel(text.upper())
         label.setObjectName("RizumSettingsSection")
         label._rizum_first = first
-        label.setFixedHeight(28 if first else 40)
+        if self.design_variant == "codex":
+            height = 32 if first else 36
+        elif self.design_variant == "kimi":
+            height = 26 if first else 30
+        else:
+            height = 28 if first else 40
+        label.setFixedHeight(height)
         return label
 
     def _make_name(self, text):
@@ -727,9 +827,15 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
     def _make_row(self, tall=False):
         row = QtWidgets.QFrame()
         row.setObjectName("RizumViewRollRow")
-        row.setFixedHeight(46 if tall else 40)
+        if self.design_variant == "kimi":
+            row.setFixedHeight(42 if tall else 36)
+        else:
+            row.setFixedHeight(46 if tall else 40)
         layout = QtWidgets.QHBoxLayout(row)
-        layout.setContentsMargins(8, 5, 8, 5)
+        if self.design_variant == "kimi":
+            layout.setContentsMargins(0, 4, 0, 4)
+        else:
+            layout.setContentsMargins(8, 5, 8, 5)
         layout.setSpacing(8)
         return row, layout
 
@@ -902,14 +1008,63 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
     def _apply_scale(self):
         """Scale every row, control, and footer button from the dialog scale."""
-        row_height = self._metric(40, 30)
-        tall_height = self._metric(46, 35)
+        if self.design_variant == "kimi":
+            row_base, tall_base = 36, 42
+            body_margins = (20, 12, 20, 14)
+            row_margins = (0, 4, 0, 4)
+            section_heights = (26, 30)
+            control_heights = (28, 28, 28)
+            footer_values = (20, 8, 8, 32, 16)
+        elif self.design_variant == "codex":
+            row_base, tall_base = 40, 46
+            body_margins = (16, 12, 16, 20)
+            row_margins = (8, 5, 8, 5)
+            section_heights = (32, 36)
+            control_heights = (30, 32, 30)
+            footer_values = (20, 8, 8, 36, 20)
+        else:
+            row_base, tall_base = 40, 46
+            body_margins = (12, 8, 12, 16)
+            row_margins = (8, 5, 8, 5)
+            section_heights = (28, 40)
+            control_heights = (30, 32, 30)
+            footer_values = (
+                PAINTER_FOOTER_MARGIN_X,
+                6,
+                8,
+                36,
+                PAINTER_FOOTER_MARGIN_BOTTOM,
+            )
+
+        if self.design_variant == "original":
+            row_height = self._metric(40, 30)
+            tall_height = self._metric(46, 35)
+        else:
+            row_height = self._metric(row_base, round(row_base * 0.75))
+            tall_height = self._metric(tall_base, round(tall_base * 0.75))
         status_height = self._metric(22, 17)
-        buttons_height = self._metric(36, 27)
-        footer_margin = self._metric(PAINTER_FOOTER_MARGIN_X, 12)
-        footer_gap = self._metric(8, 6)
-        footer_top = self._metric(6, 5)
-        footer_bottom = self._metric(PAINTER_FOOTER_MARGIN_BOTTOM, 11)
+        if self.design_variant == "original":
+            footer_margin = self._metric(PAINTER_FOOTER_MARGIN_X, 12)
+            footer_top = self._metric(6, 5)
+            footer_gap = self._metric(8, 6)
+            buttons_height = self._metric(36, 27)
+            footer_bottom = self._metric(PAINTER_FOOTER_MARGIN_BOTTOM, 11)
+        else:
+            footer_margin = self._metric(
+                footer_values[0], round(footer_values[0] * 0.75)
+            )
+            footer_top = self._metric(
+                footer_values[1], round(footer_values[1] * 0.75)
+            )
+            footer_gap = self._metric(
+                footer_values[2], round(footer_values[2] * 0.75)
+            )
+            buttons_height = self._metric(
+                footer_values[3], round(footer_values[3] * 0.75)
+            )
+            footer_bottom = self._metric(
+                footer_values[4], round(footer_values[4] * 0.75)
+            )
 
         # The footer breathes like the body does: air around the separator,
         # the status hint, and below the buttons. Horizontal margins stay put.
@@ -925,14 +1080,26 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self._button_row.setFixedHeight(buttons_height)
         self._status_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
         self._button_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
-        self._section_rotation.setFixedHeight(self._metric(28, 21))
-        self._section_shortcuts.setFixedHeight(self._metric(40, 30))
-        self._body_layout.setContentsMargins(
-            self._metric(12, 9),
-            self._metric(8, 6),
-            self._metric(12, 9),
-            self._metric(16, 12),
+        self._section_rotation.setFixedHeight(
+            self._metric(section_heights[0], round(section_heights[0] * 0.75))
         )
+        self._section_shortcuts.setFixedHeight(
+            self._metric(section_heights[1], round(section_heights[1] * 0.75))
+        )
+        self._body_layout.setContentsMargins(
+            *(
+                self._metric(value, round(value * 0.75))
+                for value in body_margins
+            )
+        )
+        if self.design_variant != "original":
+            for row in self.findChildren(QtWidgets.QFrame, "RizumViewRollRow"):
+                row.layout().setContentsMargins(
+                    *(
+                        self._metric(value, round(value * 0.75))
+                        for value in row_margins
+                    )
+                )
         for label in self._name_labels:
             base_width = label._rizum_base_width
             label.setFixedWidth(
@@ -952,11 +1119,29 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
                 name_metrics.height() + texts_spacing + meta_metrics.height()
             )
 
-        self.mode_segment.setCompactHeight(self._metric(30, 23))
-        self.speed_stepper.setCompactHeight(self._metric(32, 24))
-        self.angle_stepper.setCompactHeight(self._metric(32, 24))
+        if self.design_variant == "original":
+            self.mode_segment.setCompactHeight(self._metric(30, 23))
+            self.speed_stepper.setCompactHeight(self._metric(32, 24))
+            self.angle_stepper.setCompactHeight(self._metric(32, 24))
+        else:
+            self.mode_segment.setCompactHeight(
+                self._metric(control_heights[0], round(control_heights[0] * 0.75))
+            )
+            self.speed_stepper.setCompactHeight(
+                self._metric(control_heights[1], round(control_heights[1] * 0.75))
+            )
+            self.angle_stepper.setCompactHeight(
+                self._metric(control_heights[1], round(control_heights[1] * 0.75))
+            )
         for field in self.shortcut_fields.values():
-            field.setCompactHeight(self._metric(30, 23))
+            if self.design_variant == "original":
+                field.setCompactHeight(self._metric(30, 23))
+            else:
+                field.setCompactHeight(
+                    self._metric(
+                        control_heights[2], round(control_heights[2] * 0.75)
+                    )
+                )
             if hasattr(field, "setCompactTooltipScale"):
                 field.setCompactTooltipScale(self.dialog.settingsUiScale())
 
@@ -971,7 +1156,10 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         for field in self.shortcut_fields.values():
             field.parentWidget().setFixedHeight(row_height)
 
-        footer_button_height = self._metric(26, 20)
+        footer_button_base = 28 if self.design_variant == "kimi" else 26
+        footer_button_height = self._metric(
+            footer_button_base, round(footer_button_base * 0.75)
+        )
         for button, minimum, maximum in (
             (self.restore_button, 56, 112),
             (self.cancel_button, 56, 96),
@@ -1016,10 +1204,20 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
     def _required_dialog_width(self):
         scale = self.dialog.settingsUiScale()
         base = self._metric(300, 240)
-        footer_margin = self._metric(16, 12)
-        row_margin = 8
+        footer_margin_base = 20 if self.design_variant != "original" else 16
+        footer_margin = self._metric(
+            footer_margin_base, round(footer_margin_base * 0.75)
+        )
+        row_margin = 0 if self.design_variant == "kimi" else 8
         row_spacing = 8
-        body_margin = self._metric(12, 9)
+        body_margin_base = {
+            "original": 12,
+            "codex": 16,
+            "kimi": 20,
+        }[self.design_variant]
+        body_margin = self._metric(
+            body_margin_base, round(body_margin_base * 0.75)
+        )
 
         button_spacing = self._button_layout.spacing()
         buttons_width = sum(
@@ -1066,6 +1264,42 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
     def _restyle(self):
         theme = default_theme
         hint_px = self._metric(11)
+        text = self._visual_style.get("text", theme.text)
+        muted = self._visual_style.get("muted", theme.text_muted)
+        faint = self._visual_style.get("faint", theme.text_faint)
+        control = self._visual_style.get("control", theme.surface_control)
+        control_hover = self._visual_style.get("control_hover", "#3b3b3b")
+        accent = self._visual_style.get("accent", theme.accent)
+        accent_text = self._visual_style.get("accent_text", theme.accent_text)
+        button_radius = 4 if self.design_variant == "kimi" else 13
+        variant_rules = ""
+        if self.design_variant != "original":
+            variant_rules = f"""
+QLabel#RizumSettingsSection {{
+    color: {faint};
+}}
+QLabel#RizumSettingsItemName {{
+    color: {text};
+}}
+QLabel#RizumSettingsItemMeta {{
+    color: {muted};
+}}
+QPushButton#RizumViewRollRestore,
+QPushButton#RizumViewRollCancel {{
+    color: {text};
+    background: {control};
+    border-radius: {button_radius}px;
+}}
+QPushButton#RizumViewRollRestore:hover,
+QPushButton#RizumViewRollCancel:hover {{
+    background: {control_hover};
+}}
+QPushButton#RizumViewRollSave {{
+    color: {accent_text};
+    background: {accent};
+    border-radius: {button_radius}px;
+}}
+"""
         # Rebuild the dialog's base stylesheet first so repeated restyles
         # never stack duplicate concept rules on top of each other.
         self.dialog._update_surface_stylesheet()
@@ -1090,6 +1324,7 @@ QFrame#RizumViewRollRow {{
     border: 0;
     border-radius: 6px;
 }}
+{variant_rules}
 QLabel#RizumSettingsFooterHint[tone="warn"] {{
     color: {theme.warning};
 }}
@@ -1101,6 +1336,21 @@ QLabel#RizumViewRollScaleHint {{
 }}
 """
         )
+        if self.design_variant == "kimi":
+            surface.setStyleSheet(
+                surface.styleSheet()
+                + """
+QPushButton#RizumViewRollRestore {
+    color: #8f949b;
+    background: transparent;
+    border: 0;
+}
+QPushButton#RizumViewRollCancel {
+    background: transparent;
+    border: 1px solid #4a4e55;
+}
+"""
+            )
 
     # --- geometry ---------------------------------------------------------
 
@@ -1150,6 +1400,66 @@ QLabel#RizumViewRollScaleHint {{
         self.dialog.setFixedHeight(self._base_height + self._current_extra_height())
 
 
+class ViewRollComparisonPanel(QtWidgets.QScrollArea):
+    """Side-by-side comparison of the shipped, Codex, and Kimi directions."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("RizumViewRollComparison")
+        self.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        self.setWidgetResizable(True)
+        self.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setStyleSheet(
+            """
+QScrollArea#RizumViewRollComparison,
+QWidget#RizumViewRollComparisonCanvas,
+QWidget#RizumViewRollComparisonColumn {
+    background: transparent;
+    border: 0;
+}
+QLabel#RizumViewRollComparisonLabel {
+    color: #858a90;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font-size: 11px;
+    font-weight: 500;
+}
+"""
+        )
+
+        canvas = QtWidgets.QWidget()
+        canvas.setObjectName("RizumViewRollComparisonCanvas")
+        row = QtWidgets.QHBoxLayout(canvas)
+        row.setContentsMargins(0, 0, 0, 12)
+        row.setSpacing(12)
+        row.addStretch(1)
+
+        self.panels = {}
+        for variant in ("original", "codex", "kimi"):
+            column = QtWidgets.QWidget()
+            column.setObjectName("RizumViewRollComparisonColumn")
+            column_layout = QtWidgets.QVBoxLayout(column)
+            column_layout.setContentsMargins(0, 0, 0, 0)
+            column_layout.setSpacing(8)
+            label = QtWidgets.QLabel(DESIGN_VARIANTS[variant]["label"].upper())
+            label.setObjectName("RizumViewRollComparisonLabel")
+            label.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+            panel = ViewRollConceptPanel(design_variant=variant)
+            self.panels[variant] = panel
+            column_layout.addWidget(label)
+            column_layout.addWidget(panel)
+            column_layout.addStretch(1)
+            row.addWidget(column, 0, QtCore.Qt.AlignmentFlag.AlignTop)
+
+        row.addStretch(1)
+        canvas.setMinimumSize(row.sizeHint())
+        self.setWidget(canvas)
+
+
 def build_view_roll_preview(QtWidgets):
-    """Build the View Roll Concept tab content for the standalone preview."""
-    return ViewRollConceptPanel()
+    """Build the View Roll Concept comparison for the standalone preview."""
+    return ViewRollComparisonPanel()

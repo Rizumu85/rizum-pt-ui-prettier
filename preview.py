@@ -2012,10 +2012,8 @@ def build_preview(window, QtWidgets, watch_enabled, rebuild_callback=None):
     view_roll_layout.setSpacing(0)
     view_roll_layout.addWidget(
         view_roll_preview.build_view_roll_preview(QtWidgets),
-        0,
-        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+        1,
     )
-    view_roll_layout.addStretch(1)
     tabs.addTab(view_roll_page, preview_text("view_roll", "View Roll Concept"))
 
     tab_index = int(window.property("rizumPreviewTabIndex") or 0)

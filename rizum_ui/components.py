@@ -55,6 +55,7 @@ def make_segmented_control(options=None, current=None, parent=None):
             self._slider_x = 2.0
             self._slider_width = 0.0
             self._animation = None
+            self._corner_radius = None
             self._theme = {}
             self.setTheme({})
             self.setFixedHeight(base_height)
@@ -110,7 +111,17 @@ def make_segmented_control(options=None, current=None, parent=None):
                 ),
                 "hover": color(("hover",), default_theme.surface_hover),
                 "shadow": None if shadow is None else QtGui.QColor(shadow),
+                "slider_border": (
+                    None
+                    if theme.get("segment_slider_border") is None
+                    else color(("segment_slider_border",), default_theme.border)
+                ),
             }
+            self.update()
+
+        def setCornerRadius(self, radius):
+            """Override the painted track radius while retaining scale support."""
+            self._corner_radius = max(0.0, float(radius))
             self.update()
 
         def getSliderX(self):
@@ -385,8 +396,20 @@ def make_segmented_control(options=None, current=None, parent=None):
             if not self.isEnabled():
                 painter.setOpacity(0.45)
 
-            outer_radius = float(self._scaled(7, 5))
-            slider_radius = float(self._scaled(6, 5))
+            if self._corner_radius is None:
+                outer_radius = float(self._scaled(7, 5))
+                slider_radius = float(self._scaled(6, 5))
+            else:
+                outer_radius = float(
+                    self._scaled(
+                        self._corner_radius,
+                        int(self._corner_radius * 0.75 + 0.5),
+                    )
+                )
+                slider_base = max(0.0, self._corner_radius - 1.0)
+                slider_radius = float(
+                    self._scaled(slider_base, int(slider_base * 0.75 + 0.5))
+                )
             outer = QtCore.QRectF(self.rect()).adjusted(
                 0.5,
                 0.5,
@@ -432,6 +455,15 @@ def make_segmented_control(options=None, current=None, parent=None):
                 slider_radius,
                 slider_radius,
             )
+            if self._theme["slider_border"] is not None:
+                painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+                painter.setPen(QtGui.QPen(self._theme["slider_border"], 1))
+                painter.drawRoundedRect(
+                    slider.adjusted(0.5, 0.5, -0.5, -0.5),
+                    slider_radius,
+                    slider_radius,
+                )
+                painter.setPen(QtCore.Qt.PenStyle.NoPen)
 
             painter.setFont(self._font())
             for index, ((label, _data), rect) in enumerate(

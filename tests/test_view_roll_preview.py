@@ -12,8 +12,10 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from rizum_ui import FOOTER_BUTTON_PADDING_X, PAINTER_FOOTER_MARGIN_BOTTOM
 
 from view_roll_preview import (
+    DESIGN_VARIANTS,
     SHORTCUT_ACTIONS,
     ShortcutCaptureField,
+    ViewRollComparisonPanel,
     ViewRollConceptPanel,
 )
 
@@ -196,6 +198,40 @@ class ViewRollConceptPanelTests(unittest.TestCase):
             panel.dialog.height(),
             32 + round((base_size.height() - 32) * 1.1),
             delta=1,
+        )
+
+
+class ViewRollComparisonPanelTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        cls.app.setProperty("rizumUiFontScale", 1.0)
+
+    def test_comparison_contains_all_three_independent_directions(self):
+        comparison = ViewRollComparisonPanel()
+        self.addCleanup(comparison.deleteLater)
+
+        self.assertEqual(list(comparison.panels), ["original", "codex", "kimi"])
+        self.assertEqual(
+            [panel.design_variant for panel in comparison.panels.values()],
+            ["original", "codex", "kimi"],
+        )
+        self.assertEqual(len(set(map(id, comparison.panels.values()))), 3)
+
+    def test_original_stays_default_while_alternatives_apply_their_tokens(self):
+        original = ViewRollConceptPanel(design_variant="original")
+        codex = ViewRollConceptPanel(design_variant="codex")
+        kimi = ViewRollConceptPanel(design_variant="kimi")
+        for panel in (original, codex, kimi):
+            self.addCleanup(panel.deleteLater)
+
+        self.assertIsNone(original.mode_segment._corner_radius)
+        self.assertEqual(codex._visual_style["surface"], "#202123")
+        self.assertEqual(kimi.mode_segment._corner_radius, 4)
+        self.assertEqual(kimi._visual_style["surface"], "#26282c")
+        self.assertEqual(
+            [DESIGN_VARIANTS[key]["label"] for key in ("original", "codex", "kimi")],
+            ["Original", "Codex", "Kimi K3"],
         )
 
 
