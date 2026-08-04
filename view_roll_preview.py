@@ -13,14 +13,17 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from rizum_ui import (
     FOOTER_BUTTON_PADDING_X,
+    PAINTER_FOOTER_MARGIN_BOTTOM,
+    PAINTER_FOOTER_MARGIN_X,
+    PAINTER_TITLE_BAR_HEIGHT,
     ActionButton,
     PainterSettingsDialog,
     install_compact_tooltip,
     make_compact_stepper,
     make_inset_separator,
+    make_painter_title_bar,
     make_segmented_control,
     make_spin_input,
-    make_svg_label,
     set_compact_footer_button_width,
 )
 from rizum_ui.theme import default_theme
@@ -474,6 +477,9 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
         surface_layout = self.dialog.settingsSurfaceLayout()
 
+        self.native_title_bar = make_painter_title_bar("View Roll Settings")
+        surface_layout.addWidget(self.native_title_bar)
+
         header = QtWidgets.QWidget()
         header.setObjectName("RizumViewRollHeader")
         self._header = header
@@ -484,7 +490,6 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         title.setObjectName("RizumViewRollTitle")
         header_layout.addWidget(title)
         header_layout.addStretch(1)
-        header_layout.addWidget(make_svg_label("x.svg", 14))
         surface_layout.addWidget(header)
         surface_layout.addWidget(make_inset_separator(12, 1))
 
@@ -869,10 +874,14 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         tall_height = self._metric(46, 35)
         status_height = self._metric(22, 17)
         buttons_height = self._metric(36, 27)
-        footer_margin = self._metric(16, 12)
+        footer_margin = self._metric(PAINTER_FOOTER_MARGIN_X, 12)
         footer_gap = self._metric(8, 6)
         footer_top = self._metric(6, 5)
-        footer_bottom = self._metric(12, 9)
+        footer_bottom = self._metric(PAINTER_FOOTER_MARGIN_BOTTOM, 11)
+
+        self.native_title_bar.setCompactHeight(
+            self._metric(PAINTER_TITLE_BAR_HEIGHT, 24)
+        )
 
         self._header.setFixedHeight(header_height)
         # The footer breathes like the body does: air around the separator,

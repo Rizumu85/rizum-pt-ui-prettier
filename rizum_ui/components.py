@@ -17,6 +17,9 @@ COMPACT_DOCK_CARD_BG = "#1b1b1b"
 COMPACT_DOCK_CARD_RADIUS = 10
 FOOTER_BUTTON_HEIGHT = 26
 FOOTER_BUTTON_PADDING_X = 8
+PAINTER_FOOTER_MARGIN_X = 16
+PAINTER_FOOTER_MARGIN_BOTTOM = 14
+PAINTER_TITLE_BAR_HEIGHT = 32
 
 
 def make_segmented_control(options=None, current=None, parent=None):
@@ -1953,6 +1956,93 @@ def make_inset_separator(inset, thickness=2):
     )
     wrapper_layout.addWidget(line)
     return wrapper
+
+
+def make_painter_title_bar(title, parent=None):
+    """Create preview chrome matching Painter's native light title bar."""
+    from PySide6 import QtCore, QtGui, QtWidgets
+
+    base_height = PAINTER_TITLE_BAR_HEIGHT
+    minimum_height = round(base_height * 0.75)
+
+    class _PainterTitleBar(QtWidgets.QWidget):
+        def __init__(self):
+            super().__init__(parent)
+            self.setObjectName("RizumPainterTitleBar")
+            self._compact_height = base_height
+            self._layout = QtWidgets.QHBoxLayout(self)
+            self._layout.setSpacing(8)
+
+            self._app_icon = QtWidgets.QLabel("Pt")
+            self._app_icon.setObjectName("RizumPainterTitleBarIcon")
+            self._app_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            self._title = QtWidgets.QLabel(str(title))
+            self._title.setObjectName("RizumPainterTitleBarText")
+            self._close = QtWidgets.QLabel("×")
+            self._close.setObjectName("RizumPainterTitleBarClose")
+            self._close.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+
+            self._layout.addWidget(self._app_icon)
+            self._layout.addWidget(self._title)
+            self._layout.addStretch(1)
+            self._layout.addWidget(self._close)
+            self.setCompactHeight(base_height)
+
+        def setCompactHeight(self, height):
+            self._compact_height = max(minimum_height, int(round(height)))
+            scale = self._compact_height / float(base_height)
+            icon_size = max(12, int(round(16 * scale)))
+            close_size = max(16, int(round(22 * scale)))
+            self.setFixedHeight(self._compact_height)
+            self._layout.setContentsMargins(
+                max(8, int(round(10 * scale))),
+                0,
+                max(6, int(round(7 * scale))),
+                0,
+            )
+            self._layout.setSpacing(max(6, int(round(8 * scale))))
+            self._app_icon.setFixedSize(icon_size, icon_size)
+            self._close.setFixedSize(close_size, close_size)
+
+            title_font = QtGui.QFont(self.font())
+            title_font.setPixelSize(max(10, int(round(12 * scale))))
+            title_font.setWeight(QtGui.QFont.Weight.Normal)
+            self._title.setFont(title_font)
+            close_font = QtGui.QFont(title_font)
+            close_font.setPixelSize(max(14, int(round(18 * scale))))
+            self._close.setFont(close_font)
+            icon_font = QtGui.QFont(title_font)
+            icon_font.setPixelSize(max(7, int(round(8 * scale))))
+            icon_font.setWeight(QtGui.QFont.Weight.Bold)
+            self._app_icon.setFont(icon_font)
+
+            radius = max(6, int(round(8 * scale)))
+            icon_radius = max(2, int(round(2 * scale)))
+            self.setStyleSheet(
+                f"""
+                QWidget#RizumPainterTitleBar {{
+                    background: #f5f5f5;
+                    border: 0;
+                    border-top-left-radius: {radius}px;
+                    border-top-right-radius: {radius}px;
+                }}
+                QLabel#RizumPainterTitleBarText,
+                QLabel#RizumPainterTitleBarClose {{
+                    color: #1b1b1b;
+                    background: transparent;
+                    border: 0;
+                }}
+                QLabel#RizumPainterTitleBarIcon {{
+                    color: #10220d;
+                    background: #63b64b;
+                    border: 0;
+                    border-radius: {icon_radius}px;
+                }}
+                """
+            )
+            self.updateGeometry()
+
+    return _PainterTitleBar()
 
 
 def make_icon_button(icon_name, tooltip="", size=16, compact=True):

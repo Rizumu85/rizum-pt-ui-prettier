@@ -14,6 +14,8 @@ from rizum_ui import (
     COMPACT_DOCK_DEFAULT_HEIGHT,
     COMPACT_DOCK_DEFAULT_WIDTH,
     COMPACT_DOCK_MIN_WIDTH,
+    PAINTER_FOOTER_MARGIN_BOTTOM,
+    PAINTER_FOOTER_MARGIN_X,
     animate_drag_tree_item_added,
     apply_compact_dock_surface,
     apply_painter_like_base,
@@ -41,6 +43,7 @@ from rizum_ui import (
     make_inline_checkbox_row,
     make_mock_checkbox,
     make_progress_panel,
+    make_painter_title_bar,
     make_segmented_control,
     make_spin_input,
     make_svg_label,
@@ -136,6 +139,8 @@ def reload_ui_kit():
     global COMPACT_DOCK_DEFAULT_HEIGHT
     global COMPACT_DOCK_DEFAULT_WIDTH
     global COMPACT_DOCK_MIN_WIDTH
+    global PAINTER_FOOTER_MARGIN_BOTTOM
+    global PAINTER_FOOTER_MARGIN_X
     global animate_drag_tree_item_added
     global apply_compact_dock_surface
     global apply_painter_like_base
@@ -163,6 +168,7 @@ def reload_ui_kit():
     global make_inline_checkbox_row
     global make_mock_checkbox
     global make_progress_panel
+    global make_painter_title_bar
     global make_segmented_control
     global make_spin_input
     global make_svg_label
@@ -185,6 +191,8 @@ def reload_ui_kit():
     COMPACT_DOCK_DEFAULT_HEIGHT = rizum_ui.COMPACT_DOCK_DEFAULT_HEIGHT
     COMPACT_DOCK_DEFAULT_WIDTH = rizum_ui.COMPACT_DOCK_DEFAULT_WIDTH
     COMPACT_DOCK_MIN_WIDTH = rizum_ui.COMPACT_DOCK_MIN_WIDTH
+    PAINTER_FOOTER_MARGIN_BOTTOM = rizum_ui.PAINTER_FOOTER_MARGIN_BOTTOM
+    PAINTER_FOOTER_MARGIN_X = rizum_ui.PAINTER_FOOTER_MARGIN_X
     animate_drag_tree_item_added = rizum_ui.animate_drag_tree_item_added
     apply_compact_dock_surface = rizum_ui.apply_compact_dock_surface
     apply_painter_like_base = rizum_ui.apply_painter_like_base
@@ -212,6 +220,7 @@ def reload_ui_kit():
     make_inline_checkbox_row = rizum_ui.make_inline_checkbox_row
     make_mock_checkbox = rizum_ui.make_mock_checkbox
     make_progress_panel = rizum_ui.make_progress_panel
+    make_painter_title_bar = rizum_ui.make_painter_title_bar
     make_segmented_control = rizum_ui.make_segmented_control
     make_spin_input = rizum_ui.make_spin_input
     make_svg_label = rizum_ui.make_svg_label
@@ -244,7 +253,7 @@ def build_bridge_preview(QtWidgets):
 
     window = QtWidgets.QFrame()
     window.setObjectName("RizumExportWindow")
-    window.setFixedSize(260, 263)
+    window.setFixedSize(260, 295)
     window.setSizePolicy(
         QtWidgets.QSizePolicy.Policy.Fixed,
         QtWidgets.QSizePolicy.Policy.Fixed,
@@ -365,6 +374,7 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     layout = QtWidgets.QVBoxLayout(window)
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
+    layout.addWidget(make_painter_title_bar("Export"))
 
     header = QtWidgets.QFrame()
     header.setObjectName("RizumExportHeader")
@@ -376,7 +386,6 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     title.setObjectName("RizumExportTitle")
     header_layout.addWidget(title)
     header_layout.addStretch(1)
-    header_layout.addWidget(make_svg_label("x.svg", 14))
     layout.addWidget(header)
     layout.addWidget(make_inset_separator(12, thickness=2))
 
@@ -471,9 +480,14 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
 
     footer = QtWidgets.QFrame()
     footer.setObjectName("RizumExportFooter")
-    footer.setFixedHeight(42)
+    footer.setFixedHeight(40)
     footer_layout = QtWidgets.QHBoxLayout(footer)
-    footer_layout.setContentsMargins(16, 0, 16, 0)
+    footer_layout.setContentsMargins(
+        PAINTER_FOOTER_MARGIN_X,
+        0,
+        PAINTER_FOOTER_MARGIN_X,
+        PAINTER_FOOTER_MARGIN_BOTTOM,
+    )
     footer_layout.setSpacing(8)
     footer_layout.addStretch(1)
     cancel = ActionButton.create("Cancel", "dialog-secondary")
@@ -1030,6 +1044,7 @@ def build_settings_preview(QtWidgets):
 
     header = _QtWidgets.QWidget()
     header.setObjectName("RizumSettingsHeader")
+    layout.addWidget(make_painter_title_bar("Settings"))
     header.setFixedHeight(40)
     header_outer = _QtWidgets.QVBoxLayout(header)
     header_outer.setContentsMargins(0, 0, 0, 0)
@@ -1041,7 +1056,6 @@ def build_settings_preview(QtWidgets):
     header_layout.setSpacing(0)
     header_layout.addWidget(make_label("Settings", "RizumSettingsTitle"))
     header_layout.addStretch(1)
-    header_layout.addWidget(make_svg_label("x.svg", 14))
     header_outer.addWidget(header_row, 1)
     header_outer.addWidget(make_inset_separator(12, 1))
     layout.addWidget(header)
@@ -1134,14 +1148,19 @@ def build_settings_preview(QtWidgets):
 
     footer = _QtWidgets.QWidget()
     footer.setObjectName("RizumSettingsFooter")
-    footer.setFixedHeight(48)
+    footer.setFixedHeight(40)
     footer_outer = _QtWidgets.QVBoxLayout(footer)
     footer_outer.setContentsMargins(0, 0, 0, 0)
     footer_outer.setSpacing(0)
     footer_row = _QtWidgets.QWidget()
     footer_row.setObjectName("RizumSettingsFooterRow")
     footer_layout = _QtWidgets.QHBoxLayout(footer_row)
-    footer_layout.setContentsMargins(16, 0, 16, 0)
+    footer_layout.setContentsMargins(
+        PAINTER_FOOTER_MARGIN_X,
+        0,
+        PAINTER_FOOTER_MARGIN_X,
+        PAINTER_FOOTER_MARGIN_BOTTOM,
+    )
     footer_layout.setSpacing(0)
     footer_layout.addWidget(make_label("Changes save automatically", "RizumSettingsFooterHint"))
     footer_layout.addStretch(1)

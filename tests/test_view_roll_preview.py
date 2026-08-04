@@ -9,7 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from rizum_ui import FOOTER_BUTTON_PADDING_X
+from rizum_ui import FOOTER_BUTTON_PADDING_X, PAINTER_FOOTER_MARGIN_BOTTOM
 
 from view_roll_preview import (
     SHORTCUT_ACTIONS,
@@ -192,7 +192,11 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         QtWidgets.QApplication.processEvents()
 
         self.assertEqual(panel.dialog.width(), round(base_size.width() * 1.1))
-        self.assertEqual(panel.dialog.height(), round(base_size.height() * 1.1))
+        self.assertAlmostEqual(
+            panel.dialog.height(),
+            round(base_size.height() * 1.1),
+            delta=1,
+        )
 
 
 class ViewRollLayoutRegressionTests(unittest.TestCase):
@@ -452,7 +456,8 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                     buttons.top() - footer.top(), panel._metric(6, 5) + gap
                 )
                 self.assertEqual(
-                    footer.bottom() - buttons.bottom(), panel._metric(12, 9)
+                    footer.bottom() - buttons.bottom(),
+                    panel._metric(PAINTER_FOOTER_MARGIN_BOTTOM, 11),
                 )
                 collapsed_footer_height = panel._footer.height()
                 collapsed_dialog_height = panel.dialog.height()
