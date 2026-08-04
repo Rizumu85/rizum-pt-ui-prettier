@@ -674,6 +674,13 @@ def install_compact_tooltip(widget, text):
                 self._tooltip.setScale(self._scale_override)
                 self._tooltip.adjustSize()
 
+        def setText(self, next_text):
+            self._text = str(next_text or "")
+            if not self._text:
+                self._hide_tooltip()
+            elif _is_qt_object_alive(self._tooltip):
+                self._tooltip.setText(self._text)
+
         def refreshMetrics(self):
             if _is_qt_object_alive(self._tooltip):
                 self._tooltip.setScale(self._scale_override)
@@ -775,6 +782,7 @@ def install_compact_tooltip(widget, text):
     widget.installEventFilter(tooltip_filter)
     widget._rizum_compact_tooltip_filter = tooltip_filter
     widget.setCompactTooltipScale = tooltip_filter.setScale
+    widget.setCompactTooltipText = tooltip_filter.setText
     widget.refreshCompactTooltip = tooltip_filter.refreshMetrics
     return widget
 

@@ -15,6 +15,8 @@ from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 from rizum_ui import (
     FOOTER_BUTTON_PADDING_X,
     PAINTER_FOOTER_MARGIN_BOTTOM,
+    ShortcutCaptureField,
+    TextActionButton,
     make_segmented_control,
 )
 
@@ -22,8 +24,6 @@ from view_roll_preview import (
     DESIGN_VARIANTS,
     SHORTCUT_ACTIONS,
     _VIEW_ROLL_TEXT,
-    ShortcutCaptureField,
-    TextActionButton,
     ViewRollComparisonPanel,
     ViewRollConceptPanel,
 )

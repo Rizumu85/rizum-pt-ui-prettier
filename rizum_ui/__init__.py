@@ -11,6 +11,12 @@ from .settings_dialog import (
     PAINTER_SETTINGS_FRAME_WIDTH,
     PainterSettingsDialog,
 )
+from .settings_controls import (
+    AnimatedSaveButton,
+    ModeParameterSlot,
+    ShortcutCaptureField,
+    TextActionButton,
+)
 from .components import (
     ActionButton,
     COMPACT_DOCK_DEFAULT_HEIGHT,
@@ -78,6 +84,7 @@ from .components import (
 
 __all__ = [
     "ActionButton",
+    "AnimatedSaveButton",
     "COMPACT_DOCK_DEFAULT_HEIGHT",
     "COMPACT_DOCK_DEFAULT_WIDTH",
     "COMPACT_DOCK_MIN_WIDTH",
@@ -98,8 +105,11 @@ __all__ = [
     "PAINTER_SETTINGS_FRAME_COLOR",
     "PAINTER_SETTINGS_FRAME_WIDTH",
     "PainterSettingsDialog",
+    "ModeParameterSlot",
     "SectionHeader",
     "StatusPill",
+    "ShortcutCaptureField",
+    "TextActionButton",
     "Theme",
     "apply_compact_dock_surface",
     "bind_hover_state",

@@ -61,6 +61,18 @@ class CompactTooltipMetricsTest(unittest.TestCase):
 
         self.assertEqual(tooltip._label.font().pixelSize(), 14)
 
+    def test_text_can_be_updated_without_reinstalling_the_filter(self):
+        owner = QtWidgets.QPushButton()
+        self.addCleanup(owner.deleteLater)
+        install_compact_tooltip(owner, "Initial")
+        tooltip_filter = owner._rizum_compact_tooltip_filter
+        tooltip = tooltip_filter._ensure_tooltip()
+
+        owner.setCompactTooltipText("Shortcut conflict")
+
+        self.assertEqual(tooltip_filter._text, "Shortcut conflict")
+        self.assertEqual(tooltip._label.text(), "Shortcut conflict")
+
 
 if __name__ == "__main__":
     unittest.main()

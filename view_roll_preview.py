@@ -12,12 +12,16 @@ from __future__ import annotations
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from rizum_ui import (
+    AnimatedSaveButton as SharedAnimatedSaveButton,
     FOOTER_BUTTON_PADDING_X,
+    ModeParameterSlot,
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
     PAINTER_SETTINGS_FRAME_COLOR,
     ActionButton,
     PainterSettingsDialog,
+    ShortcutCaptureField as SharedShortcutCaptureField,
+    TextActionButton as SharedTextActionButton,
     install_compact_tooltip,
     make_compact_stepper,
     make_inset_separator,
@@ -1407,6 +1411,15 @@ class _ParameterSlot(QtWidgets.QFrame):
         # one frame so controls never clip, ghost, or disappear.
         self.setHeightProgress(1.0 if target_mode is not None else 0.0)
         self.update()
+
+
+# The concept and the shipped plugin use the same interaction widgets. Keep
+# the preview-specific names stable for callers while the implementations live
+# in the vendored component package.
+TextActionButton = SharedTextActionButton
+AnimatedSaveButton = SharedAnimatedSaveButton
+ShortcutCaptureField = SharedShortcutCaptureField
+_ParameterSlot = ModeParameterSlot
 
 
 class ViewRollConceptPanel(QtWidgets.QWidget):

@@ -20,6 +20,9 @@ Every shared compact component that paints its own glyphs or has a fixed pixel s
 | Single chevron / arrow glyph (`_ChevronDown`) | `setSize(px)` | Fixed widget size + painted point coords |
 | Mock checkbox (`_Checkbox`) | `setSize(px)` | Fixed widget size + painted box/checkmark coords |
 | Compact tooltip / hover popup (`install_compact_tooltip`) | `setCompactTooltipScale(scale)` | Tooltip font, padding, corner radius, and popup offset |
+| Text action / animated save (`TextActionButton`, `AnimatedSaveButton`) | `setCompactHeight(px)` | Fixed height, measured width, text metrics, radius, and painted feedback glyph |
+| Shortcut capture (`ShortcutCaptureField`) | `setCompactHeight(px)` | Field height and width, text metrics, clear glyph, conflict marker, and radius |
+| Mode parameter slot (`ModeParameterSlot`) | `setExpandedHeight(px)` | Active row height and collapsed/expanded slot geometry |
 | Container control with fixed height (`_SpinInput`, `_ComboInput`) | `setCompactHeight(px)` | Own height + margins + label height + delegate to child glyph setters |
 | Field row wrapper (`make_field_row`) | (no setter — caller sets `row.setFixedHeight(h)` and calls `control.setCompactHeight(h)`) | Outer row height; caller drives the inner control |
 | Footer / dialog button | width via `set_compact_footer_button_width(..., height=h)` | Pass `height=` so width+height set together |
