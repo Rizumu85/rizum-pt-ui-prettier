@@ -7,7 +7,20 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6 import QtWidgets
 
-from preview import build_preview
+from preview import PREVIEW_LANGUAGES, _PREVIEW_TEXT, build_preview
+
+
+SUPPORTED_LANGUAGE_CODES = {
+    "en",
+    "de",
+    "es",
+    "fr",
+    "it",
+    "ja_JP",
+    "ko",
+    "pt",
+    "zh_CN",
+}
 
 
 class PreviewToolbarTests(unittest.TestCase):
@@ -53,6 +66,11 @@ class PreviewToolbarTests(unittest.TestCase):
 
         self.assertEqual(tabs.tabText(0), "概览")
         self.assertEqual(tabs.tabText(2), "设置")
+
+    def test_language_picker_covers_the_painter_i18n_set(self):
+        language_codes = {code for _label, code in PREVIEW_LANGUAGES}
+        self.assertEqual(language_codes, SUPPORTED_LANGUAGE_CODES)
+        self.assertEqual(set(_PREVIEW_TEXT), SUPPORTED_LANGUAGE_CODES - {"en"})
 
 
 if __name__ == "__main__":

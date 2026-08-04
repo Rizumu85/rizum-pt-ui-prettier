@@ -14,6 +14,7 @@ from rizum_ui import FOOTER_BUTTON_PADDING_X, PAINTER_FOOTER_MARGIN_BOTTOM
 from view_roll_preview import (
     DESIGN_VARIANTS,
     SHORTCUT_ACTIONS,
+    _VIEW_ROLL_TEXT,
     ShortcutCaptureField,
     TextActionButton,
     ViewRollComparisonPanel,
@@ -21,6 +22,25 @@ from view_roll_preview import (
 )
 
 REPRESENTATIVE_SCALES = (0.75, 1.0, 1.1, 1.5, 2.0)
+SUPPORTED_TRANSLATION_CODES = {
+    "de",
+    "es",
+    "fr",
+    "it",
+    "ja_JP",
+    "ko",
+    "pt",
+    "zh_CN",
+}
+
+
+class ViewRollTranslationTests(unittest.TestCase):
+    def test_every_supported_language_has_the_complete_view_roll_catalog(self):
+        self.assertEqual(set(_VIEW_ROLL_TEXT), SUPPORTED_TRANSLATION_CODES)
+        expected_keys = set(_VIEW_ROLL_TEXT["zh_CN"])
+        for language, catalog in _VIEW_ROLL_TEXT.items():
+            with self.subTest(language=language):
+                self.assertEqual(set(catalog), expected_keys)
 
 
 class ShortcutCaptureFieldTests(unittest.TestCase):
@@ -78,6 +98,9 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
         # Pin the host font scale so QSettings on the dev machine cannot leak in.
         cls.app.setProperty("rizumUiFontScale", 1.0)
+
+    def setUp(self):
+        self.app.setProperty("rizumPreviewLanguage", "en")
 
     def make_panel(self):
         panel = ViewRollConceptPanel()

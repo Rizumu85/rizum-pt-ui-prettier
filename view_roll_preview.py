@@ -84,6 +84,132 @@ DESIGN_VARIANTS = {
 }
 
 _VIEW_ROLL_TEXT = {
+    "de": {
+        "title": "Einstellungen für Ansichtsrotation",
+        "rotation": "Rotation",
+        "mode": "Modus",
+        "continuous": "Stufenlos",
+        "custom": "Benutzerdefiniert",
+        "speed": "Geschwindigkeit",
+        "angle": "Winkel",
+        "shortcuts": "Tastenkürzel",
+        "roll_left": "3D-Ansicht nach links drehen",
+        "roll_right": "3D-Ansicht nach rechts drehen",
+        "roll_reset": "3D-Rotation zurücksetzen",
+        "restore": "Zurücksetzen",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "shortcut_tip": "Klicken, um ein neues Tastenkürzel einzugeben. Esc bricht ab, Entf löscht.",
+        "editing_shortcut": "{action} bearbeiten — Tasten drücken, Esc zum Abbrechen.",
+        "same_shortcut": "{names} verwenden dasselbe Tastenkürzel.",
+        "name_joiner": " und ",
+        "unsaved_changes": "Nicht gespeicherte Änderungen.",
+    },
+    "es": {
+        "title": "Ajustes de rotación de vista",
+        "rotation": "Rotación",
+        "mode": "Modo",
+        "continuous": "Continuo",
+        "custom": "Personalizado",
+        "speed": "Velocidad",
+        "angle": "Ángulo",
+        "shortcuts": "Atajos",
+        "roll_left": "Girar vista 3D a la izquierda",
+        "roll_right": "Girar vista 3D a la derecha",
+        "roll_reset": "Restablecer rotación 3D",
+        "restore": "Restablecer",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "shortcut_tip": "Haz clic para introducir un atajo nuevo. Esc cancela; Supr borra.",
+        "editing_shortcut": "Editando {action} — pulsa las teclas; Esc cancela.",
+        "same_shortcut": "{names} usan el mismo atajo.",
+        "name_joiner": " y ",
+        "unsaved_changes": "Cambios sin guardar.",
+    },
+    "fr": {
+        "title": "Paramètres de rotation de la vue",
+        "rotation": "Rotation",
+        "mode": "Mode",
+        "continuous": "Continu",
+        "custom": "Personnalisé",
+        "speed": "Vitesse",
+        "angle": "Angle",
+        "shortcuts": "Raccourcis",
+        "roll_left": "Faire pivoter la vue 3D à gauche",
+        "roll_right": "Faire pivoter la vue 3D à droite",
+        "roll_reset": "Réinitialiser la rotation 3D",
+        "restore": "Réinitialiser",
+        "cancel": "Annuler",
+        "save": "Enregistrer",
+        "shortcut_tip": "Cliquez pour saisir un nouveau raccourci. Échap annule, Suppr efface.",
+        "editing_shortcut": "Modification de {action} — appuyez sur les touches, Échap pour annuler.",
+        "same_shortcut": "{names} utilisent le même raccourci.",
+        "name_joiner": " et ",
+        "unsaved_changes": "Modifications non enregistrées.",
+    },
+    "it": {
+        "title": "Impostazioni rotazione vista",
+        "rotation": "Rotazione",
+        "mode": "Modalità",
+        "continuous": "Continuo",
+        "custom": "Personalizzato",
+        "speed": "Velocità",
+        "angle": "Angolo",
+        "shortcuts": "Scorciatoie",
+        "roll_left": "Ruota vista 3D a sinistra",
+        "roll_right": "Ruota vista 3D a destra",
+        "roll_reset": "Ripristina rotazione 3D",
+        "restore": "Ripristina",
+        "cancel": "Annulla",
+        "save": "Salva",
+        "shortcut_tip": "Fai clic per inserire una nuova scorciatoia. Esc annulla, Canc elimina.",
+        "editing_shortcut": "Modifica di {action} — premi i tasti, Esc per annullare.",
+        "same_shortcut": "{names} usano la stessa scorciatoia.",
+        "name_joiner": " e ",
+        "unsaved_changes": "Modifiche non salvate.",
+    },
+    "ko": {
+        "title": "뷰 회전 설정",
+        "rotation": "회전",
+        "mode": "모드",
+        "continuous": "연속",
+        "custom": "사용자 지정",
+        "speed": "속도",
+        "angle": "각도",
+        "shortcuts": "단축키",
+        "roll_left": "3D 뷰 왼쪽으로 회전",
+        "roll_right": "3D 뷰 오른쪽으로 회전",
+        "roll_reset": "3D 회전 초기화",
+        "restore": "초기화",
+        "cancel": "취소",
+        "save": "저장",
+        "shortcut_tip": "클릭하여 새 단축키를 입력합니다. Esc는 취소, Delete는 지우기입니다.",
+        "editing_shortcut": "{action} 편집 중 — 키를 누르세요. Esc는 취소입니다.",
+        "same_shortcut": "{names}에 같은 단축키가 사용됩니다.",
+        "name_joiner": " 및 ",
+        "unsaved_changes": "저장되지 않은 변경 사항.",
+    },
+    "pt": {
+        "title": "Configurações de rotação da vista",
+        "rotation": "Rotação",
+        "mode": "Modo",
+        "continuous": "Contínuo",
+        "custom": "Personalizado",
+        "speed": "Velocidade",
+        "angle": "Ângulo",
+        "shortcuts": "Atalhos",
+        "roll_left": "Girar vista 3D para a esquerda",
+        "roll_right": "Girar vista 3D para a direita",
+        "roll_reset": "Redefinir rotação 3D",
+        "restore": "Redefinir",
+        "cancel": "Cancelar",
+        "save": "Salvar",
+        "shortcut_tip": "Clique para inserir um novo atalho. Esc cancela; Delete limpa.",
+        "editing_shortcut": "Editando {action} — pressione as teclas; Esc cancela.",
+        "same_shortcut": "{names} usam o mesmo atalho.",
+        "name_joiner": " e ",
+        "unsaved_changes": "Alterações não salvas.",
+    },
     "zh_CN": {
         "title": "视图旋转设置",
         "rotation": "旋转",
@@ -100,6 +226,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "取消",
         "save": "保存",
         "shortcut_tip": "点击后录入新快捷键。Esc 取消，Delete 清除。",
+        "editing_shortcut": "正在编辑 {action} — 请按键，按 Esc 取消。",
+        "same_shortcut": "{names} 使用了相同的快捷键。",
+        "name_joiner": "和",
+        "unsaved_changes": "有未保存的更改。",
     },
     "ja_JP": {
         "title": "ビュー回転設定",
@@ -117,6 +247,10 @@ _VIEW_ROLL_TEXT = {
         "cancel": "キャンセル",
         "save": "保存",
         "shortcut_tip": "クリックしてショートカットを入力。Escで取消、Deleteで消去。",
+        "editing_shortcut": "{action}を編集中 — キーを押してください。Escで取消。",
+        "same_shortcut": "{names}に同じショートカットが使われています。",
+        "name_joiner": "と",
+        "unsaved_changes": "未保存の変更があります。",
     },
 }
 
@@ -1138,19 +1272,24 @@ QFrame#RizumPainterWindowContent {
         self.save_button.setEnabled(dirty)
         if capturing is not None:
             self._status_tone = ""
-            self._status_text = (
-                f"Editing {capturing.actionName()} — press keys, Esc to cancel."
-            )
+            self._status_text = _preview_text(
+                "editing_shortcut",
+                "Editing {action} — press keys, Esc to cancel.",
+            ).format(action=capturing.actionName())
         elif conflicted:
-            names = " and ".join(
+            names = _preview_text("name_joiner", " and ").join(
                 self.shortcut_fields[action_id].actionName()
                 for action_id in sorted(conflicted)
             )
             self._status_tone = "warn"
-            self._status_text = f"{names} use the same shortcut."
+            self._status_text = _preview_text(
+                "same_shortcut", "{names} use the same shortcut."
+            ).format(names=names)
         elif dirty:
             self._status_tone = ""
-            self._status_text = "Unsaved changes."
+            self._status_text = _preview_text(
+                "unsaved_changes", "Unsaved changes."
+            )
         else:
             self._status_tone = ""
             self._status_text = ""
