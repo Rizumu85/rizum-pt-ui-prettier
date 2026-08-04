@@ -65,6 +65,17 @@ class PainterWindowChromeTests(unittest.TestCase):
             self.addCleanup(panel.deleteLater)
             self.assertIsNone(panel.findChild(QtWidgets.QLabel, old_title_name))
 
+    def test_view_roll_uses_a_rounded_dark_content_surface(self):
+        panel = ViewRollConceptPanel()
+        self.addCleanup(panel.deleteLater)
+
+        content = panel.findChild(QtWidgets.QFrame, "RizumViewRollWindowContent")
+        self.assertIsNotNone(content)
+        stylesheet = panel.dialog.settingsSurface().styleSheet()
+        self.assertIn("QFrame#RizumViewRollWindowContent", stylesheet)
+        self.assertIn("border-radius: 10px", stylesheet)
+        self.assertIn("background: #f3f3f3", stylesheet)
+
     def test_preview_footers_share_painter_edge_margins(self):
         bridge = build_bridge_preview(QtWidgets)
         settings = build_settings_preview(QtWidgets)

@@ -15,6 +15,7 @@ from rizum_ui import (
     FOOTER_BUTTON_PADDING_X,
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
+    PAINTER_SETTINGS_FRAME_COLOR,
     ActionButton,
     PainterSettingsDialog,
     install_compact_tooltip,
@@ -478,6 +479,14 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.native_title_bar = make_painter_title_bar("View Roll Settings")
         surface_layout.addWidget(self.native_title_bar)
 
+        content = QtWidgets.QFrame()
+        content.setObjectName("RizumViewRollWindowContent")
+        content.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        content_layout = QtWidgets.QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+        surface_layout.addWidget(content, 1)
+
         body = QtWidgets.QWidget()
         body.setObjectName("RizumViewRollBody")
         self._body_layout = QtWidgets.QVBoxLayout(body)
@@ -547,7 +556,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
                 lambda _capturing: self._refresh_status()
             )
 
-        surface_layout.addWidget(body, 1)
+        content_layout.addWidget(body, 1)
 
         footer = QtWidgets.QWidget()
         footer.setObjectName("RizumViewRollFooter")
@@ -591,7 +600,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self._button_layout.addWidget(self.cancel_button)
         self._button_layout.addWidget(self.save_button)
         footer_outer.addWidget(button_row)
-        surface_layout.addWidget(footer)
+        content_layout.addWidget(footer)
 
         scale_row = QtWidgets.QHBoxLayout()
         scale_row.setContentsMargins(2, 0, 2, 0)
@@ -1025,6 +1034,14 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         surface.setStyleSheet(
             surface.styleSheet()
             + f"""
+QFrame#RizumPainterSettingsSurface {{
+    background: {PAINTER_SETTINGS_FRAME_COLOR};
+}}
+QFrame#RizumViewRollWindowContent {{
+    background: {theme.surface};
+    border: 0;
+    border-radius: {self.dialog.settingsWindowRadius():g}px;
+}}
 QWidget#RizumViewRollBody,
 QWidget#RizumViewRollFooter,
 QWidget#RizumViewRollStatusLine,

@@ -5,7 +5,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from rizum_ui import PainterSettingsDialog
 
@@ -26,7 +26,11 @@ class PainterSettingsDialogTests(unittest.TestCase):
             (2, 0, 2, 2),
         )
         self.assertEqual(dialog.settingsFrameWidth(), 2)
+        self.assertEqual(dialog.settingsWindowRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceRadius(), 8.0)
+        self.assertTrue(
+            dialog.testAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        )
         self.assertIn("background: #1b1b1b", dialog.settingsSurface().styleSheet())
         self.assertIn("border-radius: 8px", dialog.settingsSurface().styleSheet())
 

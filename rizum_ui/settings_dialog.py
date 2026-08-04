@@ -55,6 +55,12 @@ class PainterSettingsDialog(QtWidgets.QDialog):
         frame_width: int = PAINTER_SETTINGS_FRAME_WIDTH,
     ):
         super().__init__(parent)
+        self.setObjectName("RizumPainterSettingsDialog")
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAutoFillBackground(False)
+        self.setStyleSheet(
+            "QDialog#RizumPainterSettingsDialog { background: transparent; border: 0; }"
+        )
         self._settings_theme = theme
         self._settings_frame_color = QtGui.QColor(PAINTER_SETTINGS_FRAME_COLOR)
         self._settings_frame_width = 0
@@ -90,6 +96,9 @@ class PainterSettingsDialog(QtWidgets.QDialog):
 
     def settingsSurfaceRadius(self) -> float:
         return self._settings_surface_radius
+
+    def settingsWindowRadius(self) -> float:
+        return float(self._settings_theme.radius_window)
 
     def settingsUiScale(self) -> float:
         return self._settings_ui_scale
@@ -195,9 +204,15 @@ class PainterSettingsDialog(QtWidgets.QDialog):
             self.syncSettingsUiScale()
 
     def paintEvent(self, event) -> None:
-        super().paintEvent(event)
         painter = QtGui.QPainter(self)
-        painter.fillRect(self.rect(), self._settings_frame_color)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
+        painter.setBrush(self._settings_frame_color)
+        painter.drawRoundedRect(
+            QtCore.QRectF(self.rect()),
+            self.settingsWindowRadius(),
+            self.settingsWindowRadius(),
+        )
 
 
 __all__ = [
