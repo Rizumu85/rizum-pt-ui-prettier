@@ -227,6 +227,12 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
 
         self.assertIsNone(original.mode_segment._corner_radius)
         self.assertEqual(codex._visual_style["surface"], "#202123")
+        body_margins = codex._body_layout.contentsMargins()
+        self.assertEqual((body_margins.left(), body_margins.right()), (20, 20))
+        mode_margins = codex.mode_segment.parentWidget().layout().contentsMargins()
+        self.assertEqual((mode_margins.left(), mode_margins.right()), (0, 0))
+        footer_margins = codex._button_layout.contentsMargins()
+        self.assertEqual((footer_margins.left(), footer_margins.right()), (20, 20))
         self.assertIn(
             "QPushButton#RizumViewRollSave {\n"
             "    color: #202123;\n"

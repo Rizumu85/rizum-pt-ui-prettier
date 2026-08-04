@@ -1017,8 +1017,8 @@ QFrame#RizumPainterWindowContent {
             footer_values = (20, 8, 8, 32, 16)
         elif self.design_variant == "codex":
             row_base, tall_base = 40, 46
-            body_margins = (16, 12, 16, 20)
-            row_margins = (8, 5, 8, 5)
+            body_margins = (20, 12, 20, 20)
+            row_margins = (0, 5, 0, 5)
             section_heights = (32, 36)
             control_heights = (30, 32, 30)
             footer_values = (20, 8, 8, 36, 20)
@@ -1208,11 +1208,11 @@ QFrame#RizumPainterWindowContent {
         footer_margin = self._metric(
             footer_margin_base, round(footer_margin_base * 0.75)
         )
-        row_margin = 0 if self.design_variant == "kimi" else 8
+        row_margin = 0 if self.design_variant in ("codex", "kimi") else 8
         row_spacing = 8
         body_margin_base = {
             "original": 12,
-            "codex": 16,
+            "codex": 20,
             "kimi": 20,
         }[self.design_variant]
         body_margin = self._metric(
