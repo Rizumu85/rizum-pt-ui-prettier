@@ -51,12 +51,6 @@ npm install
 
 You can keep Substance 3D Painter open while this preview runs. The preview is a separate Python process, so iterating on `theme.py`, `stylesheet.py`, or `components.py` does not require Painter or a Painter plugin reload. Changes to `preview.py` itself still require restarting the preview process.
 
-## Painter Preview Dock
-
-This folder is also a standalone Painter plugin. Enable `rizum-pt-ui-prettier` in Painter to open a `UI Prettier` dock that renders the same component examples inside the real host UI.
-
-Use it as the final visual check before wiring the component library into another plugin.
-
 ## Current Handoff
 
 Before continuing animation, icon, or compact-control work, read `docs/analysis.md`, especially `Handoff Notes For Next Session`. It records the live Painter findings for dropdown arrows, the icon-button rendering standard, combo sizing, and collapsible row animation so the next session does not repeat failed approaches.
@@ -112,7 +106,7 @@ python tools/sync_vendor.py --apply
 ```
 
 The default target set includes `rizum-pt-to-ps-bridge`, `rizum-pt-ui-font`,
-`rizum-pt-view-roll`, and `rizum_drag_distance_settings`.
+`rizum-pt-view-roll`, and `rizum-pt-drag-distance`.
 
 Apply it to one plugin folder:
 

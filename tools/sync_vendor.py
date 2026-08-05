@@ -25,7 +25,7 @@ DEFAULT_TARGETS = (
     ROOT.parent / "rizum-pt-to-ps-bridge",
     ROOT.parent / "rizum-pt-ui-font",
     ROOT.parent / "rizum-pt-view-roll",
-    ROOT.parent / "rizum_drag_distance_settings",
+    ROOT.parent / "rizum-pt-drag-distance",
 )
 MANIFEST_NAME = "rizum_ui_vendor_manifest.json"
 MANAGED_ROOTS = ("rizum_ui", "icons")

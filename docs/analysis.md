@@ -2,7 +2,7 @@
 
 ## Current Context
 
-`rizum-pt-ui-prettier` starts as an empty sibling plugin folder next to:
+`rizum-pt-ui-prettier` is an upstream component-library project next to:
 
 - `rizum-pt-to-ps-bridge`, which currently builds Painter UI directly with PySide6 widgets and local stylesheets.
 - `rizum-pt-ui-font`, which applies application-level Qt font settings inside Substance 3D Painter.
@@ -28,9 +28,13 @@ The practical architecture is a small PySide6 library with:
 
 This keeps the design system reusable without coupling it to a single plugin.
 
+The component lab is intentionally not a Painter-loadable plugin. Visual
+iteration belongs in the standalone `preview.py` process; live Painter checks
+belong in the real plugins that vendor the approved components.
+
 For distribution, the development source and the plugin-shared artifact should be separate. During design and implementation, `rizum-pt-ui-prettier` remains the upstream component lab and preview surface. After the real Painter plugins are tested and approved, public plugin packages should vendor a snapshot of the needed `rizum_ui` files and icons directly inside each plugin folder. That keeps shared plugins self-contained for users while preserving this repository as the place to tune components and re-sync future snapshots.
 
-For a public GitHub audience beyond Substance Painter, keep the generic PySide6 package prominent and keep Painter-specific plugin files, host-preview docks, and SP integration examples in clearly marked documentation or example folders. Non-Painter users should be able to understand and reuse the component library without first learning Painter plugin structure.
+For a public GitHub audience beyond Substance Painter, keep the generic PySide6 package prominent and keep Painter-specific integration examples in clearly marked documentation or example folders. Non-Painter users should be able to understand and reuse the component library without first learning Painter plugin structure.
 
 ## Visual Diff Workflow
 

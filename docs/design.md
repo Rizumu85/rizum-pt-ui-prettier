@@ -21,6 +21,8 @@ Create a modern, fluid, beautiful PySide6 component library that Rizum Painter p
 ## Packaging Direction
 
 - Use this project as the upstream component lab and preview surface.
+- Keep the component lab out of Painter's plugin list; `preview.py` is its only
+  executable preview surface.
 - Shared Painter plugins should vendor an approved snapshot of the needed `rizum_ui` package and icon files so they can be shared as standalone plugin folders.
 - Keep plugin-window chrome and plugin-specific behavior owned by each plugin; share primitives, controls, icons, styling, and relayout helpers.
 - Public GitHub material should present the generic PySide6 component library first. Substance Painter integration should be documented as an optional adapter/example path, not the default mental model.
