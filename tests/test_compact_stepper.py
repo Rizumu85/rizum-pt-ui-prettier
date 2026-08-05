@@ -140,6 +140,34 @@ class CompactStepperTests(unittest.TestCase):
             resting_bounds,
         )
 
+    def test_native_editor_stays_centered_when_host_bypasses_alignment_override(self):
+        for height in (24, 32, 40, 48):
+            with self.subTest(height=height):
+                stepper = make_compact_stepper(100)
+                self.addCleanup(stepper.deleteLater)
+                stepper.setCompactHeight(height)
+                stepper.show()
+                self.app.processEvents()
+                resting_bounds = self._bright_text_y_bounds(stepper)
+
+                QtTest.QTest.mouseClick(
+                    stepper,
+                    QtCore.Qt.MouseButton.LeftButton,
+                    pos=QtCore.QPoint(round(20 * height / 32), height // 2),
+                )
+                QtWidgets.QLineEdit.setAlignment(
+                    stepper._editor,
+                    QtCore.Qt.AlignmentFlag.AlignLeft
+                    | QtCore.Qt.AlignmentFlag.AlignTop,
+                )
+                self.app.processEvents()
+                editing_bounds = self._bright_text_y_bounds(stepper)
+
+                self.assertLessEqual(
+                    abs(sum(editing_bounds) - sum(resting_bounds)),
+                    1,
+                )
+
     def test_backspace_removes_one_digit_instead_of_the_whole_value(self):
         stepper = make_compact_stepper(50)
         self.addCleanup(stepper.deleteLater)
