@@ -11,8 +11,6 @@ from preview import build_bridge_preview, build_settings_preview
 from rizum_ui import (
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
-    PAINTER_WINDOW_CONTENT_BOTTOM_RADIUS,
-    PAINTER_WINDOW_CONTENT_RADIUS,
     make_painter_title_bar,
 )
 from view_roll_preview import ViewRollConceptPanel
@@ -39,7 +37,7 @@ class PainterWindowChromeTests(unittest.TestCase):
             title_bar.testAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground)
         )
 
-    def test_reference_panels_use_the_same_native_title_bar(self):
+    def test_reference_panels_omit_platform_owned_title_bars(self):
         panels = [
             build_bridge_preview(QtWidgets),
             build_settings_preview(QtWidgets),
@@ -54,7 +52,7 @@ class PainterWindowChromeTests(unittest.TestCase):
                         "RizumPainterTitleBar",
                     )
                 ),
-                1,
+                0,
             )
             self.assertEqual(
                 len(
@@ -66,7 +64,7 @@ class PainterWindowChromeTests(unittest.TestCase):
                 1,
             )
 
-    def test_panel_title_exists_only_in_native_chrome(self):
+    def test_preview_panels_do_not_duplicate_native_window_titles(self):
         panels = [
             (build_bridge_preview(QtWidgets), "RizumExportTitle"),
             (build_settings_preview(QtWidgets), "RizumSettingsTitle"),
@@ -76,23 +74,22 @@ class PainterWindowChromeTests(unittest.TestCase):
             self.addCleanup(panel.deleteLater)
             self.assertIsNone(panel.findChild(QtWidgets.QLabel, old_title_name))
 
-    def test_view_roll_uses_a_rounded_dark_content_surface(self):
+    def test_view_roll_preview_has_no_platform_frame_decoration(self):
         panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
 
-        self.assertEqual(PAINTER_WINDOW_CONTENT_BOTTOM_RADIUS, 8)
         content = panel.findChild(QtWidgets.QFrame, "RizumPainterWindowContent")
         self.assertIsNotNone(content)
         self.assertIn(
-            f"border-top-left-radius: {PAINTER_WINDOW_CONTENT_RADIUS}px",
+            "border-top-left-radius: 0px",
             content.styleSheet(),
         )
         self.assertIn(
-            f"border-bottom-left-radius: {PAINTER_WINDOW_CONTENT_BOTTOM_RADIUS}px",
+            "border-bottom-left-radius: 0px",
             content.styleSheet(),
         )
         self.assertIn(
-            "background: #f3f3f3",
+            "background: #1b1b1b",
             panel.dialog.settingsSurface().styleSheet(),
         )
 

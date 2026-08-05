@@ -16,7 +16,6 @@ from rizum_ui import (
     COMPACT_DOCK_MIN_WIDTH,
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
-    PAINTER_SETTINGS_FRAME_COLOR,
     animate_drag_tree_item_added,
     apply_compact_dock_surface,
     apply_painter_like_base,
@@ -44,7 +43,6 @@ from rizum_ui import (
     make_inline_checkbox_row,
     make_mock_checkbox,
     make_progress_panel,
-    make_painter_title_bar,
     make_painter_window_content,
     make_segmented_control,
     make_spin_input,
@@ -388,7 +386,6 @@ def reload_ui_kit():
     global COMPACT_DOCK_MIN_WIDTH
     global PAINTER_FOOTER_MARGIN_BOTTOM
     global PAINTER_FOOTER_MARGIN_X
-    global PAINTER_SETTINGS_FRAME_COLOR
     global animate_drag_tree_item_added
     global apply_compact_dock_surface
     global apply_painter_like_base
@@ -416,7 +413,6 @@ def reload_ui_kit():
     global make_inline_checkbox_row
     global make_mock_checkbox
     global make_progress_panel
-    global make_painter_title_bar
     global make_painter_window_content
     global make_segmented_control
     global make_spin_input
@@ -442,7 +438,6 @@ def reload_ui_kit():
     COMPACT_DOCK_MIN_WIDTH = rizum_ui.COMPACT_DOCK_MIN_WIDTH
     PAINTER_FOOTER_MARGIN_BOTTOM = rizum_ui.PAINTER_FOOTER_MARGIN_BOTTOM
     PAINTER_FOOTER_MARGIN_X = rizum_ui.PAINTER_FOOTER_MARGIN_X
-    PAINTER_SETTINGS_FRAME_COLOR = rizum_ui.PAINTER_SETTINGS_FRAME_COLOR
     animate_drag_tree_item_added = rizum_ui.animate_drag_tree_item_added
     apply_compact_dock_surface = rizum_ui.apply_compact_dock_surface
     apply_painter_like_base = rizum_ui.apply_painter_like_base
@@ -470,7 +465,6 @@ def reload_ui_kit():
     make_inline_checkbox_row = rizum_ui.make_inline_checkbox_row
     make_mock_checkbox = rizum_ui.make_mock_checkbox
     make_progress_panel = rizum_ui.make_progress_panel
-    make_painter_title_bar = rizum_ui.make_painter_title_bar
     make_painter_window_content = rizum_ui.make_painter_window_content
     make_segmented_control = rizum_ui.make_segmented_control
     make_spin_input = rizum_ui.make_spin_input
@@ -504,7 +498,7 @@ def build_bridge_preview(QtWidgets):
 
     window = QtWidgets.QFrame()
     window.setObjectName("RizumExportWindow")
-    window.setFixedSize(260, 253)
+    window.setFixedSize(256, 219)
     window.setSizePolicy(
         QtWidgets.QSizePolicy.Policy.Fixed,
         QtWidgets.QSizePolicy.Policy.Fixed,
@@ -520,9 +514,9 @@ def build_bridge_preview(QtWidgets):
     window.setStyleSheet(
         """
 QFrame#RizumExportWindow {
-    background: #f3f3f3;
+    background: #1b1b1b;
     border: 0;
-    border-radius: 10px;
+    border-radius: 0;
     font-family: "__EXPORT_FAMILY__", "Segoe UI", Arial, sans-serif;
 }
 QWidget#RizumExportTopControls,
@@ -615,10 +609,9 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     )
 
     layout = QtWidgets.QVBoxLayout(window)
-    layout.setContentsMargins(2, 0, 2, 2)
+    layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
-    layout.addWidget(make_painter_title_bar(preview_text("export", "Export")))
-    content = make_painter_window_content("#1b1b1b")
+    content = make_painter_window_content("#1b1b1b", rounded=False)
     content_layout = content.contentLayout()
     layout.addWidget(content, 1)
 
@@ -1273,17 +1266,19 @@ def build_settings_preview(QtWidgets):
 
     window = _QtWidgets.QFrame()
     window.setObjectName("RizumSettingsWindow")
-    window.setFixedWidth(342)
+    window.setFixedWidth(338)
     window.setSizePolicy(
         _QtWidgets.QSizePolicy.Policy.Fixed,
         _QtWidgets.QSizePolicy.Policy.Fixed,
     )
 
     layout = _QtWidgets.QVBoxLayout(window)
-    layout.setContentsMargins(2, 0, 2, 2)
+    layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
-    layout.addWidget(make_painter_title_bar(preview_text("settings", "Settings")))
-    content = make_painter_window_content(themes["dark"]["window_bg"])
+    content = make_painter_window_content(
+        themes["dark"]["window_bg"],
+        rounded=False,
+    )
     content_layout = content.contentLayout()
     layout.addWidget(content, 1)
 
@@ -1431,9 +1426,9 @@ def build_settings_preview(QtWidgets):
         window.setStyleSheet(
             f"""
 QFrame#RizumSettingsWindow {{
-    background: {PAINTER_SETTINGS_FRAME_COLOR};
+    background: {theme["window_bg"]};
     border: 0;
-    border-radius: 10px;
+    border-radius: 0;
 }}
 QFrame#RizumSettingsWindow QFrame#RizumInsetSeparator {{
     background: {theme["border"]};

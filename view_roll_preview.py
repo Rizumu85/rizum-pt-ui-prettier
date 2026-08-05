@@ -15,7 +15,6 @@ from rizum_ui import (
     ModeParameterSlot,
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
-    PAINTER_SETTINGS_FRAME_COLOR,
     ActionButton,
     PainterSettingsDialog,
     SecondaryActionButton,
@@ -24,7 +23,6 @@ from rizum_ui import (
     install_compact_tooltip,
     make_compact_stepper,
     make_inset_separator,
-    make_painter_title_bar,
     make_painter_window_content,
     make_segmented_control,
     set_compact_footer_button_width,
@@ -1367,30 +1365,15 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
         self.dialog = PainterSettingsDialog(self)
         self.dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
-        self.dialog.setSettingsFrameBottomWidth(
-            self.dialog.settingsFrameWidth()
-        )
+        self.dialog.setSettingsFrameWidth(0)
+        self.dialog.setSettingsFrameBottomWidth(0)
         self.dialog.setSettingsBottomEdgeExtensionEnabled(False)
         surface_layout = self.dialog.settingsSurfaceLayout()
 
-        self.native_title_bar = make_painter_title_bar(
-            _preview_text("title", "View Roll Settings")
+        content = make_painter_window_content(
+            self._visual_style["surface"],
+            rounded=False,
         )
-        surface_layout.addWidget(self.native_title_bar)
-
-        content = make_painter_window_content(self._visual_style["surface"])
-        if self.design_variant == "kimi":
-            content.setStyleSheet(
-                content.styleSheet()
-                + """
-QFrame#RizumPainterWindowContent {
-    border-top-left-radius: 2px;
-    border-top-right-radius: 2px;
-    border-bottom-left-radius: 2px;
-    border-bottom-right-radius: 2px;
-}
-"""
-            )
         content_layout = content.contentLayout()
         surface_layout.addWidget(content, 1)
 
@@ -2119,6 +2102,7 @@ QFrame#RizumPainterWindowContent {
         control_hover = self._visual_style.get("control_hover", "#3b3b3b")
         accent = self._visual_style.get("accent", theme.accent)
         accent_text = self._visual_style.get("accent_text", theme.accent_text)
+        window_surface = self._visual_style.get("surface", theme.surface)
         if self.design_variant == "kimi":
             button_radius = 4
         elif self.design_variant == "codex":
@@ -2161,7 +2145,7 @@ QPushButton#RizumViewRollSave {{
             surface.styleSheet()
             + f"""
 QFrame#RizumPainterSettingsSurface {{
-    background: {PAINTER_SETTINGS_FRAME_COLOR};
+    background: {window_surface};
 }}
 QWidget#RizumViewRollBody,
 QWidget#RizumViewRollFooter,

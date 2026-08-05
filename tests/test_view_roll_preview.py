@@ -451,7 +451,7 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertEqual(panel.dialog.width(), round(base_size.width() * 1.1))
         self.assertAlmostEqual(
             panel.dialog.height(),
-            32 + round((base_size.height() - 32) * 1.1),
+            round(base_size.height() * 1.1),
             delta=1,
         )
 
@@ -532,7 +532,8 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         self.assertEqual((mode_margins.left(), mode_margins.right()), (0, 0))
         footer_margins = codex._button_layout.contentsMargins()
         self.assertEqual((footer_margins.left(), footer_margins.right()), (20, 20))
-        self.assertEqual(codex.dialog.settingsFrameBottomWidth(), 2)
+        self.assertEqual(codex.dialog.settingsFrameWidth(), 0)
+        self.assertEqual(codex.dialog.settingsFrameBottomWidth(), 0)
         self.assertFalse(codex.dialog.settingsBottomEdgeExtensionEnabled())
         self.assertEqual(
             codex._section_rotation.height(), kimi._section_rotation.height()
