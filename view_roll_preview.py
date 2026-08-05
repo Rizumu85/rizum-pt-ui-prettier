@@ -1367,6 +1367,9 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
         self.dialog = PainterSettingsDialog(self)
         self.dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
+        self.dialog.setSettingsFrameBottomWidth(
+            self.dialog.settingsFrameWidth()
+        )
         surface_layout = self.dialog.settingsSurfaceLayout()
 
         self.native_title_bar = make_painter_title_bar(

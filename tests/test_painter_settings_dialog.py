@@ -23,9 +23,10 @@ class PainterSettingsDialogTests(unittest.TestCase):
 
         self.assertEqual(
             (margins.left(), margins.top(), margins.right(), margins.bottom()),
-            (2, 0, 2, 2),
+            (2, 0, 2, 1),
         )
         self.assertEqual(dialog.settingsFrameWidth(), 2)
+        self.assertEqual(dialog.settingsFrameBottomWidth(), 1)
         self.assertEqual(dialog.settingsWindowRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceRadius(), 8.0)
@@ -50,7 +51,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
         margins = dialog.layout().contentsMargins()
         self.assertEqual(
             (margins.left(), margins.top(), margins.right(), margins.bottom()),
-            (3, 0, 3, 3),
+            (3, 0, 3, 2),
         )
         self.assertEqual(dialog.settingsSurfaceRadius(), 7.0)
         self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
@@ -58,6 +59,15 @@ class PainterSettingsDialogTests(unittest.TestCase):
             "border-bottom-left-radius: 7px",
             dialog.settingsSurface().styleSheet(),
         )
+
+    def test_embedded_preview_can_restore_the_full_bottom_frame(self):
+        dialog = PainterSettingsDialog()
+
+        dialog.setSettingsFrameBottomWidth(dialog.settingsFrameWidth())
+
+        margins = dialog.layout().contentsMargins()
+        self.assertEqual(margins.bottom(), 2)
+        self.assertEqual(dialog.settingsFrameBottomWidth(), 2)
 
     def test_settings_typography_tracks_ui_font_scale(self):
         dialog = PainterSettingsDialog()
@@ -138,6 +148,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
         layout.setContentsMargins(8, 8, 8, 8)
         dialog = PainterSettingsDialog(host)
         dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
+        dialog.setSettingsFrameBottomWidth(dialog.settingsFrameWidth())
         dialog.resize(120, 80)
         layout.addWidget(dialog)
         host.show()
