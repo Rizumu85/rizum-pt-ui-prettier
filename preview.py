@@ -2056,19 +2056,20 @@ def clear_layout(layout):
             widget.deleteLater()
 
 
-def build_preview(window, QtWidgets, watch_enabled, rebuild_callback=None):
+def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=None):
     from PySide6 import QtCore
 
     old_tabs = window.findChild(QtWidgets.QTabWidget, "RizumPreviewTabs")
     if old_tabs is not None:
         window.setProperty("rizumPreviewTabIndex", old_tabs.currentIndex())
-    layout = window.layout()
-    if layout is None:
-        layout = QtWidgets.QVBoxLayout(window)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
-    else:
-        clear_layout(layout)
+
+    # Build away from the live window so a transient import or constructor
+    # error cannot destroy the last good preview during source reload.
+    preview_root = QtWidgets.QWidget(window)
+    preview_root.setObjectName("RizumPreviewStagingRoot")
+    layout = QtWidgets.QVBoxLayout(preview_root)
+    layout.setContentsMargins(16, 16, 16, 16)
+    layout.setSpacing(12)
 
     title_row = QtWidgets.QHBoxLayout()
     title_row.addWidget(
@@ -2212,7 +2213,46 @@ def build_preview(window, QtWidgets, watch_enabled, rebuild_callback=None):
 
     layout.addWidget(tabs, 1)
 
+    window_layout = window.layout()
+    if window_layout is None:
+        window_layout = QtWidgets.QVBoxLayout(window)
+    else:
+        clear_layout(window_layout)
+    window_layout.setContentsMargins(0, 0, 0, 0)
+    window_layout.setSpacing(0)
+    preview_root.setObjectName("RizumPreviewRoot")
+    window_layout.addWidget(preview_root)
+    if window.isVisible():
+        preview_root.show()
+
     return tabs
+
+
+def build_preview(window, QtWidgets, watch_enabled, rebuild_callback=None):
+    from PySide6 import QtCore
+
+    app = QtWidgets.QApplication.instance()
+    existing_top_levels = set(app.topLevelWidgets()) if app is not None else set()
+    try:
+        return _build_preview_candidate(
+            window,
+            QtWidgets,
+            watch_enabled,
+            rebuild_callback,
+        )
+    except BaseException:
+        if app is not None:
+            for widget in app.topLevelWidgets():
+                if widget not in existing_top_levels and widget is not window:
+                    widget.deleteLater()
+        pending_roots = window.findChildren(
+            QtWidgets.QWidget,
+            "RizumPreviewStagingRoot",
+            QtCore.Qt.FindChildOption.FindDirectChildrenOnly,
+        )
+        for pending_root in pending_roots:
+            pending_root.deleteLater()
+        raise
 
 
 def main():
@@ -2244,15 +2284,24 @@ def main():
         if next_mtimes.get(PREVIEW_FILE) != preview_mtime:
             restart_preview(app)
             return
-        reload_ui_kit()
-        apply_painter_like_base(app)
-        app.setStyleSheet(
-            build_painter_host_preview_stylesheet()
-            + build_stylesheet(mode="full" if full_mode else "overlay")
-            + PREVIEW_CANVAS_STYLESHEET
-        )
-        build_preview(window, QtWidgets, watch_enabled, refresh_preview)
-        mtimes = snapshot_mtimes()
+        try:
+            reload_ui_kit()
+            apply_painter_like_base(app)
+            app.setStyleSheet(
+                build_painter_host_preview_stylesheet()
+                + build_stylesheet(mode="full" if full_mode else "overlay")
+                + PREVIEW_CANVAS_STYLESHEET
+            )
+            build_preview(window, QtWidgets, watch_enabled, refresh_preview)
+        except Exception:
+            import traceback
+
+            traceback.print_exc()
+        finally:
+            # Consume this source snapshot even when a reload fails. Retrying
+            # the same broken snapshot every 500 ms starves painting and leaks
+            # the abandoned widget trees until the preview appears blank.
+            mtimes = next_mtimes
 
     settings = QtCore.QSettings(_PREVIEW_SETTINGS_ORG, _PREVIEW_SETTINGS_APP)
     try:
