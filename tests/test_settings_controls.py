@@ -94,6 +94,28 @@ class SettingsControlTests(unittest.TestCase):
         self.assertEqual(normal.name(), "#f2f2f2")
         self.assertEqual(hovered.name(), "#ffffff")
 
+    def test_saved_checkmark_is_centered_at_every_compact_height(self):
+        button = AnimatedSaveButton("Save")
+        self.addCleanup(button.deleteLater)
+
+        for height in (21, 28, 35):
+            with self.subTest(height=height):
+                button.setCompactHeight(height)
+                button.setFixedWidth(72)
+                bounds = button._checkmark_polygon().boundingRect()
+                button_center = QtCore.QRectF(button.rect()).center()
+
+                self.assertAlmostEqual(
+                    bounds.center().x(),
+                    button_center.x(),
+                    delta=0.01,
+                )
+                self.assertAlmostEqual(
+                    bounds.center().y(),
+                    button_center.y(),
+                    delta=0.01,
+                )
+
     def test_parameter_slot_switches_rows_atomically(self):
         speed = QtWidgets.QWidget()
         angle = QtWidgets.QWidget()

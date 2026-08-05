@@ -609,6 +609,29 @@ class AnimatedSaveButton(QtWidgets.QAbstractButton):
         super().mouseReleaseEvent(event)
         self.update()
 
+    def _checkmark_polygon(self) -> QtGui.QPolygonF:
+        scale = self._scale()
+        center = QtCore.QRectF(self.rect()).center()
+        # The authored path bounds are offset from its origin; compensate so
+        # the visible mark, rather than that origin, shares the text center.
+        origin = QtCore.QPointF(
+            center.x() - 0.35 * scale,
+            center.y() + 0.4 * scale,
+        )
+        return QtGui.QPolygonF(
+            [
+                QtCore.QPointF(origin.x() - 4.5 * scale, origin.y()),
+                QtCore.QPointF(
+                    origin.x() - 1.2 * scale,
+                    origin.y() + 3.0 * scale,
+                ),
+                QtCore.QPointF(
+                    origin.x() + 5.2 * scale,
+                    origin.y() - 3.8 * scale,
+                ),
+            ]
+        )
+
     def paintEvent(self, event) -> None:
         del event
         painter = QtGui.QPainter(self)
@@ -654,20 +677,11 @@ class AnimatedSaveButton(QtWidgets.QAbstractButton):
 
         painter.setOpacity(self._check_progress)
         scale = self._scale()
-        center = QtCore.QPointF(self.rect().center())
         pen = QtGui.QPen(text_color, max(1.4, 1.7 * scale))
         pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
         painter.setPen(pen)
-        painter.drawPolyline(
-            QtGui.QPolygonF(
-                [
-                    QtCore.QPointF(center.x() - 4.5 * scale, center.y()),
-                    QtCore.QPointF(center.x() - 1.2 * scale, center.y() + 3.0 * scale),
-                    QtCore.QPointF(center.x() + 5.2 * scale, center.y() - 3.8 * scale),
-                ]
-            )
-        )
+        painter.drawPolyline(self._checkmark_polygon())
         painter.end()
 
 
