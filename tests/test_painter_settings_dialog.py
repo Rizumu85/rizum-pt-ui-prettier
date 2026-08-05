@@ -352,6 +352,20 @@ class PainterSettingsDialogTests(unittest.TestCase):
             dialog.styleSheet(),
         )
 
+    def test_native_window_underpaints_the_straight_top_run(self):
+        dialog = PainterSettingsDialog()
+        self.addCleanup(dialog.deleteLater)
+        dialog.resize(120, 80)
+        dialog.settingsSurface().hide()
+        dialog.show()
+        self.app.processEvents()
+
+        image = dialog.grab().toImage().convertToFormat(
+            QtGui.QImage.Format.Format_ARGB32
+        )
+        self.assertEqual(image.pixelColor(image.width() // 2, 0).name(), "#1b1b1b")
+        self.assertEqual(image.pixelColor(0, 0).name(), "#f3f3f3")
+
     def test_embedded_preview_simulates_the_native_rounded_window(self):
         host = QtWidgets.QWidget()
         self.addCleanup(host.deleteLater)
