@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6 import QtCore, QtWidgets
 
 from .rizum_ui import (
+    PAINTER_DIALOG_STYLE,
     PainterSettingsDialog,
     SecondaryActionButton,
     make_compact_stepper,
@@ -14,13 +15,13 @@ SETTINGS_APPLICATION = "Settings"
 SETTINGS_KEY = "drag_distance"
 DEFAULT_DRAG_DISTANCE = 50
 
-_WINDOW_SURFACE = "#202020"
-_CONTROL_BACKGROUND = "#333333"
-_CONTROL_HOVER = "#3b3b3b"
-_CONTROL_PRESSED = "#2c2c2c"
-_TEXT = "#f2f2f2"
-_TEXT_MUTED = "#9a9a9a"
-_PRIMARY = "#f2f2f2"
+_WINDOW_SURFACE = PAINTER_DIALOG_STYLE["surface"]
+_CONTROL_BACKGROUND = PAINTER_DIALOG_STYLE["control"]
+_CONTROL_HOVER = PAINTER_DIALOG_STYLE["control_hover"]
+_CONTROL_PRESSED = PAINTER_DIALOG_STYLE["control_pressed"]
+_TEXT = PAINTER_DIALOG_STYLE["text"]
+_TEXT_MUTED = PAINTER_DIALOG_STYLE["muted"]
+_PRIMARY = PAINTER_DIALOG_STYLE["accent"]
 
 
 class SettingsDialog(PainterSettingsDialog):
@@ -96,8 +97,8 @@ class SettingsDialog(PainterSettingsDialog):
         self.ok_button = SecondaryActionButton(
             "OK",
             background=_PRIMARY,
-            hover_background="#ffffff",
-            pressed_background="#dedede",
+            hover_background=PAINTER_DIALOG_STYLE["accent_hover"],
+            pressed_background=PAINTER_DIALOG_STYLE["accent_pressed"],
             text_color=_WINDOW_SURFACE,
         )
         self.cancel_button.clicked.connect(self.reject)

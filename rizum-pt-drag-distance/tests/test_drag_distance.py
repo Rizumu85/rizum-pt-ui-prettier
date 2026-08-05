@@ -114,6 +114,10 @@ class DragDistanceTests(unittest.TestCase):
         self.assertLess(dialog.cancel_button.x(), dialog.ok_button.x())
         self.assertEqual(dialog.cancel_button.width(), dialog.ok_button.width())
         self.assertEqual(dialog.cancel_button._background.name(), "#333333")
+        self.assertEqual(
+            dialog.cancel_button._hover_background.name(),
+            "#444444",
+        )
         self.assertEqual(dialog.spin_box._theme["muted"], "#9a9a9a")
         button_bottom = dialog._button_row.mapTo(
             dialog,
