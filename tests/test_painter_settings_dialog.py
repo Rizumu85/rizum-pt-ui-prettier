@@ -28,7 +28,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
         self.assertEqual(dialog.settingsFrameWidth(), 2)
         self.assertEqual(dialog.settingsWindowRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
-        self.assertEqual(dialog.settingsSurfaceRadius(), 10.0)
+        self.assertEqual(dialog.settingsSurfaceRadius(), 8.0)
         self.assertTrue(
             dialog.testAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         )
@@ -38,11 +38,11 @@ class PainterSettingsDialogTests(unittest.TestCase):
             dialog.settingsSurface().styleSheet(),
         )
         self.assertIn(
-            "border-bottom-left-radius: 10px",
+            "border-bottom-left-radius: 8px",
             dialog.settingsSurface().styleSheet(),
         )
 
-    def test_frame_width_does_not_change_the_requested_inner_curve(self):
+    def test_frame_width_recomputes_parallel_inner_curve(self):
         dialog = PainterSettingsDialog()
 
         dialog.setSettingsFrameWidth(3)
@@ -52,10 +52,10 @@ class PainterSettingsDialogTests(unittest.TestCase):
             (margins.left(), margins.top(), margins.right(), margins.bottom()),
             (3, 0, 3, 3),
         )
-        self.assertEqual(dialog.settingsSurfaceRadius(), 10.0)
+        self.assertEqual(dialog.settingsSurfaceRadius(), 7.0)
         self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
         self.assertIn(
-            "border-bottom-left-radius: 10px",
+            "border-bottom-left-radius: 7px",
             dialog.settingsSurface().styleSheet(),
         )
 
