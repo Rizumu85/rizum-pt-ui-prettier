@@ -93,7 +93,7 @@ class DragDistanceTests(unittest.TestCase):
         dialog.show()
         self.app.processEvents()
 
-        self.assertEqual((dialog.width(), dialog.height()), (250, 108))
+        self.assertEqual((dialog.width(), dialog.height()), (250, 96))
         self.assertEqual(dialog.spin_box.objectName(), "RizumCompactStepper")
         self.assertEqual(dialog.spin_box.value(), 50)
         self.assertIn(
@@ -102,6 +102,13 @@ class DragDistanceTests(unittest.TestCase):
         )
         self.assertLess(dialog.cancel_button.x(), dialog.ok_button.x())
         self.assertEqual(dialog.cancel_button.width(), dialog.ok_button.width())
+        self.assertEqual(dialog.cancel_button._background.name(), "#333333")
+        self.assertEqual(dialog.spin_box._theme["muted"], "#9a9a9a")
+        button_bottom = dialog._button_row.mapTo(
+            dialog,
+            QtCore.QPoint(0, dialog._button_row.height()),
+        ).y()
+        self.assertEqual(dialog.height() - button_bottom, 12)
 
     def test_dialog_scales_the_shared_controls_with_ui_font_scale(self):
         self.app.setProperty("rizumUiFontScale", 1.1)
@@ -109,7 +116,7 @@ class DragDistanceTests(unittest.TestCase):
         dialog = self.SettingsDialog(self.main_window)
         self.addCleanup(dialog.deleteLater)
 
-        self.assertEqual((dialog.width(), dialog.height()), (275, 119))
+        self.assertEqual((dialog.width(), dialog.height()), (275, 106))
         self.assertEqual(dialog.spin_box.height(), 35)
         self.assertEqual(dialog.cancel_button.height(), 31)
 

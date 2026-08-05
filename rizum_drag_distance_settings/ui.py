@@ -15,11 +15,11 @@ SETTINGS_KEY = "drag_distance"
 DEFAULT_DRAG_DISTANCE = 50
 
 _WINDOW_SURFACE = "#202020"
-_CONTROL_BACKGROUND = "#303236"
-_CONTROL_HOVER = "#383a3e"
-_CONTROL_PRESSED = "#2b2d30"
-_TEXT = "#f0f0f0"
-_TEXT_MUTED = "#a8acb2"
+_CONTROL_BACKGROUND = "#333333"
+_CONTROL_HOVER = "#3b3b3b"
+_CONTROL_PRESSED = "#2c2c2c"
+_TEXT = "#f2f2f2"
+_TEXT_MUTED = "#9a9a9a"
 _PRIMARY = "#f2f2f2"
 
 
@@ -27,7 +27,7 @@ class SettingsDialog(PainterSettingsDialog):
     """Compact drag-distance settings using the shared Painter UI kit."""
 
     BASE_WIDTH = 250
-    BASE_HEIGHT = 108
+    BASE_HEIGHT = 96
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -38,7 +38,7 @@ class SettingsDialog(PainterSettingsDialog):
         body = QtWidgets.QWidget()
         body.setObjectName("RizumDragDistanceBody")
         self._body_layout = QtWidgets.QVBoxLayout(body)
-        self._body_layout.setSpacing(10)
+        self._body_layout.setSpacing(12)
         self.settingsSurfaceLayout().addWidget(body)
 
         self._value_row = QtWidgets.QWidget()
@@ -132,8 +132,8 @@ QWidget#RizumDragDistanceFooter {{
 
         margin_x = self.settingsMetric(16, 12)
         margin_top = self.settingsMetric(12, 9)
-        margin_bottom = self.settingsMetric(14, 11)
-        spacing = self.settingsMetric(10, 8)
+        margin_bottom = self.settingsMetric(12, 9)
+        spacing = self.settingsMetric(12, 9)
         control_height = self.settingsMetric(32, 24)
         button_height = self.settingsMetric(28, 21)
 
@@ -146,6 +146,7 @@ QWidget#RizumDragDistanceFooter {{
         self._body_layout.setSpacing(spacing)
         self._button_layout.setSpacing(self.settingsMetric(8, 6))
         self._value_row.setFixedHeight(control_height)
+        self._button_row.setFixedHeight(button_height)
         self.spin_box.setCompactHeight(control_height)
         self.cancel_button.setCompactHeight(button_height)
         self.ok_button.setCompactHeight(button_height)
