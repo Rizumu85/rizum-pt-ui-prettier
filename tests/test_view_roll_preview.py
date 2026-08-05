@@ -227,6 +227,37 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         )
         self.assertGreater(painted_pixels, 100)
 
+    def test_codex_mode_slot_keeps_one_gap_when_collapsed_or_expanded(self):
+        panel = ViewRollConceptPanel(design_variant="codex")
+        self.addCleanup(panel.deleteLater)
+        panel.show()
+        QtWidgets.QApplication.processEvents()
+        mode_row = panel.mode_label.parentWidget()
+        spacing = panel._body_layout.spacing()
+        collapsed_height = panel.dialog.height()
+
+        self.assertEqual(
+            panel._section_shortcuts.y() - (mode_row.y() + mode_row.height()),
+            spacing,
+        )
+
+        panel.parameter_slot.setMode("continuous", animate=False)
+        QtWidgets.QApplication.processEvents()
+
+        self.assertEqual(
+            panel.parameter_slot.y() - (mode_row.y() + mode_row.height()),
+            spacing,
+        )
+        self.assertEqual(
+            panel._section_shortcuts.y()
+            - (panel.parameter_slot.y() + panel.parameter_slot.height()),
+            spacing,
+        )
+        self.assertEqual(
+            panel.dialog.height() - collapsed_height,
+            panel.parameter_slot.expandedHeight() + spacing,
+        )
+
     def test_codex_mode_caps_are_symmetric_at_the_host_dpi(self):
         probe = textwrap.dedent(
             """

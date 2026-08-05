@@ -2209,6 +2209,8 @@ QPushButton#RizumViewRollCancel {
                 self.parameter_slot.expandedHeight()
                 * self.parameter_slot.heightProgress()
             )
+            if self.parameter_slot.currentMode() is not None:
+                extra += self._body_layout.spacing()
         else:
             extra = sum(
                 round(reveal.expandedHeight() * reveal.progress())
