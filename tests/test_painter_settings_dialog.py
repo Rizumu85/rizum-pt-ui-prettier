@@ -106,7 +106,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
             stylesheet,
         )
 
-    def test_native_window_paints_a_filled_frame_for_the_os_to_clip(self):
+    def test_native_window_uses_the_same_filled_curve_as_the_preview(self):
         previous_stylesheet = self.app.styleSheet()
         self.addCleanup(self.app.setStyleSheet, previous_stylesheet)
         self.app.setStyleSheet(
@@ -117,6 +117,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
         self.addCleanup(dialog.deleteLater)
         dialog.setObjectName("ConsumerSettingsDialog")
         dialog.setStyleSheet("QLabel { color: white; }")
+        dialog.settingsSurface().hide()
         dialog.resize(120, 80)
         dialog.show()
         self.app.processEvents()
@@ -124,7 +125,8 @@ class PainterSettingsDialogTests(unittest.TestCase):
         image = dialog.grab().toImage().convertToFormat(
             QtGui.QImage.Format.Format_ARGB32
         )
-        self.assertEqual(image.pixelColor(0, 0).name(), "#f3f3f3")
+        self.assertLess(image.pixelColor(0, 0).alpha(), 255)
+        self.assertEqual(image.pixelColor(60, 40).name(), "#f3f3f3")
         self.assertIn(
             'QDialog[rizumPainterSettingsDialog="true"]',
             dialog.styleSheet(),
@@ -138,20 +140,18 @@ class PainterSettingsDialogTests(unittest.TestCase):
         layout.setContentsMargins(8, 8, 8, 8)
         dialog = PainterSettingsDialog(host)
         dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
-        dialog.resize(120, 80)
+        dialog.settingsSurface().hide()
+        dialog.setFixedSize(120, 80)
         layout.addWidget(dialog)
+        host.resize(136, 96)
         host.show()
         self.app.processEvents()
 
-        image = host.grab().toImage().convertToFormat(
+        image = dialog.grab().toImage().convertToFormat(
             QtGui.QImage.Format.Format_ARGB32
         )
-        origin = dialog.mapTo(host, QtCore.QPoint(0, 0))
-        self.assertNotEqual(
-            image.pixelColor(origin).name(),
-            "#f3f3f3",
-            "embedded previews must antialias rather than fill the outer corner",
-        )
+        self.assertLess(image.pixelColor(0, 0).alpha(), 255)
+        self.assertEqual(image.pixelColor(60, 40).name(), "#f3f3f3")
 
 
 if __name__ == "__main__":
