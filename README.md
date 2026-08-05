@@ -112,7 +112,7 @@ python tools/sync_vendor.py --apply
 ```
 
 The default target set includes `rizum-pt-to-ps-bridge`, `rizum-pt-ui-font`,
-and `rizum-pt-view-roll`.
+`rizum-pt-view-roll`, and `rizum_drag_distance_settings`.
 
 Apply it to one plugin folder:
 
