@@ -15,6 +15,7 @@ from rizum_ui import (
     ModeParameterSlot,
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
+    PAINTER_DIALOG_STYLE,
     PAINTER_WINDOW_CONTENT_RADIUS,
     ActionButton,
     PainterSettingsDialog,
@@ -63,14 +64,7 @@ DESIGN_VARIANTS = {
     },
     "codex": {
         "label": "Codex",
-        "surface": "#202020",
-        "control": "#303236",
-        "control_hover": "#383a3e",
-        "text": "#f0f0f0",
-        "muted": "#a8acb2",
-        "faint": "#858a90",
-        "accent": "#f2f2f2",
-        "accent_text": "#202020",
+        **PAINTER_DIALOG_STYLE,
     },
     "kimi": {
         "label": "Kimi K3",
@@ -1539,7 +1533,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
                 _preview_text("cancel", "Cancel"),
                 self._visual_style["control"],
                 self._visual_style["control_hover"],
-                "#2b2d30",
+                self._visual_style["control_pressed"],
                 self._visual_style["text"],
                 default_theme.radius_small,
             )

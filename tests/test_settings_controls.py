@@ -5,7 +5,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 
 from rizum_ui import (
     AnimatedSaveButton,
@@ -52,6 +52,47 @@ class SettingsControlTests(unittest.TestCase):
         self.assertEqual(button.height(), 28)
         self.assertGreater(button.sizeHint().width(), 45)
         self.assertLess(button.sizeHint().width(), 90)
+
+    def test_secondary_action_animates_to_a_visible_neutral_hover_fill(self):
+        button = SecondaryActionButton("Cancel")
+        self.addCleanup(button.deleteLater)
+        button.setFixedWidth(80)
+        button.show()
+        self.app.processEvents()
+
+        self.assertEqual(button._background.name(), "#333333")
+        self.assertEqual(button._hover_background.name(), "#444444")
+        button.enterEvent(
+            QtGui.QEnterEvent(
+                QtCore.QPointF(4, 4),
+                QtCore.QPointF(4, 4),
+                QtCore.QPointF(4, 4),
+            )
+        )
+        QtTest.QTest.qWait(button.HOVER_DURATION + 30)
+        self.assertGreater(button.hoverProgress(), 0.98)
+        hovered = button.grab().toImage().pixelColor(6, button.height() // 2)
+        self.assertEqual(hovered.name(), "#444444")
+
+        button.leaveEvent(QtCore.QEvent(QtCore.QEvent.Type.Leave))
+        QtTest.QTest.qWait(button.HOVER_DURATION + 30)
+        self.assertLess(button.hoverProgress(), 0.02)
+
+    def test_active_save_animates_from_soft_white_to_white_on_hover(self):
+        button = AnimatedSaveButton("Save")
+        self.addCleanup(button.deleteLater)
+        button.setDirty(True, animate=False)
+        button.setFixedWidth(80)
+        button.show()
+        self.app.processEvents()
+
+        button.setHoverProgress(0.0)
+        normal = button.grab().toImage().pixelColor(6, button.height() // 2)
+        button.setHoverProgress(1.0)
+        hovered = button.grab().toImage().pixelColor(6, button.height() // 2)
+
+        self.assertEqual(normal.name(), "#f2f2f2")
+        self.assertEqual(hovered.name(), "#ffffff")
 
     def test_parameter_slot_switches_rows_atomically(self):
         speed = QtWidgets.QWidget()

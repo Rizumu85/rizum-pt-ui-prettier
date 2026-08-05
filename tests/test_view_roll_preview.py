@@ -595,6 +595,9 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         )
         self.assertEqual(kimi.mode_segment._corner_radius, 4)
         self.assertEqual(kimi._visual_style["surface"], "#26282c")
+        self.assertEqual(codex._visual_style["control"], "#333333")
+        self.assertEqual(codex._visual_style["control_hover"], "#444444")
+        self.assertEqual(codex._visual_style["control_pressed"], "#2c2c2c")
         for panel in (codex, kimi):
             stylesheet = panel.dialog.settingsSurface().styleSheet()
             self.assertIn(
