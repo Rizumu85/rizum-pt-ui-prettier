@@ -614,9 +614,11 @@ class AnimatedSaveButton(QtWidgets.QAbstractButton):
         center = QtCore.QRectF(self.rect()).center()
         # The authored path bounds are offset from its origin; compensate so
         # the visible mark, rather than that origin, shares the text center.
+        # Extra +1.0 design px: a bounds-centered check reads optically high
+        # against the Save label, so bias the mark down (user report).
         origin = QtCore.QPointF(
             center.x() - 0.35 * scale,
-            center.y() + 0.4 * scale,
+            center.y() + 1.4 * scale,
         )
         return QtGui.QPolygonF(
             [
@@ -1069,6 +1071,7 @@ class ModeParameterSlot(QtWidgets.QFrame):
             row.setFixedHeight(self._expanded_height)
             self._layout.addWidget(row)
         self.setFixedHeight(0)
+        self.hide()
 
     def expandedHeight(self) -> int:
         return self._expanded_height
@@ -1115,8 +1118,12 @@ class ModeParameterSlot(QtWidgets.QFrame):
                 key != target_mode,
             )
         if target_mode is not None:
+            self.show()
             self._layout.setCurrentWidget(self._rows[target_mode])
-        self.setHeightProgress(1.0 if target_mode is not None else 0.0)
+            self.setHeightProgress(1.0)
+        else:
+            self.setHeightProgress(0.0)
+            self.hide()
         self.update()
 
 

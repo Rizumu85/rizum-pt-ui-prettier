@@ -3231,6 +3231,20 @@ def make_compact_stepper(
 
     from .theme import default_theme
 
+    class _StepperLineEdit(QtWidgets.QLineEdit):
+        _alignment = (
+            QtCore.Qt.AlignmentFlag.AlignLeft
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            super().setAlignment(self._alignment)
+
+        def setAlignment(self, _alignment):
+            # Painter host styling must not move the native editing baseline.
+            super().setAlignment(self._alignment)
+
     class _CompactStepper(QtWidgets.QWidget):
         valueChanged = QtCore.Signal(object)
 
@@ -3265,27 +3279,14 @@ def make_compact_stepper(
                 "muted": default_theme.text_muted,
                 "hover": default_theme.surface_child_hover,
             }
-            self._editor = QtWidgets.QLineEdit(self)
+            self._editor = _StepperLineEdit(self)
             self._editor.setObjectName("RizumCompactStepperEditor")
             self._editor.setFrame(False)
             self._editor.setMaxLength(16)
-            self._editor.setAlignment(
-                QtCore.Qt.AlignmentFlag.AlignLeft
-                | QtCore.Qt.AlignmentFlag.AlignVCenter
-            )
             self._editor.setCursor(QtCore.Qt.CursorShape.IBeamCursor)
             self._editor.editingFinished.connect(self._commit_edit)
             self._editor.textChanged.connect(self._editor_visual_changed)
-            self._editor.cursorPositionChanged.connect(
-                self._editor_visual_changed
-            )
             self._editor.selectionChanged.connect(self._editor_visual_changed)
-            self._cursor_visible = False
-            self._cursor_timer = QtCore.QTimer(self)
-            self._cursor_timer.setInterval(
-                max(200, QtWidgets.QApplication.cursorFlashTime() // 2)
-            )
-            self._cursor_timer.timeout.connect(self._toggle_edit_cursor)
             if self._decimals:
                 validator = QtGui.QDoubleValidator(
                     float(self._minimum),
@@ -3386,7 +3387,7 @@ def make_compact_stepper(
                 self._compact_height,
             )
             self._editor.setTextMargins(
-                int(round(11 * scale)),
+                max(0, int(round(11 * scale)) - 2),
                 0,
                 int(round(3 * scale)),
                 0,
@@ -3396,6 +3397,10 @@ def make_compact_stepper(
             font = self._value_font()
             self._editor.setFont(font)
             family = font.family().replace("\\", "\\\\").replace('"', '\\"')
+            text_color = QtGui.QColor(self._theme["text"])
+            if not text_color.isValid():
+                text_color = QtGui.QColor(default_theme.text)
+            text_name = text_color.name()
             self._editor.setStyleSheet(
                 f"""
 QLineEdit#RizumCompactStepperEditor {{
@@ -3403,9 +3408,9 @@ QLineEdit#RizumCompactStepperEditor {{
     border: 0;
     padding: 0;
     margin: 0;
-    color: transparent;
+    color: {text_name};
     selection-background-color: transparent;
-    selection-color: transparent;
+    selection-color: {text_name};
     font-family: "{family}";
     font-size: {font.pixelSize()}px;
     font-weight: {font.weight()};
@@ -3414,27 +3419,17 @@ QLineEdit#RizumCompactStepperEditor {{
             )
             palette = self._editor.palette()
             transparent = QtGui.QColor(0, 0, 0, 0)
-            palette.setColor(QtGui.QPalette.ColorRole.Text, transparent)
+            palette.setColor(QtGui.QPalette.ColorRole.Text, text_color)
             palette.setColor(
                 QtGui.QPalette.ColorRole.HighlightedText,
-                transparent,
+                text_color,
             )
             palette.setColor(QtGui.QPalette.ColorRole.Highlight, transparent)
             self._editor.setPalette(palette)
 
         def _editor_visual_changed(self, *_args):
             if self._editing:
-                self._cursor_visible = True
-                self._cursor_timer.start()
                 self.update()
-
-        def _toggle_edit_cursor(self):
-            if not self._editing or not self._editor.hasFocus():
-                self._cursor_visible = False
-                self._cursor_timer.stop()
-                return
-            self._cursor_visible = not self._cursor_visible
-            self.update()
 
         def _geometry_scale(self):
             return self._compact_height / 32.0
@@ -3554,8 +3549,6 @@ QLineEdit#RizumCompactStepperEditor {{
             self._editor.show()
             self._editor.raise_()
             self._editor.setFocus(QtCore.Qt.FocusReason.MouseFocusReason)
-            self._cursor_visible = True
-            self._cursor_timer.start()
             app = QtWidgets.QApplication.instance()
             if app is not None and not self._outside_click_filter_installed:
                 app.installEventFilter(self)
@@ -3581,8 +3574,6 @@ QLineEdit#RizumCompactStepperEditor {{
         def _finish_edit(self):
             self._editing = False
             self._replace_on_type = False
-            self._cursor_visible = False
-            self._cursor_timer.stop()
             app = QtWidgets.QApplication.instance()
             if app is not None and self._outside_click_filter_installed:
                 app.removeEventFilter(self)
@@ -3776,12 +3767,6 @@ QLineEdit#RizumCompactStepperEditor {{
             symbol_center_y = self._value_visual_center_y()
             self._draw_step_symbol(painter, "minus", symbol_center_y)
             self._draw_value_text(painter)
-            if (
-                self._editing
-                and self._editor.hasFocus()
-                and self._cursor_visible
-            ):
-                self._draw_edit_cursor(painter)
             self._draw_step_symbol(painter, "plus", symbol_center_y)
             painter.end()
 
@@ -3794,9 +3779,11 @@ QLineEdit#RizumCompactStepperEditor {{
             return font
 
         def _value_baseline(self, font):
-            rect = self._rect_for("value")
-            metrics = QtGui.QFontMetricsF(font)
-            return rect.center().y() + (metrics.ascent() - metrics.descent()) / 2
+            metrics = QtGui.QFontMetrics(font)
+            return float(
+                (self._compact_height - metrics.height() + 1) // 2
+                + metrics.ascent()
+            )
 
         def _value_visual_center_y(self):
             font = self._value_font()
@@ -3842,39 +3829,13 @@ QLineEdit#RizumCompactStepperEditor {{
                     2 * scale,
                     2 * scale,
                 )
+            if self._editing:
+                return
             painter.setPen(QtGui.QColor(self._theme["text"]))
             # Left-align the number so it lines up with combo input text.
             painter.drawText(
                 QtCore.QPointF(text_x, baseline),
                 self._value_text(),
-            )
-
-        def _draw_edit_cursor(self, painter):
-            rect = self._rect_for("value")
-            font = self._value_font()
-            metrics = QtGui.QFontMetricsF(font)
-            scale = self._geometry_scale()
-            cursor_position = max(
-                0,
-                min(self._editor.cursorPosition(), len(self._value_text())),
-            )
-            cursor_x = (
-                11 * scale
-                + metrics.horizontalAdvance(
-                    self._value_text()[:cursor_position]
-                )
-                + scale
-            )
-            cursor_top = rect.center().y() - 7 * scale
-            painter.setPen(
-                QtGui.QPen(
-                    QtGui.QColor(self._theme["text"]),
-                    max(1.0, scale),
-                )
-            )
-            painter.drawLine(
-                QtCore.QPointF(cursor_x, cursor_top),
-                QtCore.QPointF(cursor_x, cursor_top + 14 * scale),
             )
 
         def _draw_step_symbol(self, painter, part, center_y):
