@@ -28,7 +28,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
         self.assertEqual(dialog.settingsFrameWidth(), 2)
         self.assertEqual(dialog.settingsWindowRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
-        self.assertEqual(dialog.settingsSurfaceRadius(), 8.0)
+        self.assertEqual(dialog.settingsSurfaceRadius(), 10.0)
         self.assertTrue(
             dialog.testAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         )
@@ -38,11 +38,11 @@ class PainterSettingsDialogTests(unittest.TestCase):
             dialog.settingsSurface().styleSheet(),
         )
         self.assertIn(
-            "border-bottom-left-radius: 8px",
+            "border-bottom-left-radius: 10px",
             dialog.settingsSurface().styleSheet(),
         )
 
-    def test_frame_width_recomputes_parallel_inner_curve(self):
+    def test_frame_width_does_not_change_the_requested_inner_curve(self):
         dialog = PainterSettingsDialog()
 
         dialog.setSettingsFrameWidth(3)
@@ -52,10 +52,10 @@ class PainterSettingsDialogTests(unittest.TestCase):
             (margins.left(), margins.top(), margins.right(), margins.bottom()),
             (3, 0, 3, 3),
         )
-        self.assertEqual(dialog.settingsSurfaceRadius(), 7.0)
+        self.assertEqual(dialog.settingsSurfaceRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
         self.assertIn(
-            "border-bottom-left-radius: 7px",
+            "border-bottom-left-radius: 10px",
             dialog.settingsSurface().styleSheet(),
         )
 
@@ -106,7 +106,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
             stylesheet,
         )
 
-    def test_native_window_uses_the_same_filled_curve_as_the_preview(self):
+    def test_native_window_paints_a_filled_frame_for_the_os_to_clip(self):
         previous_stylesheet = self.app.styleSheet()
         self.addCleanup(self.app.setStyleSheet, previous_stylesheet)
         self.app.setStyleSheet(
@@ -117,7 +117,6 @@ class PainterSettingsDialogTests(unittest.TestCase):
         self.addCleanup(dialog.deleteLater)
         dialog.setObjectName("ConsumerSettingsDialog")
         dialog.setStyleSheet("QLabel { color: white; }")
-        dialog.settingsSurface().hide()
         dialog.resize(120, 80)
         dialog.show()
         self.app.processEvents()
@@ -125,8 +124,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
         image = dialog.grab().toImage().convertToFormat(
             QtGui.QImage.Format.Format_ARGB32
         )
-        self.assertLess(image.pixelColor(0, 0).alpha(), 255)
-        self.assertEqual(image.pixelColor(60, 40).name(), "#f3f3f3")
+        self.assertEqual(image.pixelColor(0, 0).name(), "#f3f3f3")
         self.assertIn(
             'QDialog[rizumPainterSettingsDialog="true"]',
             dialog.styleSheet(),
@@ -140,18 +138,20 @@ class PainterSettingsDialogTests(unittest.TestCase):
         layout.setContentsMargins(8, 8, 8, 8)
         dialog = PainterSettingsDialog(host)
         dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
-        dialog.settingsSurface().hide()
-        dialog.setFixedSize(120, 80)
+        dialog.resize(120, 80)
         layout.addWidget(dialog)
-        host.resize(136, 96)
         host.show()
         self.app.processEvents()
 
-        image = dialog.grab().toImage().convertToFormat(
+        image = host.grab().toImage().convertToFormat(
             QtGui.QImage.Format.Format_ARGB32
         )
-        self.assertLess(image.pixelColor(0, 0).alpha(), 255)
-        self.assertEqual(image.pixelColor(60, 40).name(), "#f3f3f3")
+        origin = dialog.mapTo(host, QtCore.QPoint(0, 0))
+        self.assertNotEqual(
+            image.pixelColor(origin).name(),
+            "#f3f3f3",
+            "embedded previews must antialias rather than fill the outer corner",
+        )
 
 
 if __name__ == "__main__":

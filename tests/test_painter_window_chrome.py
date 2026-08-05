@@ -80,6 +80,7 @@ class PainterWindowChromeTests(unittest.TestCase):
         panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
 
+        self.assertEqual(PAINTER_WINDOW_CONTENT_BOTTOM_RADIUS, 10)
         content = panel.findChild(QtWidgets.QFrame, "RizumPainterWindowContent")
         self.assertIsNotNone(content)
         self.assertIn(
