@@ -11,6 +11,7 @@ from preview import build_bridge_preview, build_settings_preview
 from rizum_ui import (
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
+    PAINTER_WINDOW_CONTENT_RADIUS,
     make_painter_title_bar,
 )
 from view_roll_preview import ViewRollConceptPanel
@@ -85,7 +86,7 @@ class PainterWindowChromeTests(unittest.TestCase):
             content.styleSheet(),
         )
         self.assertIn(
-            "border-bottom-left-radius: 0px",
+            f"border-bottom-left-radius: {PAINTER_WINDOW_CONTENT_RADIUS}px",
             content.styleSheet(),
         )
         self.assertIn(

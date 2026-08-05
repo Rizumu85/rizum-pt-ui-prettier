@@ -16,6 +16,7 @@ from rizum_ui import (
     COMPACT_DOCK_MIN_WIDTH,
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
+    PAINTER_WINDOW_CONTENT_RADIUS,
     animate_drag_tree_item_added,
     apply_compact_dock_surface,
     apply_painter_like_base,
@@ -386,6 +387,7 @@ def reload_ui_kit():
     global COMPACT_DOCK_MIN_WIDTH
     global PAINTER_FOOTER_MARGIN_BOTTOM
     global PAINTER_FOOTER_MARGIN_X
+    global PAINTER_WINDOW_CONTENT_RADIUS
     global animate_drag_tree_item_added
     global apply_compact_dock_surface
     global apply_painter_like_base
@@ -438,6 +440,7 @@ def reload_ui_kit():
     COMPACT_DOCK_MIN_WIDTH = rizum_ui.COMPACT_DOCK_MIN_WIDTH
     PAINTER_FOOTER_MARGIN_BOTTOM = rizum_ui.PAINTER_FOOTER_MARGIN_BOTTOM
     PAINTER_FOOTER_MARGIN_X = rizum_ui.PAINTER_FOOTER_MARGIN_X
+    PAINTER_WINDOW_CONTENT_RADIUS = rizum_ui.PAINTER_WINDOW_CONTENT_RADIUS
     animate_drag_tree_item_added = rizum_ui.animate_drag_tree_item_added
     apply_compact_dock_surface = rizum_ui.apply_compact_dock_surface
     apply_painter_like_base = rizum_ui.apply_painter_like_base
@@ -514,7 +517,7 @@ def build_bridge_preview(QtWidgets):
     window.setStyleSheet(
         """
 QFrame#RizumExportWindow {
-    background: #1b1b1b;
+    background: transparent;
     border: 0;
     border-radius: 0;
     font-family: "__EXPORT_FAMILY__", "Segoe UI", Arial, sans-serif;
@@ -611,7 +614,11 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     layout = QtWidgets.QVBoxLayout(window)
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
-    content = make_painter_window_content("#1b1b1b", rounded=False)
+    content = make_painter_window_content(
+        "#1b1b1b",
+        rounded=False,
+        bottom_radius=PAINTER_WINDOW_CONTENT_RADIUS,
+    )
     content_layout = content.contentLayout()
     layout.addWidget(content, 1)
 
@@ -1278,6 +1285,7 @@ def build_settings_preview(QtWidgets):
     content = make_painter_window_content(
         themes["dark"]["window_bg"],
         rounded=False,
+        bottom_radius=PAINTER_WINDOW_CONTENT_RADIUS,
     )
     content_layout = content.contentLayout()
     layout.addWidget(content, 1)
@@ -1426,7 +1434,7 @@ def build_settings_preview(QtWidgets):
         window.setStyleSheet(
             f"""
 QFrame#RizumSettingsWindow {{
-    background: {theme["window_bg"]};
+    background: transparent;
     border: 0;
     border-radius: 0;
 }}

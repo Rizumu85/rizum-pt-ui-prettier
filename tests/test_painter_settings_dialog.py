@@ -382,6 +382,26 @@ class PainterSettingsDialogTests(unittest.TestCase):
             "embedded previews must antialias rather than fill the outer corner",
         )
 
+    def test_undecorated_preview_does_not_paint_a_white_backplate(self):
+        host = QtWidgets.QWidget()
+        self.addCleanup(host.deleteLater)
+        host.setStyleSheet("QWidget { background: #2a2a2a; }")
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(8, 8, 8, 8)
+        dialog = PainterSettingsDialog(host)
+        dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
+        dialog.setSettingsFrameWidth(0)
+        dialog.resize(120, 80)
+        layout.addWidget(dialog)
+        host.show()
+        self.app.processEvents()
+
+        image = host.grab().toImage().convertToFormat(
+            QtGui.QImage.Format.Format_ARGB32
+        )
+        origin = dialog.mapTo(host, QtCore.QPoint(0, 0))
+        self.assertEqual(image.pixelColor(origin).name(), "#2a2a2a")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -515,7 +515,7 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
             self.addCleanup(panel.deleteLater)
 
         self.assertIsNone(original.mode_segment._corner_radius)
-        self.assertEqual(codex._visual_style["surface"], "#202123")
+        self.assertEqual(codex._visual_style["surface"], "#202020")
         self.assertEqual(codex.mode_segment._corner_radius, 8)
         self.assertEqual(codex.mode_segment._paint_inset, 1.5)
         self.assertIsNotNone(codex.parameter_slot)
@@ -588,7 +588,7 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
             self.assertGreaterEqual(button.width(), expected)
         self.assertIn(
             "QPushButton#RizumViewRollSave {\n"
-            "    color: #202123;\n"
+            "    color: #202020;\n"
             "    background: #f2f2f2;\n"
             "    border-radius: 6px;",
             codex.dialog.settingsSurface().styleSheet(),
