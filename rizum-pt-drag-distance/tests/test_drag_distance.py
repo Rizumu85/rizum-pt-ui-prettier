@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 from pathlib import Path
 import sys
@@ -13,9 +14,6 @@ from PySide6 import QtCore, QtWidgets
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PLUGINS_ROOT = ROOT.parent
-if str(PLUGINS_ROOT) not in sys.path:
-    sys.path.insert(0, str(PLUGINS_ROOT))
 
 
 def install_painter_stub(main_window):
@@ -34,6 +32,19 @@ def install_painter_stub(main_window):
     sys.modules["substance_painter.logging"] = painter_logging
 
 
+def load_plugin():
+    name = "rizum_pt_drag_distance_test"
+    spec = importlib.util.spec_from_file_location(
+        name,
+        ROOT / "__init__.py",
+        submodule_search_locations=[str(ROOT)],
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 class DragDistanceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -49,21 +60,16 @@ class DragDistanceTests(unittest.TestCase):
             cls.settings_dir.name,
         )
 
-        from rizum_drag_distance_settings.plugin import (
-            RizumDragDistanceSettings,
-        )
-        from rizum_drag_distance_settings.ui import (
-            DEFAULT_DRAG_DISTANCE,
-            SETTINGS_APPLICATION,
-            SETTINGS_ORGANIZATION,
-            SettingsDialog,
-        )
+        plugin_module = load_plugin()
+        ui_module = sys.modules[f"{plugin_module.__name__}.ui"]
 
-        cls.DEFAULT_DRAG_DISTANCE = DEFAULT_DRAG_DISTANCE
-        cls.RizumDragDistanceSettings = RizumDragDistanceSettings
-        cls.SETTINGS_APPLICATION = SETTINGS_APPLICATION
-        cls.SETTINGS_ORGANIZATION = SETTINGS_ORGANIZATION
-        cls.SettingsDialog = SettingsDialog
+        cls.DEFAULT_DRAG_DISTANCE = ui_module.DEFAULT_DRAG_DISTANCE
+        cls.RizumDragDistanceSettings = (
+            plugin_module.RizumDragDistanceSettings
+        )
+        cls.SETTINGS_APPLICATION = ui_module.SETTINGS_APPLICATION
+        cls.SETTINGS_ORGANIZATION = ui_module.SETTINGS_ORGANIZATION
+        cls.SettingsDialog = ui_module.SettingsDialog
 
     @classmethod
     def tearDownClass(cls):
@@ -82,7 +88,12 @@ class DragDistanceTests(unittest.TestCase):
         plugin = self.RizumDragDistanceSettings()
         self.addCleanup(plugin.menu.deleteLater)
 
+        self.assertEqual(ROOT.name, "rizum-pt-drag-distance")
         self.assertEqual(plugin.menu.title(), "Drag Distance")
+        self.assertEqual(
+            plugin.menu.objectName(),
+            "rizum_pt_drag_distance_menu",
+        )
         self.assertEqual(self.DEFAULT_DRAG_DISTANCE, 50)
         self.assertEqual(QtWidgets.QApplication.startDragDistance(), 50)
         self.assertEqual(plugin.current_action.text(), "Current: 50 pixels")

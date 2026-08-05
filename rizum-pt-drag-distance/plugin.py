@@ -28,7 +28,7 @@ class RizumDragDistanceSettings:
     def setup_menu(self) -> None:
         main_window = sp_ui.get_main_window()
         self.menu = QtWidgets.QMenu("Drag Distance", main_window)
-        self.menu.setObjectName("rizum_drag_distance_settings_menu")
+        self.menu.setObjectName("rizum_pt_drag_distance_menu")
 
         self.current_action = QAction(
             f"Current: {DEFAULT_DRAG_DISTANCE} pixels",
