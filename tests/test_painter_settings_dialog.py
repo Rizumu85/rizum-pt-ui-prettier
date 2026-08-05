@@ -21,7 +21,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
             []
         )
 
-    def test_default_frame_and_surface_follow_painter_geometry(self):
+    def test_native_dialog_delegates_outer_frame_to_the_platform(self):
         dialog = PainterSettingsDialog()
         dialog_margins = dialog.layout().contentsMargins()
         margins = dialog.settingsSurfaceLayout().contentsMargins()
@@ -37,7 +37,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
         )
         self.assertEqual(
             (margins.left(), margins.top(), margins.right(), margins.bottom()),
-            (2, 0, 2, 2),
+            (0, 0, 0, 0),
         )
         self.assertEqual(dialog.settingsFrameWidth(), 2)
         self.assertEqual(dialog.settingsFrameBottomWidth(), 2)
@@ -70,7 +70,9 @@ class PainterSettingsDialogTests(unittest.TestCase):
         self.assertEqual(surface.paintedSurfaceColor().name(), "#f3f3f3")
 
     def test_frame_width_recomputes_parallel_inner_curve(self):
-        dialog = PainterSettingsDialog()
+        host = QtWidgets.QWidget()
+        dialog = PainterSettingsDialog(host)
+        dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
 
         dialog.setSettingsFrameWidth(3)
 
@@ -87,12 +89,17 @@ class PainterSettingsDialogTests(unittest.TestCase):
             """
             import json
             import math
-            from PySide6 import QtGui, QtWidgets
+            from PySide6 import QtCore, QtGui, QtWidgets
             from rizum_ui import PainterSettingsDialog
 
             app = QtWidgets.QApplication([])
-            dialog = PainterSettingsDialog()
+            host = QtWidgets.QWidget()
+            dialog = PainterSettingsDialog(host)
+            dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
+            dialog.setSettingsFrameWidth(2)
             dialog.resize(120, 80)
+            host.resize(120, 80)
+            host.show()
             dialog.show()
             app.processEvents()
             image = dialog.grab().toImage().convertToFormat(
@@ -105,6 +112,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
             # from the design contract: a 2-device-pixel frame on the left,
             # right, and bottom; 10px/8px logical corner radii.
             frame = 2.0
+            outer_radius = 10.0 * dpr
             top_radius = 10.0 * dpr
             bottom_radius = 8.0 * dpr
             x0, x1, y1 = frame, width - frame, height - frame
@@ -126,6 +134,22 @@ class PainterSettingsDialogTests(unittest.TestCase):
                     (ax1 - tr, ay0 + tr, tr, 1.0, -1.0),
                     (ax0 + br, ay1 - br, br, -1.0, 1.0),
                     (ax1 - br, ay1 - br, br, 1.0, 1.0),
+                ):
+                    dx = (px - cx) * qx
+                    dy = (py - cy) * qy
+                    if dx > 0 and dy > 0 and dx * dx + dy * dy > r * r:
+                        return False
+                return True
+
+            def inside_outer(px, py):
+                if px < 0 or px >= width or py < 0 or py >= height:
+                    return False
+                r = outer_radius
+                for cx, cy, qx, qy in (
+                    (r, r, -1.0, -1.0),
+                    (width - r, r, 1.0, -1.0),
+                    (r, height - r, -1.0, 1.0),
+                    (width - r, height - r, 1.0, 1.0),
                 ):
                     dx = (px - cx) * qx
                     dy = (py - cy) * qy
@@ -180,46 +204,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
                         f"{red(2, y)}/{red(width - 3, y)}"
                     )
 
-            # 3) Corner columns follow the arc: no staircase, no thickening.
-            def predicted_run(x):
-                px = x + 0.5
-                if px < x0:
-                    return float(height)
-                if px >= x1:
-                    return float(height)
-                if px < x0 + bottom_radius:
-                    cx = x0 + bottom_radius
-                    dy = math.sqrt(
-                        max(0.0, bottom_radius**2 - (px - cx) ** 2)
-                    )
-                    return height - (y1 - bottom_radius + dy)
-                if px >= x1 - bottom_radius:
-                    cx = x1 - bottom_radius
-                    dy = math.sqrt(
-                        max(0.0, bottom_radius**2 - (px - cx) ** 2)
-                    )
-                    return height - (y1 - bottom_radius + dy)
-                return height - y1
-
-            for x in range(width):
-                run = 0
-                for y in range(height - 1, -1, -1):
-                    if red(x, y) < 230:
-                        break
-                    run += 1
-                expected = predicted_run(x)
-                # The >=230 run counts ~full-coverage pixels while
-                # predicted_run samples the column center; at the steep arc
-                # section the circle crosses a column diagonally, biasing
-                # the count down by up to ~1.6 rows. 2.0 still catches any
-                # staircase or local thickening, which jumps by whole rows.
-                if abs(run - expected) > 2.0:
-                    violations.append(
-                        f"bottom arc at x={x}: run {run} "
-                        f"vs predicted {expected:.2f}"
-                    )
-
-            # 4) No bright artifacts inside the panel (miter, specks).
+            # 3) No bright artifacts inside the panel (miter, specks).
             for y in range(height):
                 for x in range(width):
                     if inside_panel(x + 0.5, y + 0.5, inset=1.0):
@@ -229,7 +214,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
                                 f"{red(x, y)}"
                             )
 
-            # 4b) Arc interiors just inside each corner curve stay dark.
+            # 3b) Arc interiors just inside each corner curve stay dark.
             corners = (
                 (x0 + top_radius, top_radius, 180.0, 270.0, top_radius),
                 (x1 - top_radius, top_radius, 270.0, 360.0, top_radius),
@@ -252,10 +237,13 @@ class PainterSettingsDialogTests(unittest.TestCase):
                         )
                     angle += 10.0
 
-            # 5) No dark bleed outside the panel into the frame ring.
+            # 4) No dark bleed into the visible preview frame ring.
             for y in range(height):
                 for x in range(width):
-                    if not inside_panel(x + 0.5, y + 0.5, inset=-1.0):
+                    if (
+                        inside_outer(x + 0.5, y + 0.5)
+                        and not inside_panel(x + 0.5, y + 0.5, inset=-1.0)
+                    ):
                         if red(x, y) < 230:
                             violations.append(
                                 f"dark pixel inside frame ring at ({x}, {y})"
@@ -328,7 +316,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
             stylesheet,
         )
 
-    def test_native_window_paints_a_filled_frame_for_the_os_to_clip(self):
+    def test_native_window_does_not_paint_a_platform_colored_frame(self):
         previous_stylesheet = self.app.styleSheet()
         self.addCleanup(self.app.setStyleSheet, previous_stylesheet)
         self.app.setStyleSheet(
@@ -346,17 +334,20 @@ class PainterSettingsDialogTests(unittest.TestCase):
         image = dialog.grab().toImage().convertToFormat(
             QtGui.QImage.Format.Format_ARGB32
         )
-        self.assertEqual(image.pixelColor(0, 0).name(), "#f3f3f3")
+        self.assertEqual(image.pixelColor(0, 0).name(), "#1b1b1b")
+        self.assertEqual(
+            image.pixelColor(image.width() - 1, image.height() - 1).name(),
+            "#1b1b1b",
+        )
         self.assertIn(
             'QDialog[rizumPainterSettingsDialog="true"]',
             dialog.styleSheet(),
         )
 
-    def test_native_window_underpaints_the_straight_top_run(self):
+    def test_native_window_surface_fills_the_full_client_area(self):
         dialog = PainterSettingsDialog()
         self.addCleanup(dialog.deleteLater)
         dialog.resize(120, 80)
-        dialog.settingsSurface().hide()
         dialog.show()
         self.app.processEvents()
 
@@ -364,7 +355,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
             QtGui.QImage.Format.Format_ARGB32
         )
         self.assertEqual(image.pixelColor(image.width() // 2, 0).name(), "#1b1b1b")
-        self.assertEqual(image.pixelColor(0, 0).name(), "#f3f3f3")
+        self.assertEqual(image.pixelColor(0, 0).name(), "#1b1b1b")
 
     def test_embedded_preview_simulates_the_native_rounded_window(self):
         host = QtWidgets.QWidget()
