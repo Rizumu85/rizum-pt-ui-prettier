@@ -1069,6 +1069,7 @@ class ModeParameterSlot(QtWidgets.QFrame):
             row.setFixedHeight(self._expanded_height)
             self._layout.addWidget(row)
         self.setFixedHeight(0)
+        self.hide()
 
     def expandedHeight(self) -> int:
         return self._expanded_height
@@ -1115,8 +1116,12 @@ class ModeParameterSlot(QtWidgets.QFrame):
                 key != target_mode,
             )
         if target_mode is not None:
+            self.show()
             self._layout.setCurrentWidget(self._rows[target_mode])
-        self.setHeightProgress(1.0 if target_mode is not None else 0.0)
+            self.setHeightProgress(1.0)
+        else:
+            self.setHeightProgress(0.0)
+            self.hide()
         self.update()
 
 

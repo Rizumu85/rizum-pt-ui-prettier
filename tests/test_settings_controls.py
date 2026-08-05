@@ -135,6 +135,28 @@ class SettingsControlTests(unittest.TestCase):
         slot.setMode("step_15")
         self.assertEqual(slot.height(), 0)
 
+    def test_collapsed_parameter_slot_keeps_one_layout_gap(self):
+        host = QtWidgets.QWidget()
+        self.addCleanup(host.deleteLater)
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        mode_row = QtWidgets.QWidget()
+        mode_row.setFixedHeight(40)
+        parameter_row = QtWidgets.QWidget()
+        slot = ModeParameterSlot({"continuous": parameter_row}, 46)
+        shortcuts_section = QtWidgets.QWidget()
+        shortcuts_section.setFixedHeight(36)
+        layout.addWidget(mode_row)
+        layout.addWidget(slot)
+        layout.addWidget(shortcuts_section)
+
+        slot.setMode("step_15")
+
+        self.assertTrue(slot.isHidden())
+        self.assertEqual(host.sizeHint().height(), 40 + 2 + 36)
+
     def test_parameter_slot_stays_transparent_under_painter_qframe_style(self):
         host = QtWidgets.QWidget()
         self.addCleanup(host.deleteLater)
