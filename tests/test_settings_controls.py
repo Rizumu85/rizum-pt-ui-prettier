@@ -94,7 +94,7 @@ class SettingsControlTests(unittest.TestCase):
         self.assertEqual(normal.name(), "#f2f2f2")
         self.assertEqual(hovered.name(), "#ffffff")
 
-    def test_saved_checkmark_is_centered_at_every_compact_height(self):
+    def test_saved_checkmark_offsets_down_at_every_compact_height(self):
         button = AnimatedSaveButton("Save")
         self.addCleanup(button.deleteLater)
 
@@ -104,15 +104,19 @@ class SettingsControlTests(unittest.TestCase):
                 button.setFixedWidth(72)
                 bounds = button._checkmark_polygon().boundingRect()
                 button_center = QtCore.QRectF(button.rect()).center()
+                scale = height / AnimatedSaveButton.BASE_HEIGHT
 
                 self.assertAlmostEqual(
                     bounds.center().x(),
                     button_center.x(),
                     delta=0.01,
                 )
+                # Locks the deliberate +1.0 design px (scaled) downward drop:
+                # a mathematically centered check reads optically high against
+                # the Save label in live Painter (user report).
                 self.assertAlmostEqual(
                     bounds.center().y(),
-                    button_center.y(),
+                    button_center.y() + 1.0 * scale,
                     delta=0.01,
                 )
 

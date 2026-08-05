@@ -614,9 +614,11 @@ class AnimatedSaveButton(QtWidgets.QAbstractButton):
         center = QtCore.QRectF(self.rect()).center()
         # The authored path bounds are offset from its origin; compensate so
         # the visible mark, rather than that origin, shares the text center.
+        # Extra +1.0 design px: a bounds-centered check reads optically high
+        # against the Save label, so bias the mark down (user report).
         origin = QtCore.QPointF(
             center.x() - 0.35 * scale,
-            center.y() + 0.4 * scale,
+            center.y() + 1.4 * scale,
         )
         return QtGui.QPolygonF(
             [
