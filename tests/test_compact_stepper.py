@@ -82,6 +82,28 @@ class CompactStepperTests(unittest.TestCase):
         QtTest.QTest.keyClick(stepper._editor, QtCore.Qt.Key.Key_Delete)
         self.assertEqual(stepper._editor.text(), "5")
 
+    def test_native_editor_is_the_only_cursor_painter(self):
+        stepper = make_compact_stepper(50)
+        self.addCleanup(stepper.deleteLater)
+        stepper.show()
+
+        QtTest.QTest.mouseClick(
+            stepper,
+            QtCore.Qt.MouseButton.LeftButton,
+            pos=QtCore.QPoint(20, 16),
+        )
+        self.app.processEvents()
+
+        self.assertFalse(hasattr(stepper, "_cursor_timer"))
+        self.assertFalse(hasattr(stepper, "_cursor_visible"))
+        self.assertFalse(hasattr(stepper, "_draw_edit_cursor"))
+        self.assertGreater(
+            stepper._editor.palette()
+            .color(QtGui.QPalette.ColorRole.Text)
+            .alpha(),
+            0,
+        )
+
     def test_edit_text_keeps_its_baseline_under_host_line_edit_alignment(self):
         stepper = make_compact_stepper(50)
         self.addCleanup(stepper.deleteLater)
@@ -106,15 +128,12 @@ class CompactStepperTests(unittest.TestCase):
             QtCore.Qt.AlignmentFlag.AlignLeft
             | QtCore.Qt.AlignmentFlag.AlignTop
         )
-        stepper._cursor_timer.stop()
-        stepper._cursor_visible = False
         self.app.processEvents()
 
         self.assertEqual(
-            stepper._editor.palette()
-            .color(QtGui.QPalette.ColorRole.Text)
-            .alpha(),
-            0,
+            stepper._editor.alignment(),
+            QtCore.Qt.AlignmentFlag.AlignLeft
+            | QtCore.Qt.AlignmentFlag.AlignVCenter,
         )
         self.assertEqual(
             self._bright_text_y_bounds(stepper),
