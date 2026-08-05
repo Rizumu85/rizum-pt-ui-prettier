@@ -106,7 +106,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
             stylesheet,
         )
 
-    def test_consumer_stylesheet_cannot_square_off_window_frame(self):
+    def test_native_window_paints_a_filled_frame_for_the_os_to_clip(self):
         previous_stylesheet = self.app.styleSheet()
         self.addCleanup(self.app.setStyleSheet, previous_stylesheet)
         self.app.setStyleSheet(
@@ -124,14 +124,33 @@ class PainterSettingsDialogTests(unittest.TestCase):
         image = dialog.grab().toImage().convertToFormat(
             QtGui.QImage.Format.Format_ARGB32
         )
-        self.assertEqual(
-            image.pixelColor(0, 0).alpha(),
-            0,
-            "the outer frame corner must remain transparent under Painter QSS",
-        )
+        self.assertEqual(image.pixelColor(0, 0).name(), "#f3f3f3")
         self.assertIn(
             'QDialog[rizumPainterSettingsDialog="true"]',
             dialog.styleSheet(),
+        )
+
+    def test_embedded_preview_simulates_the_native_rounded_window(self):
+        host = QtWidgets.QWidget()
+        self.addCleanup(host.deleteLater)
+        host.setStyleSheet("QWidget { background: #202123; }")
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(8, 8, 8, 8)
+        dialog = PainterSettingsDialog(host)
+        dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
+        dialog.resize(120, 80)
+        layout.addWidget(dialog)
+        host.show()
+        self.app.processEvents()
+
+        image = host.grab().toImage().convertToFormat(
+            QtGui.QImage.Format.Format_ARGB32
+        )
+        origin = dialog.mapTo(host, QtCore.QPoint(0, 0))
+        self.assertNotEqual(
+            image.pixelColor(origin).name(),
+            "#f3f3f3",
+            "embedded previews must antialias rather than fill the outer corner",
         )
 
 

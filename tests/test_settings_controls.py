@@ -72,6 +72,36 @@ class SettingsControlTests(unittest.TestCase):
         slot.setMode("step_15")
         self.assertEqual(slot.height(), 0)
 
+    def test_parameter_slot_stays_transparent_under_painter_qframe_style(self):
+        host = QtWidgets.QWidget()
+        self.addCleanup(host.deleteLater)
+        host.setObjectName("ParameterSlotTestHost")
+        host.setStyleSheet(
+            """
+QWidget#ParameterSlotTestHost { background: #202123; }
+QFrame { background: #aa0000; border: 0; border-radius: 8px; }
+"""
+        )
+        layout = QtWidgets.QVBoxLayout(host)
+        layout.setContentsMargins(8, 8, 8, 8)
+        row = QtWidgets.QWidget()
+        row.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        slot = ModeParameterSlot({"continuous": row}, 46)
+        slot.setMode("continuous")
+        layout.addWidget(slot)
+        host.show()
+        self.app.processEvents()
+
+        image = host.grab().toImage().convertToFormat(
+            QtGui.QImage.Format.Format_ARGB32
+        )
+        origin = slot.mapTo(host, QtCore.QPoint(0, 0))
+        self.assertEqual(
+            image.pixelColor(origin).name(),
+            "#202123",
+            "the mode slot must not add a background behind Speed or Angle",
+        )
+
     def test_shortcut_rounding_survives_painter_qframe_style(self):
         host = QtWidgets.QWidget()
         self.addCleanup(host.deleteLater)

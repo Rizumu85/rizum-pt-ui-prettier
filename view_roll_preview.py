@@ -1329,96 +1329,12 @@ class _RevealRow(QtWidgets.QFrame):
         animation.start()
 
 
-class _ParameterSlot(QtWidgets.QFrame):
-    """Switch parameter rows in one shared, fully laid-out slot."""
-
-    def __init__(
-        self,
-        rows,
-        expanded_height,
-        parent=None,
-    ):
-        super().__init__(parent)
-        self.setObjectName("RizumViewRollParameterSlot")
-        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setAutoFillBackground(False)
-        self._rows = dict(rows)
-        self._expanded_height = max(0, int(round(expanded_height)))
-        self._height_progress = 0.0
-        self._mode = None
-        self._geometry_callback = None
-
-        self._layout = QtWidgets.QStackedLayout(self)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(0)
-        self._layout.setStackingMode(QtWidgets.QStackedLayout.StackingMode.StackOne)
-        for row in self._rows.values():
-            row.setAttribute(
-                QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
-            )
-            row.setFixedHeight(self._expanded_height)
-            self._layout.addWidget(row)
-        self.setFixedHeight(0)
-
-    def expandedHeight(self):
-        return self._expanded_height
-
-    def setExpandedHeight(self, height):
-        self._expanded_height = max(0, int(round(height)))
-        for row in self._rows.values():
-            row.setFixedHeight(self._expanded_height)
-        self._sync_geometry()
-
-    def setGeometryCallback(self, callback):
-        self._geometry_callback = callback
-
-    def heightProgress(self):
-        return self._height_progress
-
-    def setHeightProgress(self, value):
-        self._height_progress = max(0.0, min(1.0, float(value)))
-        self._sync_geometry()
-
-    animatedHeightProgress = QtCore.Property(
-        float, heightProgress, setHeightProgress
-    )
-
-    def rowOpacity(self, mode):
-        return 1.0 if mode == self._mode else 0.0
-
-    def progress(self):
-        return self._height_progress
-
-    def _sync_geometry(self):
-        self.setFixedHeight(round(self._expanded_height * self._height_progress))
-        if self._geometry_callback is not None:
-            self._geometry_callback(self._height_progress)
-
-    def setMode(self, mode, animate=True):
-        target_mode = mode if mode in self._rows else None
-        self._mode = target_mode
-        for key, row in self._rows.items():
-            row.setAttribute(
-                QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents,
-                key != target_mode,
-            )
-        if target_mode is not None:
-            self._layout.setCurrentWidget(self._rows[target_mode])
-        # Qt's graphics-effect compositing can leave stacked rows blank in a
-        # visible Windows host even though offscreen grabs look correct. Keep
-        # the mode slider animated, but commit row geometry and visibility in
-        # one frame so controls never clip, ghost, or disappear.
-        self.setHeightProgress(1.0 if target_mode is not None else 0.0)
-        self.update()
-
-
 # The concept and the shipped plugin use the same interaction widgets. Keep
 # the preview-specific names stable for callers while the implementations live
 # in the vendored component package.
 TextActionButton = SharedTextActionButton
 AnimatedSaveButton = SharedAnimatedSaveButton
 ShortcutCaptureField = SharedShortcutCaptureField
-_ParameterSlot = ModeParameterSlot
 
 
 class ViewRollConceptPanel(QtWidgets.QWidget):
@@ -1546,7 +1462,7 @@ QFrame#RizumPainterWindowContent {
         self.speed_reveal = None
         self.angle_reveal = None
         if self.design_variant == "codex":
-            self.parameter_slot = _ParameterSlot(
+            self.parameter_slot = ModeParameterSlot(
                 {"continuous": speed_row, "custom": angle_row},
                 speed_row.height(),
             )
@@ -2249,7 +2165,7 @@ QWidget#RizumViewRollFooterRow,
 QWidget#RizumViewRollTexts,
 QWidget#RizumViewRollFooterDivider,
 QFrame#RizumViewRollReveal,
-QFrame#RizumViewRollParameterSlot {{
+QFrame#RizumModeParameterSlot {{
     background: transparent;
     border: 0;
 }}
