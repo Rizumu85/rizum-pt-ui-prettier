@@ -3,7 +3,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtCore, QtTest, QtWidgets
+from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 
 from rizum_ui.components import make_compact_stepper
 
@@ -12,6 +12,22 @@ class CompactStepperTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    def _bright_text_y_bounds(self, widget):
+        image = QtGui.QImage(
+            widget.size(),
+            QtGui.QImage.Format.Format_ARGB32,
+        )
+        image.fill(QtGui.QColor("#202020"))
+        widget.render(image)
+        text_rows = []
+        for y in range(image.height()):
+            for x in range(6, 30):
+                color = image.pixelColor(x, y)
+                if min(color.red(), color.green(), color.blue()) >= 185:
+                    text_rows.append(y)
+        self.assertTrue(text_rows)
+        return min(text_rows), max(text_rows)
 
     def test_decimal_value_can_be_typed_directly(self):
         stepper = make_compact_stepper(
@@ -65,6 +81,45 @@ class CompactStepperTests(unittest.TestCase):
         self.assertEqual(stepper._editor.cursorPosition(), 1)
         QtTest.QTest.keyClick(stepper._editor, QtCore.Qt.Key.Key_Delete)
         self.assertEqual(stepper._editor.text(), "5")
+
+    def test_edit_text_keeps_its_baseline_under_host_line_edit_alignment(self):
+        stepper = make_compact_stepper(50)
+        self.addCleanup(stepper.deleteLater)
+        stepper.setTheme(
+            {
+                "window_bg": "#202020",
+                "text": "#f0f0f0",
+                "muted": "#9a9a9a",
+                "control_hover": "#4a4a4a",
+            }
+        )
+        stepper.show()
+        self.app.processEvents()
+        resting_bounds = self._bright_text_y_bounds(stepper)
+
+        QtTest.QTest.mouseClick(
+            stepper,
+            QtCore.Qt.MouseButton.LeftButton,
+            pos=QtCore.QPoint(20, 16),
+        )
+        stepper._editor.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignLeft
+            | QtCore.Qt.AlignmentFlag.AlignTop
+        )
+        stepper._cursor_timer.stop()
+        stepper._cursor_visible = False
+        self.app.processEvents()
+
+        self.assertEqual(
+            stepper._editor.palette()
+            .color(QtGui.QPalette.ColorRole.Text)
+            .alpha(),
+            0,
+        )
+        self.assertEqual(
+            self._bright_text_y_bounds(stepper),
+            resting_bounds,
+        )
 
     def test_backspace_removes_one_digit_instead_of_the_whole_value(self):
         stepper = make_compact_stepper(50)
