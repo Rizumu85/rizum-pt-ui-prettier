@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import os
+import json
+import subprocess
+import sys
+import textwrap
 import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -8,6 +12,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from rizum_ui import PainterSettingsDialog
+from rizum_ui.settings_dialog import _native_bottom_margin_for_dpr
 
 
 class PainterSettingsDialogTests(unittest.TestCase):
@@ -26,6 +31,8 @@ class PainterSettingsDialogTests(unittest.TestCase):
             (2, 0, 2, 2),
         )
         self.assertEqual(dialog.settingsFrameWidth(), 2)
+        self.assertEqual(dialog.settingsFrameBottomWidth(), 2)
+        self.assertTrue(dialog.settingsBottomEdgeExtensionEnabled())
         self.assertEqual(dialog.settingsWindowRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceRadius(), 8.0)
@@ -39,6 +46,10 @@ class PainterSettingsDialogTests(unittest.TestCase):
         )
         self.assertIn(
             "border-bottom-left-radius: 8px",
+            dialog.settingsSurface().styleSheet(),
+        )
+        self.assertIn(
+            "border-bottom: 1px solid #f3f3f3",
             dialog.settingsSurface().styleSheet(),
         )
 
@@ -58,6 +69,53 @@ class PainterSettingsDialogTests(unittest.TestCase):
             "border-bottom-left-radius: 7px",
             dialog.settingsSurface().styleSheet(),
         )
+
+    def test_native_bottom_margin_targets_two_device_pixels(self):
+        self.assertEqual(_native_bottom_margin_for_dpr(2, 1.0), 2)
+        self.assertEqual(_native_bottom_margin_for_dpr(2, 1.125), 1)
+        self.assertEqual(_native_bottom_margin_for_dpr(2, 1.5), 1)
+        self.assertEqual(_native_bottom_margin_for_dpr(2, 2.0), 1)
+
+    def test_high_dpi_native_bottom_frame_renders_as_two_light_pixels(self):
+        probe = textwrap.dedent(
+            """
+            import json
+            from PySide6 import QtWidgets
+            from rizum_ui import PainterSettingsDialog
+
+            app = QtWidgets.QApplication([])
+            dialog = PainterSettingsDialog()
+            dialog.resize(120, 80)
+            dialog.show()
+            app.processEvents()
+            image = dialog.grab().toImage()
+            x = image.width() // 2
+            light_pixels = 0
+            for y in range(image.height() - 1, -1, -1):
+                if image.pixelColor(x, y).red() < 230:
+                    break
+                light_pixels += 1
+            print(json.dumps({
+                "dpr": dialog.devicePixelRatioF(),
+                "light_pixels": light_pixels,
+                "margin": dialog.settingsFrameBottomWidth(),
+            }))
+            """
+        )
+        env = dict(os.environ)
+        env["QT_QPA_PLATFORM"] = "offscreen"
+        env["QT_SCALE_FACTOR"] = "1.125"
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        rendered = json.loads(result.stdout.strip())
+        self.assertEqual(rendered["dpr"], 1.125)
+        self.assertEqual(rendered["margin"], 1)
+        self.assertEqual(rendered["light_pixels"], 2)
 
     def test_settings_typography_tracks_ui_font_scale(self):
         dialog = PainterSettingsDialog()
@@ -138,6 +196,8 @@ class PainterSettingsDialogTests(unittest.TestCase):
         layout.setContentsMargins(8, 8, 8, 8)
         dialog = PainterSettingsDialog(host)
         dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
+        dialog.setSettingsFrameBottomWidth(dialog.settingsFrameWidth())
+        dialog.setSettingsBottomEdgeExtensionEnabled(False)
         dialog.resize(120, 80)
         layout.addWidget(dialog)
         host.show()
