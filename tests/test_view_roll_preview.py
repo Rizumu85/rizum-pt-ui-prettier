@@ -533,6 +533,7 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
         footer_margins = codex._button_layout.contentsMargins()
         self.assertEqual((footer_margins.left(), footer_margins.right()), (20, 20))
         self.assertEqual(codex.dialog.layout().contentsMargins().bottom(), 2)
+        self.assertFalse(codex.dialog.settingsBottomEdgeBlendEnabled())
         self.assertEqual(
             codex._section_rotation.height(), kimi._section_rotation.height()
         )

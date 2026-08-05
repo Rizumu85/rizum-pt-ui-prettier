@@ -1370,6 +1370,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.dialog.setSettingsFrameBottomWidth(
             self.dialog.settingsFrameWidth()
         )
+        self.dialog.setSettingsBottomEdgeBlendEnabled(False)
         surface_layout = self.dialog.settingsSurfaceLayout()
 
         self.native_title_bar = make_painter_title_bar(

@@ -27,6 +27,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
         )
         self.assertEqual(dialog.settingsFrameWidth(), 2)
         self.assertEqual(dialog.settingsFrameBottomWidth(), 1)
+        self.assertTrue(dialog.settingsBottomEdgeBlendEnabled())
         self.assertEqual(dialog.settingsWindowRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceTopRadius(), 10.0)
         self.assertEqual(dialog.settingsSurfaceRadius(), 8.0)
@@ -40,6 +41,10 @@ class PainterSettingsDialogTests(unittest.TestCase):
         )
         self.assertIn(
             "border-bottom-left-radius: 8px",
+            dialog.settingsSurface().styleSheet(),
+        )
+        self.assertIn(
+            "border-bottom: 1px solid transparent",
             dialog.settingsSurface().styleSheet(),
         )
 
@@ -64,10 +69,16 @@ class PainterSettingsDialogTests(unittest.TestCase):
         dialog = PainterSettingsDialog()
 
         dialog.setSettingsFrameBottomWidth(dialog.settingsFrameWidth())
+        dialog.setSettingsBottomEdgeBlendEnabled(False)
 
         margins = dialog.layout().contentsMargins()
         self.assertEqual(margins.bottom(), 2)
         self.assertEqual(dialog.settingsFrameBottomWidth(), 2)
+        self.assertFalse(dialog.settingsBottomEdgeBlendEnabled())
+        self.assertIn(
+            "border-bottom: 0",
+            dialog.settingsSurface().styleSheet(),
+        )
 
     def test_settings_typography_tracks_ui_font_scale(self):
         dialog = PainterSettingsDialog()
@@ -116,6 +127,23 @@ class PainterSettingsDialogTests(unittest.TestCase):
             stylesheet,
         )
 
+    def test_native_bottom_frame_keeps_one_antialiased_transition_pixel(self):
+        dialog = PainterSettingsDialog()
+        self.addCleanup(dialog.deleteLater)
+        dialog.resize(120, 80)
+        dialog.show()
+        self.app.processEvents()
+
+        image = dialog.grab().toImage().convertToFormat(
+            QtGui.QImage.Format.Format_ARGB32
+        )
+        x = dialog.width() // 2
+        transition = image.pixelColor(x, dialog.settingsSurface().geometry().bottom())
+        frame = image.pixelColor(x, dialog.height() - 1)
+        self.assertGreater(transition.red(), 27)
+        self.assertLess(transition.red(), 243)
+        self.assertEqual(frame.name(), "#f3f3f3")
+
     def test_native_window_paints_a_filled_frame_for_the_os_to_clip(self):
         previous_stylesheet = self.app.styleSheet()
         self.addCleanup(self.app.setStyleSheet, previous_stylesheet)
@@ -149,6 +177,7 @@ class PainterSettingsDialogTests(unittest.TestCase):
         dialog = PainterSettingsDialog(host)
         dialog.setWindowFlags(QtCore.Qt.WindowType.Widget)
         dialog.setSettingsFrameBottomWidth(dialog.settingsFrameWidth())
+        dialog.setSettingsBottomEdgeBlendEnabled(False)
         dialog.resize(120, 80)
         layout.addWidget(dialog)
         host.show()
