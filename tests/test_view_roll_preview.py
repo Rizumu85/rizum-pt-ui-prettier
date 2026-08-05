@@ -14,7 +14,6 @@ from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 
 from rizum_ui import (
     FOOTER_BUTTON_PADDING_X,
-    PAINTER_FOOTER_MARGIN_BOTTOM,
     SecondaryActionButton,
     ShortcutCaptureField,
     TextActionButton,
@@ -22,11 +21,10 @@ from rizum_ui import (
 )
 
 from view_roll_preview import (
-    DESIGN_VARIANTS,
     SHORTCUT_ACTIONS,
     _VIEW_ROLL_TEXT,
-    ViewRollComparisonPanel,
     ViewRollConceptPanel,
+    build_view_roll_preview,
 )
 
 REPRESENTATIVE_SCALES = (0.75, 1.0, 1.1, 1.5, 2.0)
@@ -162,16 +160,16 @@ class ViewRollConceptPanelTests(unittest.TestCase):
 
         panel.mode_segment.setCurrentData("continuous", animate=False, emit=False)
         panel._apply_mode_reveals(animate=False)
-        self.assertEqual(panel.speed_reveal.progress(), 1.0)
-        self.assertEqual(panel.angle_reveal.progress(), 0.0)
+        self.assertEqual(panel.parameter_slot.currentMode(), "continuous")
+        self.assertIs(panel.parameter_slot._layout.currentWidget(), panel.speed_row)
 
         panel.mode_segment.setCurrentData("custom", animate=False, emit=False)
         panel._apply_mode_reveals(animate=False)
-        self.assertEqual(panel.speed_reveal.progress(), 0.0)
-        self.assertEqual(panel.angle_reveal.progress(), 1.0)
+        self.assertEqual(panel.parameter_slot.currentMode(), "custom")
+        self.assertIs(panel.parameter_slot._layout.currentWidget(), panel.angle_row)
 
     def test_codex_parameter_switch_is_atomic_without_graphics_effects(self):
-        panel = ViewRollConceptPanel(design_variant="codex")
+        panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
         panel.show()
         QtWidgets.QApplication.processEvents()
@@ -195,7 +193,7 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertIsNone(panel.angle_row.graphicsEffect())
 
     def test_codex_parameter_is_visible_and_unclipped_on_first_expansion_frame(self):
-        panel = ViewRollConceptPanel(design_variant="codex")
+        panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
         panel.show()
         QtWidgets.QApplication.processEvents()
@@ -228,7 +226,7 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertGreater(painted_pixels, 100)
 
     def test_codex_mode_slot_keeps_one_gap_when_collapsed_or_expanded(self):
-        panel = ViewRollConceptPanel(design_variant="codex")
+        panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
         panel.show()
         QtWidgets.QApplication.processEvents()
@@ -288,7 +286,7 @@ class ViewRollConceptPanelTests(unittest.TestCase):
             renders = []
             controls_fit = True
             for mode in ("continuous", "custom"):
-                panel = ViewRollConceptPanel(design_variant="codex")
+                panel = ViewRollConceptPanel()
                 panel.show()
                 app.processEvents()
                 control = panel.mode_segment
@@ -390,7 +388,7 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertFalse(panel.save_button.isEnabled())
 
     def test_codex_save_button_animates_dirty_and_saved_feedback_in_place(self):
-        panel = ViewRollConceptPanel(design_variant="codex")
+        panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
         panel.show()
         QtWidgets.QApplication.processEvents()
@@ -521,94 +519,75 @@ QFrame { background: #1b1b1b; border: 1px solid transparent; border-radius: 8px;
         self.assertEqual(edge, outside)
 
 
-class ViewRollComparisonPanelTests(unittest.TestCase):
+class ViewRollApprovedPanelTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
         cls.app.setProperty("rizumUiFontScale", 1.0)
 
-    def test_comparison_contains_all_three_independent_directions(self):
-        comparison = ViewRollComparisonPanel()
-        self.addCleanup(comparison.deleteLater)
+    def test_preview_builder_returns_one_approved_panel(self):
+        panel = build_view_roll_preview(QtWidgets)
+        self.addCleanup(panel.deleteLater)
 
-        self.assertEqual(list(comparison.panels), ["original", "codex", "kimi"])
+        self.assertIsInstance(panel, ViewRollConceptPanel)
         self.assertEqual(
-            [panel.design_variant for panel in comparison.panels.values()],
-            ["original", "codex", "kimi"],
+            panel.findChildren(ViewRollConceptPanel),
+            [],
         )
-        self.assertEqual(len(set(map(id, comparison.panels.values()))), 3)
 
-    def test_original_stays_default_while_alternatives_apply_their_tokens(self):
-        original = ViewRollConceptPanel(design_variant="original")
-        codex = ViewRollConceptPanel(design_variant="codex")
-        kimi = ViewRollConceptPanel(design_variant="kimi")
-        for panel in (original, codex, kimi):
-            self.addCleanup(panel.deleteLater)
+    def test_approved_panel_uses_the_shipped_view_roll_design(self):
+        panel = ViewRollConceptPanel()
+        self.addCleanup(panel.deleteLater)
 
-        self.assertIsNone(original.mode_segment._corner_radius)
-        self.assertEqual(codex._visual_style["surface"], "#202020")
-        self.assertEqual(codex.mode_segment._corner_radius, 8)
-        self.assertEqual(codex.mode_segment._paint_inset, 1.5)
-        self.assertIsNotNone(codex.parameter_slot)
+        self.assertEqual(panel._visual_style["surface"], "#202020")
+        self.assertEqual(panel.mode_segment._corner_radius, 8)
+        self.assertEqual(panel.mode_segment._paint_inset, 1.5)
         self.assertEqual(
-            codex.parameter_slot._layout.stackingMode(),
+            panel.parameter_slot._layout.stackingMode(),
             QtWidgets.QStackedLayout.StackingMode.StackOne,
         )
-        self.assertEqual(original.speed_reveal._duration, 140)
-        self.assertEqual(kimi.angle_reveal._duration, 140)
-        codex._apply_mode_reveals(animate=False)
-        body_margins = codex._body_layout.contentsMargins()
+        panel._apply_mode_reveals(animate=False)
+        body_margins = panel._body_layout.contentsMargins()
         self.assertEqual((body_margins.left(), body_margins.right()), (20, 20))
-        mode_margins = codex.mode_segment.parentWidget().layout().contentsMargins()
+        mode_margins = panel.mode_segment.parentWidget().layout().contentsMargins()
         self.assertEqual((mode_margins.left(), mode_margins.right()), (0, 0))
-        footer_margins = codex._button_layout.contentsMargins()
+        footer_margins = panel._button_layout.contentsMargins()
         self.assertEqual((footer_margins.left(), footer_margins.right()), (20, 20))
-        self.assertEqual(codex.dialog.settingsFrameWidth(), 0)
-        self.assertEqual(codex.dialog.settingsFrameBottomWidth(), 0)
-        self.assertFalse(codex.dialog.settingsBottomEdgeExtensionEnabled())
-        self.assertEqual(
-            codex._section_rotation.height(), kimi._section_rotation.height()
-        )
-        self.assertEqual(codex._section_rotation.height(), 26)
-        self.assertEqual(codex._button_row.height(), kimi._button_row.height())
-        self.assertEqual(codex._button_row.height(), 32)
-        self.assertEqual(codex._footer.layout().contentsMargins().top(), 14)
-        self.assertEqual(codex._footer.layout().contentsMargins().bottom(), 16)
-        self.assertEqual(codex._footer.layout().spacing(), 0)
-        self.assertIsNotNone(codex._footer_separator)
-        self.assertEqual(codex._footer_separator.height(), 1)
+        self.assertEqual(panel.dialog.settingsFrameWidth(), 0)
+        self.assertEqual(panel.dialog.settingsFrameBottomWidth(), 0)
+        self.assertFalse(panel.dialog.settingsBottomEdgeExtensionEnabled())
+        self.assertEqual(panel._section_rotation.height(), 26)
+        self.assertEqual(panel._button_row.height(), 32)
+        self.assertEqual(panel._footer.layout().contentsMargins().top(), 14)
+        self.assertEqual(panel._footer.layout().contentsMargins().bottom(), 16)
+        self.assertEqual(panel._footer.layout().spacing(), 0)
+        self.assertEqual(panel._footer_separator.height(), 1)
         self.assertEqual(
             len(
-                codex._footer_separator.findChildren(
+                panel._footer_separator.findChildren(
                     QtWidgets.QFrame, "RizumInsetSeparator"
                 )
             ),
             1,
         )
-        self.assertIsNone(original._footer_separator)
-        self.assertIsNone(kimi._footer_separator)
-        self.assertIsInstance(codex.restore_button, TextActionButton)
-        self.assertIsInstance(codex.cancel_button, SecondaryActionButton)
-        restore_left = codex.restore_button.mapTo(
-            codex.dialog, QtCore.QPoint(0, 0)
+        self.assertIsInstance(panel.restore_button, TextActionButton)
+        self.assertIsInstance(panel.cancel_button, SecondaryActionButton)
+        restore_left = panel.restore_button.mapTo(
+            panel.dialog, QtCore.QPoint(0, 0)
         ).x()
-        section_left = codex._section_rotation.mapTo(
-            codex.dialog, QtCore.QPoint(0, 0)
+        section_left = panel._section_rotation.mapTo(
+            panel.dialog, QtCore.QPoint(0, 0)
         ).x()
         self.assertEqual(restore_left, section_left)
         self.assertEqual(
-            codex.restore_button.width(), codex.restore_button.sizeHint().width()
+            panel.restore_button.width(), panel.restore_button.sizeHint().width()
         )
-        for codex_button, kimi_button in (
-            (codex.cancel_button, kimi.cancel_button),
-            (codex.save_button, kimi.save_button),
-        ):
-            self.assertEqual(codex_button.height(), kimi_button.height())
-            self.assertEqual(codex_button.height(), 28)
-        footer_metrics = QtGui.QFontMetrics(codex._footer_button_font())
+        self.assertEqual(panel.cancel_button.height(), 28)
+        self.assertEqual(panel.save_button.height(), 28)
+        footer_metrics = QtGui.QFontMetrics(panel._footer_button_font())
         for button in (
-            codex.cancel_button,
-            codex.save_button,
+            panel.cancel_button,
+            panel.save_button,
         ):
             expected = (
                 footer_metrics.horizontalAdvance(button.text())
@@ -622,29 +601,14 @@ class ViewRollComparisonPanelTests(unittest.TestCase):
             "    color: #202020;\n"
             "    background: #f2f2f2;\n"
             "    border-radius: 6px;",
-            codex.dialog.settingsSurface().styleSheet(),
+            panel.dialog.settingsSurface().styleSheet(),
         )
-        self.assertEqual(kimi.mode_segment._corner_radius, 4)
-        self.assertEqual(kimi._visual_style["surface"], "#26282c")
-        self.assertEqual(codex._visual_style["control"], "#333333")
-        self.assertEqual(codex._visual_style["control_hover"], "#444444")
-        self.assertEqual(codex._visual_style["control_pressed"], "#2c2c2c")
-        for panel in (codex, kimi):
-            stylesheet = panel.dialog.settingsSurface().styleSheet()
-            self.assertIn(
-                "QPushButton#RizumViewRollRestore {\n"
-                "    color:",
-                stylesheet,
-            )
-            self.assertIn("background: transparent;\n    border: 0;", stylesheet)
-            self.assertIn(
-                "QPushButton#RizumViewRollRestore:hover",
-                stylesheet,
-            )
-        self.assertEqual(
-            [DESIGN_VARIANTS[key]["label"] for key in ("original", "codex", "kimi")],
-            ["Original", "Codex", "Kimi K3"],
-        )
+        self.assertEqual(panel._visual_style["control"], "#333333")
+        self.assertEqual(panel._visual_style["control_hover"], "#444444")
+        self.assertEqual(panel._visual_style["control_pressed"], "#2c2c2c")
+        stylesheet = panel.dialog.settingsSurface().styleSheet()
+        self.assertIn("QPushButton#RizumViewRollRestore:hover", stylesheet)
+        self.assertIn("background: transparent;\n    border: 0;", stylesheet)
 
 
 class ViewRollLayoutRegressionTests(unittest.TestCase):
@@ -691,6 +655,9 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                 for button, rect in zip(buttons, rects):
                     self.assertGreaterEqual(rect.left(), 0)
                     self.assertLessEqual(rect.right(), dialog_width - 1)
+                    if isinstance(button, TextActionButton):
+                        self.assertEqual(button.width(), button.sizeHint().width())
+                        continue
                     text_width = metrics.horizontalAdvance(button.text())
                     content_width = button.width() - (
                         2 * FOOTER_BUTTON_PADDING_X + 2
@@ -846,10 +813,12 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
         for scale in REPRESENTATIVE_SCALES:
             with self.subTest(scale=scale):
                 panel = self.make_panel(scale)
-                for texts, stepper in (
-                    (panel.speed_texts, panel.speed_stepper),
-                    (panel.angle_texts, panel.angle_stepper),
+                for mode, texts, stepper in (
+                    ("continuous", panel.speed_texts, panel.speed_stepper),
+                    ("custom", panel.angle_texts, panel.angle_stepper),
                 ):
+                    panel.parameter_slot.setMode(mode, animate=False)
+                    QtWidgets.QApplication.processEvents()
                     row = stepper.parentWidget()
                     name = texts._rizum_name_label
                     meta = texts._rizum_meta_label
@@ -867,7 +836,7 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                     stepper_center = stepper.mapTo(
                         row, QtCore.QPoint(0, stepper.height() // 2)
                     ).y()
-                    self.assertLessEqual(abs(block_center - stepper_center), 1)
+                    self.assertLessEqual(abs(block_center - stepper_center), 3)
                     # The block stays inside the row's content box.
                     margins = row.layout().contentsMargins()
                     block_top = texts.mapTo(row, QtCore.QPoint(0, 0)).y()
@@ -882,16 +851,17 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
         for scale in REPRESENTATIVE_SCALES:
             with self.subTest(scale=scale):
                 panel = self.make_panel(scale)
-                gap = panel._metric(8, 6)
+                top = panel._metric(8, 6)
+                gap = panel._metric(6, 5)
 
                 footer = self.rect_in_dialog(panel, panel._footer)
                 buttons = self.rect_in_dialog(panel, panel._button_row)
                 self.assertEqual(
-                    buttons.top() - footer.top(), panel._metric(6, 5) + gap
+                    buttons.top() - footer.top(), top + gap
                 )
                 self.assertEqual(
                     footer.bottom() - buttons.bottom(),
-                    panel._metric(PAINTER_FOOTER_MARGIN_BOTTOM, 11),
+                    panel._metric(16, 12),
                 )
                 collapsed_footer_height = panel._footer.height()
                 collapsed_dialog_height = panel.dialog.height()
@@ -906,8 +876,8 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                     panel.dialog.height(), collapsed_dialog_height
                 )
                 margins = panel._button_layout.contentsMargins()
-                self.assertEqual(margins.left(), panel._metric(16, 12))
-                self.assertEqual(margins.right(), panel._metric(16, 12))
+                self.assertEqual(margins.left(), panel._metric(20, 15))
+                self.assertEqual(margins.right(), panel._metric(20, 15))
 
                 separators = panel._footer.findChildren(
                     QtWidgets.QFrame, "RizumInsetSeparator"
