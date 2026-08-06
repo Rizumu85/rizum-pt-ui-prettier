@@ -61,6 +61,7 @@ WATCHED_MODULES = [
     "rizum_ui.theme",
     "rizum_ui.host_style",
     "rizum_ui.stylesheet",
+    "rizum_ui.settings_layout",
     "rizum_ui.components",
     "rizum_ui.animation",
     "rizum_ui",

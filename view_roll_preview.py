@@ -14,6 +14,7 @@ from rizum_ui import (
     FOOTER_BUTTON_PADDING_X,
     ModeParameterSlot,
     PAINTER_DIALOG_STYLE,
+    PAINTER_SETTINGS_LAYOUT,
     PAINTER_WINDOW_CONTENT_RADIUS,
     PainterSettingsDialog,
     SecondaryActionButton,
@@ -1210,6 +1211,8 @@ ShortcutCaptureField = SharedShortcutCaptureField
 class ViewRollConceptPanel(QtWidgets.QWidget):
     """Tab content for the approved View Roll settings design."""
 
+    LAYOUT = PAINTER_SETTINGS_LAYOUT
+
     def __init__(self, parent=None, save_handler=None):
         super().__init__(parent)
         self.setObjectName("RizumViewRollPreview")
@@ -1247,8 +1250,13 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         body = QtWidgets.QWidget()
         body.setObjectName("RizumViewRollBody")
         self._body_layout = QtWidgets.QVBoxLayout(body)
-        self._body_layout.setContentsMargins(12, 8, 12, 16)
-        self._body_layout.setSpacing(2)
+        self._body_layout.setContentsMargins(
+            self.LAYOUT.body_margin_x.design,
+            self.LAYOUT.body_margin_top.design,
+            self.LAYOUT.body_margin_x.design,
+            self.LAYOUT.body_margin_bottom.design,
+        )
+        self._body_layout.setSpacing(self.LAYOUT.body_spacing.design)
 
         self._section_rotation = self._make_section(
             _preview_text("rotation", "Rotation"), first=True
@@ -1353,7 +1361,10 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             field.shortcutChanged.connect(self._on_shortcut_changed)
 
         content_layout.addWidget(body, 1)
-        self._footer_separator = make_inset_separator(20, thickness=1)
+        self._footer_separator = make_inset_separator(
+            self.LAYOUT.footer_margin_x.design,
+            thickness=1,
+        )
         self._footer_separator.setObjectName("RizumViewRollFooterDivider")
         content_layout.addWidget(self._footer_separator)
 
@@ -1367,8 +1378,13 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         button_row.setObjectName("RizumViewRollFooterRow")
         self._button_row = button_row
         self._button_layout = QtWidgets.QHBoxLayout(button_row)
-        self._button_layout.setContentsMargins(16, 0, 16, 0)
-        self._button_layout.setSpacing(8)
+        self._button_layout.setContentsMargins(
+            self.LAYOUT.footer_margin_x.design,
+            0,
+            self.LAYOUT.footer_margin_x.design,
+            0,
+        )
+        self._button_layout.setSpacing(self.LAYOUT.footer_button_spacing)
         self.restore_button = TextActionButton(
             _preview_text("restore", "Restore"),
             self._visual_style["muted"],
@@ -1438,7 +1454,12 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         label = QtWidgets.QLabel(text.upper())
         label.setObjectName("RizumSettingsSection")
         label._rizum_first = first
-        height = 26 if first else 36
+        metric = (
+            self.LAYOUT.first_section_height
+            if first
+            else self.LAYOUT.section_height
+        )
+        height = metric.design
         label.setFixedHeight(height)
         return label
 
@@ -1463,7 +1484,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         widget.setObjectName("RizumViewRollTexts")
         layout = QtWidgets.QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(2)
+        layout.setSpacing(self.LAYOUT.text_spacing.design)
         name_label = self._make_name(name)
         layout.addWidget(name_label)
         meta_label = QtWidgets.QLabel(meta)
@@ -1477,10 +1498,18 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
     def _make_row(self, tall=False):
         row = QtWidgets.QFrame()
         row.setObjectName("RizumViewRollRow")
-        row.setFixedHeight(46 if tall else 40)
+        metric = (
+            self.LAYOUT.detail_row_height if tall else self.LAYOUT.row_height
+        )
+        row.setFixedHeight(metric.design)
         layout = QtWidgets.QHBoxLayout(row)
-        layout.setContentsMargins(8, 5, 8, 5)
-        layout.setSpacing(8)
+        layout.setContentsMargins(
+            0,
+            self.LAYOUT.row_padding_y.design,
+            0,
+            self.LAYOUT.row_padding_y.design,
+        )
+        layout.setSpacing(self.LAYOUT.row_spacing)
         return row, layout
 
     def _metric(self, pixels, minimum=None):
@@ -1624,13 +1653,14 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
     def _apply_scale(self):
         """Scale every row, control, and footer button from the dialog scale."""
-        row_height = self._metric(40, 30)
-        tall_height = self._metric(46, 35)
-        footer_margin = self._metric(20, 15)
-        footer_top = self._metric(8, 6)
-        footer_gap = self._metric(6, 5)
-        buttons_height = self._metric(32, 24)
-        footer_bottom = self._metric(16, 12)
+        layout = self.LAYOUT
+        row_height = layout.row_height.resolve(self.dialog)
+        tall_height = layout.detail_row_height.resolve(self.dialog)
+        footer_margin = layout.footer_margin_x.resolve(self.dialog)
+        footer_top = layout.footer_top.resolve(self.dialog)
+        footer_gap = layout.footer_gap.resolve(self.dialog)
+        buttons_height = layout.footer_row_height.resolve(self.dialog)
+        footer_bottom = layout.footer_bottom.resolve(self.dialog)
 
         # Preserve the established separator-to-action rhythm without keeping
         # an empty status row in the footer.
@@ -1647,24 +1677,26 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             footer_margin, 0, footer_margin, 0
         )
         self._section_rotation.setFixedHeight(
-            self._metric(26, 20)
+            layout.first_section_height.resolve(self.dialog)
         )
         self._section_shortcuts.setFixedHeight(
-            self._metric(36, 27)
+            layout.section_height.resolve(self.dialog)
         )
         self._body_layout.setContentsMargins(
-            self._metric(20, 15),
-            self._metric(12, 9),
-            self._metric(20, 15),
-            self._metric(20, 15),
+            layout.body_margin_x.resolve(self.dialog),
+            layout.body_margin_top.resolve(self.dialog),
+            layout.body_margin_x.resolve(self.dialog),
+            layout.body_margin_bottom.resolve(self.dialog),
         )
+        self._body_layout.setSpacing(layout.body_spacing.resolve(self.dialog))
         for row in self.findChildren(QtWidgets.QFrame, "RizumViewRollRow"):
             row.layout().setContentsMargins(
                 0,
-                self._metric(5, 4),
+                layout.row_padding_y.resolve(self.dialog),
                 0,
-                self._metric(5, 4),
+                layout.row_padding_y.resolve(self.dialog),
             )
+            row.layout().setSpacing(layout.row_spacing)
         for label in self._name_labels:
             base_width = label._rizum_base_width
             label.setFixedWidth(
@@ -1675,7 +1707,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         # the block centers as one unit against the stepper next to it.
         name_metrics = QtGui.QFontMetrics(self._name_font())
         meta_metrics = QtGui.QFontMetrics(self._meta_font())
-        texts_spacing = self._metric(2, 1)
+        texts_spacing = layout.text_spacing.resolve(self.dialog)
         for block in self._texts_blocks:
             block._rizum_name_label.setFixedHeight(name_metrics.height())
             block._rizum_meta_label.setFixedHeight(meta_metrics.height())
@@ -1684,11 +1716,17 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
                 name_metrics.height() + texts_spacing + meta_metrics.height()
             )
 
-        self.mode_segment.setCompactHeight(self._metric(30, 23))
-        self.speed_stepper.setCompactHeight(self._metric(32, 24))
-        self.angle_stepper.setCompactHeight(self._metric(32, 24))
+        self.mode_segment.setCompactHeight(
+            layout.control_height.resolve(self.dialog)
+        )
+        self.speed_stepper.setCompactHeight(
+            layout.stepper_height.resolve(self.dialog)
+        )
+        self.angle_stepper.setCompactHeight(
+            layout.stepper_height.resolve(self.dialog)
+        )
         for field in self.shortcut_fields.values():
-            field.setCompactHeight(self._metric(30, 23))
+            field.setCompactHeight(layout.control_height.resolve(self.dialog))
             if hasattr(field, "setCompactTooltipScale"):
                 field.setCompactTooltipScale(self.dialog.settingsUiScale())
 
@@ -1700,7 +1738,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         for field in self.shortcut_fields.values():
             field.parentWidget().setFixedHeight(row_height)
 
-        footer_button_height = self._metric(28, 21)
+        footer_button_height = layout.footer_button_height.resolve(self.dialog)
         for button, minimum, maximum in (
             (self.restore_button, 56, 112),
             (self.cancel_button, 56, 112),
@@ -1743,11 +1781,12 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
     def _required_dialog_width(self):
         scale = self.dialog.settingsUiScale()
-        base = self._metric(300, 240)
-        footer_margin = self._metric(20, 15)
+        layout = self.LAYOUT
+        base = layout.dialog_width.resolve(self.dialog)
+        footer_margin = layout.footer_margin_x.resolve(self.dialog)
         row_margin = 0
-        row_spacing = 8
-        body_margin = self._metric(20, 15)
+        row_spacing = layout.row_spacing
+        body_margin = layout.body_margin_x.resolve(self.dialog)
 
         button_spacing = self._button_layout.spacing()
         buttons_width = sum(

@@ -14,6 +14,7 @@ from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 
 from rizum_ui import (
     FOOTER_BUTTON_PADDING_X,
+    PAINTER_SETTINGS_LAYOUT,
     SecondaryActionButton,
     ShortcutCaptureField,
     TextActionButton,
@@ -539,6 +540,7 @@ class ViewRollApprovedPanelTests(unittest.TestCase):
         panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
 
+        self.assertIs(panel.LAYOUT, PAINTER_SETTINGS_LAYOUT)
         self.assertEqual(panel._visual_style["surface"], "#202020")
         self.assertEqual(panel.mode_segment._corner_radius, 8)
         self.assertEqual(panel.mode_segment._paint_inset, 1.5)
@@ -548,18 +550,43 @@ class ViewRollApprovedPanelTests(unittest.TestCase):
         )
         panel._apply_mode_reveals(animate=False)
         body_margins = panel._body_layout.contentsMargins()
-        self.assertEqual((body_margins.left(), body_margins.right()), (20, 20))
+        self.assertEqual(
+            (body_margins.left(), body_margins.right()),
+            (
+                PAINTER_SETTINGS_LAYOUT.body_margin_x.design,
+                PAINTER_SETTINGS_LAYOUT.body_margin_x.design,
+            ),
+        )
         mode_margins = panel.mode_segment.parentWidget().layout().contentsMargins()
         self.assertEqual((mode_margins.left(), mode_margins.right()), (0, 0))
         footer_margins = panel._button_layout.contentsMargins()
-        self.assertEqual((footer_margins.left(), footer_margins.right()), (20, 20))
+        self.assertEqual(
+            (footer_margins.left(), footer_margins.right()),
+            (
+                PAINTER_SETTINGS_LAYOUT.footer_margin_x.design,
+                PAINTER_SETTINGS_LAYOUT.footer_margin_x.design,
+            ),
+        )
         self.assertEqual(panel.dialog.settingsFrameWidth(), 0)
         self.assertEqual(panel.dialog.settingsFrameBottomWidth(), 0)
         self.assertFalse(panel.dialog.settingsBottomEdgeExtensionEnabled())
-        self.assertEqual(panel._section_rotation.height(), 26)
-        self.assertEqual(panel._button_row.height(), 32)
-        self.assertEqual(panel._footer.layout().contentsMargins().top(), 14)
-        self.assertEqual(panel._footer.layout().contentsMargins().bottom(), 16)
+        self.assertEqual(
+            panel._section_rotation.height(),
+            PAINTER_SETTINGS_LAYOUT.first_section_height.design,
+        )
+        self.assertEqual(
+            panel._button_row.height(),
+            PAINTER_SETTINGS_LAYOUT.footer_row_height.design,
+        )
+        self.assertEqual(
+            panel._footer.layout().contentsMargins().top(),
+            PAINTER_SETTINGS_LAYOUT.footer_top.design
+            + PAINTER_SETTINGS_LAYOUT.footer_gap.design,
+        )
+        self.assertEqual(
+            panel._footer.layout().contentsMargins().bottom(),
+            PAINTER_SETTINGS_LAYOUT.footer_bottom.design,
+        )
         self.assertEqual(panel._footer.layout().spacing(), 0)
         self.assertEqual(panel._footer_separator.height(), 1)
         self.assertEqual(
