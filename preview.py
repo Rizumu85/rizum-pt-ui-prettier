@@ -516,6 +516,7 @@ def build_bridge_preview(QtWidgets):
             preview_text("all_stacks", "All Stacks"),
         ]
     )
+    mode_combo.setObjectName("RizumExportScopeInput")
     expand_btn = make_icon_button("chevrons-down.svg", "Expand all")
     collapse_btn = make_icon_button("chevrons-up.svg", "Collapse all")
     select_all_btn = make_icon_button("circle-dot.svg", "Select all")
@@ -711,14 +712,16 @@ QWidget#RizumExportTopDivider QFrame#RizumInsetSeparator,
 QWidget#RizumExportFooterDivider QFrame#RizumInsetSeparator {{
     background: {theme["border"]};
 }}
-QFrame#RizumMockInput {{
-    background: {theme["control"]};
+QFrame#RizumExportScopeInput {{
+    background: transparent;
     border: 0;
     border-radius: {default_theme.radius_small}px;
 }}
-QFrame#RizumMockInput:hover,
-QFrame#RizumMockInput:focus {{
-    background: {theme["control_hover"]};
+QFrame#RizumExportScopeInput:focus {{
+    background: transparent;
+}}
+QFrame#RizumExportScopeInput:hover {{
+    background: {theme["control"]};
 }}
 QFrame#RizumCollapsibleGroup {{
     background: transparent;

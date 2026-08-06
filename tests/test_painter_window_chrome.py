@@ -135,6 +135,28 @@ class PainterWindowChromeTests(unittest.TestCase):
         )
         self.assertIn("background: #202020", bridge.settingsSurface().styleSheet())
 
+    def test_export_scope_control_stays_quiet_until_hover(self):
+        bridge = build_bridge_preview(QtWidgets)
+        self.addCleanup(bridge.deleteLater)
+
+        scope = bridge._rizum_top_controls._rizum_left_controls[0]
+        stylesheet = bridge.settingsSurface().styleSheet()
+        self.assertEqual(scope.objectName(), "RizumExportScopeInput")
+        self.assertIn(
+            "QFrame#RizumExportScopeInput {\n"
+            "    background: transparent;",
+            stylesheet,
+        )
+        self.assertIn(
+            "QFrame#RizumExportScopeInput:hover {\n"
+            "    background: #333333;",
+            stylesheet,
+        )
+        self.assertNotIn(
+            "QFrame#RizumExportScopeInput:focus,",
+            stylesheet,
+        )
+
     def test_bridge_preview_scales_fixed_component_internals(self):
         bridge = build_bridge_preview(QtWidgets)
         self.addCleanup(bridge.deleteLater)
