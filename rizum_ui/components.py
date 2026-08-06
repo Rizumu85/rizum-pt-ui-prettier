@@ -1742,7 +1742,13 @@ def make_export_tree_item(name, checkbox, meta="", child=False, parent=None):
         row_layout = QtWidgets.QHBoxLayout(row)
         row_layout.setContentsMargins(8, 4, 8, 4)
         row_layout.setSpacing(10)
-        row_layout.addSpacing(0)
+        content_indent = QtWidgets.QSpacerItem(
+            16,
+            0,
+            QtWidgets.QSizePolicy.Policy.Fixed,
+            QtWidgets.QSizePolicy.Policy.Minimum,
+        )
+        row_layout.addItem(content_indent)
 
         label = QtWidgets.QLabel(name)
         label.setObjectName("RizumExportItemName")
@@ -1758,6 +1764,21 @@ def make_export_tree_item(name, checkbox, meta="", child=False, parent=None):
         host._rizum_checkbox = checkbox
         host._rizum_checkbox_slot = checkbox_slot
         host._rizum_child = True
+        host._rizum_content_indent = 16
+
+        def set_content_indent(indent):
+            indent = max(12, int(round(indent)))
+            host._rizum_content_indent = indent
+            content_indent.changeSize(
+                indent,
+                0,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+                QtWidgets.QSizePolicy.Policy.Minimum,
+            )
+            row_layout.invalidate()
+            row.updateGeometry()
+
+        host.setContentIndent = set_content_indent
         update_export_tree_item(host, name)
         def refresh_host(name_text=None, meta_text=None):
             update_export_tree_item(host, name_text, meta_text)

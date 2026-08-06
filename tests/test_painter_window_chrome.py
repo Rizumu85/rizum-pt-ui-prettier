@@ -165,6 +165,40 @@ class PainterWindowChromeTests(unittest.TestCase):
         self.assertEqual(
             group["parent"].checkboxSize(), bridge.settingsMetric(14, 11)
         )
+        self.assertEqual(
+            group["rows"][0]._rizum_content_indent,
+            bridge.settingsMetric(16, 12),
+        )
+
+    def test_export_children_indent_their_content_without_moving_checkboxes(self):
+        bridge = build_bridge_preview(QtWidgets)
+        self.addCleanup(bridge.deleteLater)
+        bridge.show()
+        self.app.processEvents()
+
+        group = bridge._rizum_groups[0]
+        group_widget = group["widget"]
+        parent_label = group_widget.findChild(
+            QtWidgets.QLabel, "RizumCollapsibleTitle"
+        )
+        child_host = group["rows"][0]
+        child_label = child_host._rizum_label
+        child_row = child_host._rizum_row
+
+        parent_label_x = parent_label.mapTo(group_widget, QtCore.QPoint()).x()
+        child_label_x = child_label.mapTo(group_widget, QtCore.QPoint()).x()
+        child_row_x = child_row.mapTo(group_widget, QtCore.QPoint()).x()
+        self.assertGreater(child_row_x, 0)
+        self.assertGreaterEqual(child_label_x - parent_label_x, 12)
+
+        parent_center_x = group["parent"].mapTo(
+            group_widget, group["parent"].rect().center()
+        ).x()
+        for checkbox in group["children"]:
+            child_center_x = checkbox.mapTo(
+                group_widget, checkbox.rect().center()
+            ).x()
+            self.assertLessEqual(abs(child_center_x - parent_center_x), 1)
 
     def test_settings_preview_uses_canonical_codex_layout(self):
         settings = build_settings_preview(QtWidgets)
