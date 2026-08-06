@@ -189,7 +189,7 @@ QFrame { background: #1b1b1b; border: 1px solid #414141; border-radius: 8px; }
             1,
         )
 
-    def test_bridge_preview_has_no_footer_separator(self):
+    def test_bridge_preview_separates_toolbar_and_footer(self):
         from preview import build_bridge_preview
 
         window = build_bridge_preview(QtWidgets)
@@ -197,7 +197,7 @@ QFrame { background: #1b1b1b; border: 1px solid #414141; border-radius: 8px; }
 
         self.assertEqual(
             len(window.findChildren(QtWidgets.QFrame, "RizumInsetSeparator")),
-            1,
+            2,
         )
 
 

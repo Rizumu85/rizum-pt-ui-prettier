@@ -9,8 +9,6 @@ from PySide6 import QtCore, QtWidgets
 
 from preview import build_bridge_preview, build_settings_preview
 from rizum_ui import (
-    PAINTER_FOOTER_MARGIN_BOTTOM,
-    PAINTER_FOOTER_MARGIN_X,
     PAINTER_SETTINGS_LAYOUT,
     PAINTER_WINDOW_CONTENT_RADIUS,
     PainterSettingsDialog,
@@ -96,15 +94,77 @@ class PainterWindowChromeTests(unittest.TestCase):
             panel.dialog.settingsSurface().styleSheet(),
         )
 
-    def test_bridge_footer_keeps_export_window_edge_margins(self):
+    def test_bridge_preview_uses_canonical_export_layout(self):
         bridge = build_bridge_preview(QtWidgets)
         self.addCleanup(bridge.deleteLater)
 
+        self.assertIsInstance(bridge, PainterSettingsDialog)
+        top_controls = bridge._rizum_top_controls
+        top_margins = top_controls.layout().contentsMargins()
+        self.assertEqual(
+            top_controls.height(), PAINTER_SETTINGS_LAYOUT.row_height.design
+        )
+        self.assertEqual(
+            top_margins.left(), PAINTER_SETTINGS_LAYOUT.body_margin_x.design
+        )
+        self.assertEqual(
+            top_margins.right(), PAINTER_SETTINGS_LAYOUT.body_margin_x.design
+        )
+
         footer = bridge.findChild(QtWidgets.QWidget, "RizumExportFooter")
-        margins = footer.layout().contentsMargins()
-        self.assertEqual(margins.left(), PAINTER_FOOTER_MARGIN_X)
-        self.assertEqual(margins.right(), PAINTER_FOOTER_MARGIN_X)
-        self.assertEqual(margins.bottom(), PAINTER_FOOTER_MARGIN_BOTTOM)
+        footer_row = bridge.findChild(QtWidgets.QWidget, "RizumExportFooterRow")
+        footer_margins = footer_row.layout().contentsMargins()
+        self.assertEqual(
+            footer_margins.left(), PAINTER_SETTINGS_LAYOUT.footer_margin_x.design
+        )
+        self.assertEqual(
+            footer_margins.right(), PAINTER_SETTINGS_LAYOUT.footer_margin_x.design
+        )
+        self.assertEqual(
+            footer.height(),
+            PAINTER_SETTINGS_LAYOUT.footer_top.design
+            + PAINTER_SETTINGS_LAYOUT.footer_gap.design
+            + PAINTER_SETTINGS_LAYOUT.footer_row_height.design
+            + PAINTER_SETTINGS_LAYOUT.footer_bottom.design,
+        )
+        self.assertIs(
+            footer_row.layout().itemAt(0).widget(), bridge._rizum_cancel_button
+        )
+        self.assertIs(
+            footer_row.layout().itemAt(2).widget(), bridge._rizum_export_button
+        )
+        self.assertIn("background: #202020", bridge.settingsSurface().styleSheet())
+
+    def test_bridge_preview_scales_fixed_component_internals(self):
+        bridge = build_bridge_preview(QtWidgets)
+        self.addCleanup(bridge.deleteLater)
+
+        bridge.setSettingsUiScale(1.1)
+        top_controls = bridge._rizum_top_controls
+        combo = top_controls._rizum_left_controls[0]
+        group = bridge._rizum_groups[0]
+        chevron = group["widget"].findChild(
+            QtWidgets.QWidget, "RizumCollapsibleChevron"
+        )
+
+        self.assertEqual(
+            top_controls.height(),
+            PAINTER_SETTINGS_LAYOUT.row_height.resolve(bridge),
+        )
+        self.assertEqual(
+            combo.height(), PAINTER_SETTINGS_LAYOUT.control_height.resolve(bridge)
+        )
+        self.assertEqual(
+            group["widget"]._rizum_header.height(), bridge.settingsMetric(36, 27)
+        )
+        expected_chevron = max(
+            11,
+            round(14 * group["widget"]._rizum_header.height() / 36),
+        )
+        self.assertEqual(chevron.width(), expected_chevron)
+        self.assertEqual(
+            group["parent"].checkboxSize(), bridge.settingsMetric(14, 11)
+        )
 
     def test_settings_preview_uses_canonical_codex_layout(self):
         settings = build_settings_preview(QtWidgets)

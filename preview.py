@@ -14,8 +14,6 @@ from rizum_ui import (
     COMPACT_DOCK_DEFAULT_HEIGHT,
     COMPACT_DOCK_DEFAULT_WIDTH,
     COMPACT_DOCK_MIN_WIDTH,
-    PAINTER_FOOTER_MARGIN_BOTTOM,
-    PAINTER_FOOTER_MARGIN_X,
     PAINTER_DIALOG_STYLE,
     PAINTER_SETTINGS_LAYOUT,
     PAINTER_WINDOW_CONTENT_RADIUS,
@@ -367,9 +365,11 @@ def reload_ui_kit():
     global COMPACT_DOCK_DEFAULT_HEIGHT
     global COMPACT_DOCK_DEFAULT_WIDTH
     global COMPACT_DOCK_MIN_WIDTH
-    global PAINTER_FOOTER_MARGIN_BOTTOM
-    global PAINTER_FOOTER_MARGIN_X
+    global PAINTER_DIALOG_STYLE
+    global PAINTER_SETTINGS_LAYOUT
     global PAINTER_WINDOW_CONTENT_RADIUS
+    global PainterSettingsDialog
+    global SecondaryActionButton
     global animate_drag_tree_item_added
     global apply_compact_dock_surface
     global apply_painter_like_base
@@ -405,6 +405,7 @@ def reload_ui_kit():
     global update_compact_field_row
     global update_export_tree_item
     global update_inline_checkbox_row
+    global default_theme
     global fade_in
 
     for module_name in WATCHED_MODULES:
@@ -420,9 +421,11 @@ def reload_ui_kit():
     COMPACT_DOCK_DEFAULT_HEIGHT = rizum_ui.COMPACT_DOCK_DEFAULT_HEIGHT
     COMPACT_DOCK_DEFAULT_WIDTH = rizum_ui.COMPACT_DOCK_DEFAULT_WIDTH
     COMPACT_DOCK_MIN_WIDTH = rizum_ui.COMPACT_DOCK_MIN_WIDTH
-    PAINTER_FOOTER_MARGIN_BOTTOM = rizum_ui.PAINTER_FOOTER_MARGIN_BOTTOM
-    PAINTER_FOOTER_MARGIN_X = rizum_ui.PAINTER_FOOTER_MARGIN_X
+    PAINTER_DIALOG_STYLE = rizum_ui.PAINTER_DIALOG_STYLE
+    PAINTER_SETTINGS_LAYOUT = rizum_ui.PAINTER_SETTINGS_LAYOUT
     PAINTER_WINDOW_CONTENT_RADIUS = rizum_ui.PAINTER_WINDOW_CONTENT_RADIUS
+    PainterSettingsDialog = rizum_ui.PainterSettingsDialog
+    SecondaryActionButton = rizum_ui.SecondaryActionButton
     animate_drag_tree_item_added = rizum_ui.animate_drag_tree_item_added
     apply_compact_dock_surface = rizum_ui.apply_compact_dock_surface
     apply_painter_like_base = rizum_ui.apply_painter_like_base
@@ -458,6 +461,7 @@ def reload_ui_kit():
     update_compact_field_row = rizum_ui.update_compact_field_row
     update_export_tree_item = rizum_ui.update_export_tree_item
     update_inline_checkbox_row = rizum_ui.update_inline_checkbox_row
+    default_theme = rizum_ui.default_theme
     fade_in = rizum_ui.animation.fade_in
 
 
@@ -479,130 +483,32 @@ def restart_preview(app):
 
 
 def build_bridge_preview(QtWidgets):
-    from PySide6 import QtCore, QtGui
+    from PySide6 import QtCore, QtWidgets as _QtWidgets
 
-    window = QtWidgets.QFrame()
+    layout_spec = PAINTER_SETTINGS_LAYOUT
+    theme = {
+        **dict(PAINTER_DIALOG_STYLE),
+        "border": "#3a3b3e",
+    }
+
+    window = PainterSettingsDialog()
     window.setObjectName("RizumExportWindow")
-    window.setFixedSize(256, 219)
+    window.setWindowFlags(QtCore.Qt.WindowType.Widget)
+    window.setSettingsFrameWidth(0)
+    window.setSettingsFrameBottomWidth(0)
+    window.setSettingsBottomEdgeExtensionEnabled(False)
     window.setSizePolicy(
-        QtWidgets.QSizePolicy.Policy.Fixed,
-        QtWidgets.QSizePolicy.Policy.Fixed,
+        _QtWidgets.QSizePolicy.Policy.Fixed,
+        _QtWidgets.QSizePolicy.Policy.Fixed,
     )
-    export_family = "Segoe UI"
-    font_path = ROOT.parent / "rizum-pt-ui-font" / "fonts" / "MiSans-Regular.ttf"
-    if font_path.exists():
-        font_id = QtGui.QFontDatabase.addApplicationFont(str(font_path))
-        families = QtGui.QFontDatabase.applicationFontFamilies(font_id) if font_id >= 0 else []
-        if families:
-            export_family = families[0]
-    window.setFont(QtGui.QFont(export_family, 9))
-    window.setStyleSheet(
-        """
-QFrame#RizumExportWindow {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    font-family: "__EXPORT_FAMILY__", "Segoe UI", Arial, sans-serif;
-}
-QWidget#RizumExportTopControls,
-QFrame#RizumExportFooter {
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportWindow QLabel:hover {
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportWindow QLabel#RizumMockText {
-    font-size: 9pt;
-    font-weight: 400;
-    background: transparent;
-    border: 0;
-}
-QLabel#RizumExportItemName {
-    color: #e0e0e0;
-    font-size: 9pt;
-    font-weight: 400;
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportWindow QLabel#RizumCollapsibleTitle {
-    color: #e0e0e0;
-    font-size: 9pt;
-    font-weight: 400;
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportWindow QLabel#RizumCollapsibleSubtitle {
-    color: #666666;
-    font-size: 8pt;
-    font-weight: 400;
-    background: transparent;
-    border: 0;
-}
-QLabel#RizumExportMeta {
-    color: #666666;
-    font-size: 8pt;
-    font-weight: 400;
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportTree {
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportGroup {
-    background: transparent;
-    border: 0;
-    border-radius: 8px;
-}
-QFrame#RizumExportGroup:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border: 0;
-}
-QFrame#RizumExportTreeItem {
-    background: transparent;
-    border: 0;
-    border-radius: 6px;
-}
-QFrame#RizumExportTreeItemHost {
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportTreeItem:hover {
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportTreeItem[hovered="true"][child="true"] {
-    background: rgba(255, 255, 255, 0.06);
-    border: 0;
-}
-QFrame#RizumExportTreeItem[hovered="true"][child="false"] {
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportWindow QLabel#RizumSvgLabel,
-QFrame#RizumExportWindow QLabel#RizumSvgLabel:hover {
-    background: transparent;
-    border: 0;
-}
-QFrame#RizumExportWindow QPushButton[variant="dialog-secondary"],
-QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
-    font-weight: 400;
-}
-""".replace("__EXPORT_FAMILY__", export_family.replace('"', '\\"'))
-    )
-
-    layout = QtWidgets.QVBoxLayout(window)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(0)
+    surface_layout = window.settingsSurfaceLayout()
     content = make_painter_window_content(
-        "#1b1b1b",
+        theme["surface"],
         rounded=False,
         bottom_radius=PAINTER_WINDOW_CONTENT_RADIUS,
     )
     content_layout = content.contentLayout()
-    layout.addWidget(content, 1)
+    surface_layout.addWidget(content, 1)
 
     mode_combo = make_combo_input(
         [
@@ -610,7 +516,6 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
             preview_text("all_stacks", "All Stacks"),
         ]
     )
-    mode_combo.setCompactHeight(26)
     expand_btn = make_icon_button("chevrons-down.svg", "Expand all")
     collapse_btn = make_icon_button("chevrons-up.svg", "Collapse all")
     select_all_btn = make_icon_button("circle-dot.svg", "Select all")
@@ -628,16 +533,28 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
         [mode_combo],
         icon_bar,
         object_name="RizumExportTopControls",
-        spacing=0,
+        height=layout_spec.row_height.design,
+        margins=(
+            layout_spec.body_margin_x.design,
+            0,
+            layout_spec.body_margin_x.design,
+            0,
+        ),
+        spacing=layout_spec.row_spacing,
     )
     content_layout.addWidget(top_controls)
-    content_layout.addWidget(make_inset_separator(12, thickness=2))
+    top_separator = make_inset_separator(
+        layout_spec.body_margin_x.design,
+        thickness=1,
+    )
+    top_separator.setObjectName("RizumExportTopDivider")
+    content_layout.addWidget(top_separator)
 
-    tree = QtWidgets.QFrame()
+    tree = _QtWidgets.QFrame()
     tree.setObjectName("RizumExportTree")
-    tree_layout = QtWidgets.QVBoxLayout(tree)
-    tree_layout.setContentsMargins(8, 8, 8, 8)
-    tree_layout.setSpacing(4)
+    tree_layout = _QtWidgets.QVBoxLayout(tree)
+    tree_layout.setContentsMargins(12, 8, 12, 8)
+    tree_layout.setSpacing(layout_spec.body_spacing.design)
     content_layout.addWidget(tree, 1)
 
     groups = []
@@ -704,22 +621,50 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     add_group("M_body", ["basecolor", "User1"])
     tree_layout.addStretch(1)
 
-    footer = QtWidgets.QFrame()
-    footer.setObjectName("RizumExportFooter")
-    footer.setFixedHeight(40)
-    footer_layout = QtWidgets.QHBoxLayout(footer)
-    footer_layout.setContentsMargins(
-        PAINTER_FOOTER_MARGIN_X,
-        0,
-        PAINTER_FOOTER_MARGIN_X,
-        PAINTER_FOOTER_MARGIN_BOTTOM,
+    footer_separator = make_inset_separator(
+        layout_spec.footer_margin_x.design,
+        thickness=1,
     )
-    footer_layout.setSpacing(8)
-    footer_layout.addStretch(1)
-    cancel = ActionButton.create(preview_text("cancel", "Cancel"), "dialog-secondary")
-    export = ActionButton.create(preview_text("export", "Export"), "dialog-primary")
+    footer_separator.setObjectName("RizumExportFooterDivider")
+    content_layout.addWidget(footer_separator)
+
+    footer = _QtWidgets.QWidget()
+    footer.setObjectName("RizumExportFooter")
+    footer_outer = _QtWidgets.QVBoxLayout(footer)
+    footer_outer.setContentsMargins(0, 0, 0, 0)
+    footer_outer.setSpacing(0)
+    footer_row = _QtWidgets.QWidget()
+    footer_row.setObjectName("RizumExportFooterRow")
+    footer_layout = _QtWidgets.QHBoxLayout(footer_row)
+    footer_layout.setContentsMargins(
+        layout_spec.footer_margin_x.design,
+        0,
+        layout_spec.footer_margin_x.design,
+        0,
+    )
+    footer_layout.setSpacing(layout_spec.footer_button_spacing)
+    cancel = SecondaryActionButton(
+        preview_text("cancel", "Cancel"),
+        theme["control"],
+        theme["control_hover"],
+        theme["control_pressed"],
+        theme["text"],
+        default_theme.radius_small,
+    )
+    cancel.setObjectName("RizumExportCancel")
+    export = SecondaryActionButton(
+        preview_text("export", "Export"),
+        theme["accent"],
+        theme["accent_hover"],
+        theme["accent_pressed"],
+        theme["accent_text"],
+        default_theme.radius_small,
+    )
+    export.setObjectName("RizumExportConfirm")
     footer_layout.addWidget(cancel)
+    footer_layout.addStretch(1)
     footer_layout.addWidget(export)
+    footer_outer.addWidget(footer_row)
     content_layout.addWidget(footer)
 
     expand_btn.clicked.connect(lambda: [group["widget"].setExpanded(True) for group in groups])
@@ -733,20 +678,233 @@ QFrame#RizumExportWindow QPushButton[variant="dialog-primary"] {
     select_all_btn.clicked.connect(lambda: set_all_checked(True))
     select_none_btn.clicked.connect(lambda: set_all_checked(False))
 
+    def metric(value, minimum=None):
+        return window.settingsMetric(value, minimum)
+
+    def apply_visual_style():
+        window.setProperty("theme", "dark")
+        content.setPainterContentColor(theme["surface"])
+        window._update_surface_stylesheet()
+        item_px = metric(13)
+        meta_px = metric(11)
+        surface = window.settingsSurface()
+        surface.setStyleSheet(
+            surface.styleSheet()
+            + f"""
+QFrame#RizumPainterSettingsSurface {{
+    background: {theme["surface"]};
+}}
+QWidget#RizumExportTopControls,
+QFrame#RizumExportTree,
+QWidget#RizumExportFooter,
+QWidget#RizumExportFooterRow,
+QWidget#RizumExportTopDivider,
+QWidget#RizumExportFooterDivider,
+QFrame#RizumCollapsibleHeader,
+QFrame#RizumCollapsibleContent,
+QWidget#RizumCollapsibleContentInner,
+QFrame#RizumExportTreeItemHost {{
+    background: transparent;
+    border: 0;
+}}
+QWidget#RizumExportTopDivider QFrame#RizumInsetSeparator,
+QWidget#RizumExportFooterDivider QFrame#RizumInsetSeparator {{
+    background: {theme["border"]};
+}}
+QFrame#RizumMockInput {{
+    background: {theme["control"]};
+    border: 0;
+    border-radius: {default_theme.radius_small}px;
+}}
+QFrame#RizumMockInput:hover,
+QFrame#RizumMockInput:focus {{
+    background: {theme["control_hover"]};
+}}
+QFrame#RizumCollapsibleGroup {{
+    background: transparent;
+    border: 0;
+    border-radius: {default_theme.radius_small}px;
+}}
+QFrame#RizumCollapsibleGroup:hover {{
+    background: {theme["control_pressed"]};
+}}
+QFrame#RizumExportTreeItem {{
+    background: transparent;
+    border: 0;
+    border-radius: {default_theme.radius_small}px;
+}}
+QFrame#RizumExportTreeItem[hovered="true"][child="true"] {{
+    background: {theme["control"]};
+}}
+QLabel#RizumExportItemName,
+QLabel#RizumCollapsibleTitle {{
+    color: {theme["text"]};
+    font-size: {item_px}px;
+    font-weight: 500;
+    background: transparent;
+    border: 0;
+}}
+QLabel#RizumExportMeta,
+QLabel#RizumCollapsibleSubtitle {{
+    color: {theme["muted"]};
+    font-size: {meta_px}px;
+    font-weight: 500;
+    background: transparent;
+    border: 0;
+}}
+QLabel#RizumSvgLabel,
+QLabel#RizumSvgLabel:hover {{
+    background: transparent;
+    border: 0;
+}}
+"""
+        )
+        for button in (expand_btn, collapse_btn, select_all_btn, select_none_btn):
+            button.setProperty("iconColor", theme["muted"])
+            button.setProperty("iconAccentColor", theme["muted"])
+            button.setProperty("iconHoverColor", theme["text"])
+            button.update()
+
+    def expanded_tree_height():
+        margins = tree_layout.contentsMargins()
+        height = margins.top() + margins.bottom()
+        for index, group in enumerate(groups):
+            if index:
+                height += tree_layout.spacing()
+            group_layout = group["widget"].layout()
+            group_margins = group_layout.contentsMargins()
+            height += (
+                group_margins.top()
+                + group["widget"]._rizum_header.height()
+                + group["widget"]._rizum_content_inner.sizeHint().height()
+                + group_margins.bottom()
+            )
+        return height
+
+    def footer_button_width(button, minimum=56, maximum=112):
+        scale = window.settingsUiScale()
+        width = button.sizeHint().width() + metric(16, 12)
+        return max(
+            metric(minimum),
+            min(int(round(maximum * scale)), width),
+        )
+
+    def required_width():
+        margin = layout_spec.body_margin_x.resolve(window)
+        toolbar_width = compact_action_bar_width(
+            [mode_combo],
+            icon_bar,
+            minimum=layout_spec.dialog_width.resolve(window),
+            horizontal_margins=margin * 2,
+            spacing=layout_spec.row_spacing,
+            spacing_budget=layout_spec.row_spacing,
+        )
+        footer_width = (
+            margin * 2
+            + cancel.width()
+            + export.width()
+            + layout_spec.footer_button_spacing
+        )
+        return max(
+            layout_spec.dialog_width.resolve(window),
+            toolbar_width,
+            footer_width,
+        )
+
+    def apply_scale():
+        margin = layout_spec.body_margin_x.resolve(window)
+        top_controls.setFixedHeight(layout_spec.row_height.resolve(window))
+        top_controls.layout().setContentsMargins(margin, 0, margin, 0)
+        top_controls.layout().setSpacing(layout_spec.row_spacing)
+        mode_combo.setCompactHeight(layout_spec.control_height.resolve(window))
+        mode_combo.fitToContents()
+
+        icon_frame = metric(22, 17)
+        icon_size = metric(16, 12)
+        for button in (expand_btn, collapse_btn, select_all_btn, select_none_btn):
+            button.setFixedSize(icon_frame, icon_frame)
+            button.setPaintedIconSize(icon_size)
+            if hasattr(button, "setCompactTooltipScale"):
+                button.setCompactTooltipScale(window.settingsUiScale())
+        for separator in icon_bar.findChildren(_QtWidgets.QFrame):
+            if separator.width() == 1:
+                separator.setFixedHeight(metric(14, 11))
+
+        tree_margin_x = metric(12, 9)
+        tree_margin_y = metric(8, 6)
+        tree_layout.setContentsMargins(
+            tree_margin_x,
+            tree_margin_y,
+            tree_margin_x,
+            tree_margin_y,
+        )
+        tree_layout.setSpacing(layout_spec.body_spacing.resolve(window))
+        checkbox_size = metric(14, 11)
+        group_height = metric(36, 27)
+        child_height = metric(32, 24)
+        for group in groups:
+            for checkbox in (group["parent"], *group["children"]):
+                checkbox.setSize(checkbox_size)
+            group["widget"].setCompactHeight(group_height)
+            for row in group["rows"]:
+                update_export_tree_item(row, minimum_height=child_height)
+            group["widget"].refreshLayout()
+        tree.setFixedHeight(expanded_tree_height())
+
+        footer_margin = layout_spec.footer_margin_x.resolve(window)
+        footer_top = layout_spec.footer_top.resolve(window)
+        footer_gap = layout_spec.footer_gap.resolve(window)
+        footer_bottom = layout_spec.footer_bottom.resolve(window)
+        footer_row_height = layout_spec.footer_row_height.resolve(window)
+        footer_outer.setContentsMargins(
+            0,
+            footer_top + footer_gap,
+            0,
+            footer_bottom,
+        )
+        footer_row.setFixedHeight(footer_row_height)
+        footer.setFixedHeight(
+            footer_top + footer_gap + footer_row_height + footer_bottom
+        )
+        footer_layout.setContentsMargins(footer_margin, 0, footer_margin, 0)
+        footer_separator.layout().setContentsMargins(
+            footer_margin, 0, footer_margin, 0
+        )
+        top_separator.layout().setContentsMargins(margin, 0, margin, 0)
+        footer_button_height = layout_spec.footer_button_height.resolve(window)
+        for button in (cancel, export):
+            button.setCompactHeight(footer_button_height)
+            button.setFixedWidth(footer_button_width(button))
+
+        apply_visual_style()
+        window.setFixedWidth(required_width())
+        window.setFixedHeight(
+            top_controls.height()
+            + top_separator.height()
+            + tree.height()
+            + footer_separator.height()
+            + footer.height()
+        )
+        window.updateGeometry()
+
     def refresh_layout():
         top_controls.refreshLayout()
-        window.setFixedWidth(
-            compact_action_bar_width([mode_combo], icon_bar, minimum=260, spacing_budget=4)
-        )
         for group in groups:
             for row in group["rows"]:
                 row.refreshLayout()
             group["widget"].refreshLayout()
-        cancel.refreshLayout(minimum=78, maximum=140)
-        export.refreshLayout(minimum=82, maximum=140)
+        apply_scale()
 
     window.refreshLayout = refresh_layout
-    refresh_layout()
+    window.settingsUiScaleChanged.connect(lambda _scale: apply_scale())
+    apply_scale()
+    window._rizum_top_controls = top_controls
+    window._rizum_tree = tree
+    window._rizum_groups = groups
+    window._rizum_footer = footer
+    window._rizum_footer_row = footer_row
+    window._rizum_cancel_button = cancel
+    window._rizum_export_button = export
     return window
 
 
