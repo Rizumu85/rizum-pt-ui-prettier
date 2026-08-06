@@ -11,7 +11,9 @@ from preview import build_bridge_preview, build_settings_preview
 from rizum_ui import (
     PAINTER_FOOTER_MARGIN_BOTTOM,
     PAINTER_FOOTER_MARGIN_X,
+    PAINTER_SETTINGS_LAYOUT,
     PAINTER_WINDOW_CONTENT_RADIUS,
+    PainterSettingsDialog,
     make_painter_title_bar,
 )
 from view_roll_preview import ViewRollConceptPanel
@@ -94,24 +96,45 @@ class PainterWindowChromeTests(unittest.TestCase):
             panel.dialog.settingsSurface().styleSheet(),
         )
 
-    def test_preview_footers_share_painter_edge_margins(self):
+    def test_bridge_footer_keeps_export_window_edge_margins(self):
         bridge = build_bridge_preview(QtWidgets)
-        settings = build_settings_preview(QtWidgets)
         self.addCleanup(bridge.deleteLater)
+
+        footer = bridge.findChild(QtWidgets.QWidget, "RizumExportFooter")
+        margins = footer.layout().contentsMargins()
+        self.assertEqual(margins.left(), PAINTER_FOOTER_MARGIN_X)
+        self.assertEqual(margins.right(), PAINTER_FOOTER_MARGIN_X)
+        self.assertEqual(margins.bottom(), PAINTER_FOOTER_MARGIN_BOTTOM)
+
+    def test_settings_preview_uses_canonical_codex_layout(self):
+        settings = build_settings_preview(QtWidgets)
         self.addCleanup(settings.deleteLater)
 
-        for footer_name in ("RizumExportFooter", "RizumSettingsFooter"):
-            owner = bridge if footer_name == "RizumExportFooter" else settings
-            footer = owner.findChild(QtWidgets.QWidget, footer_name)
-            row = footer.layout()
-            if footer_name == "RizumSettingsFooter":
-                row = footer.findChild(
-                    QtWidgets.QWidget, "RizumSettingsFooterRow"
-                ).layout()
-            margins = row.contentsMargins()
-            self.assertEqual(margins.left(), PAINTER_FOOTER_MARGIN_X)
-            self.assertEqual(margins.right(), PAINTER_FOOTER_MARGIN_X)
-            self.assertEqual(margins.bottom(), PAINTER_FOOTER_MARGIN_BOTTOM)
+        self.assertIsInstance(settings, PainterSettingsDialog)
+        body = settings._rizum_body_layout
+        margins = body.contentsMargins()
+        self.assertEqual(margins.left(), PAINTER_SETTINGS_LAYOUT.body_margin_x.design)
+        self.assertEqual(margins.top(), PAINTER_SETTINGS_LAYOUT.body_margin_top.design)
+        self.assertEqual(
+            margins.bottom(), PAINTER_SETTINGS_LAYOUT.body_margin_bottom.design
+        )
+        self.assertEqual(body.spacing(), PAINTER_SETTINGS_LAYOUT.body_spacing.design)
+
+        footer_row = settings._rizum_footer_row
+        footer_margins = footer_row.layout().contentsMargins()
+        self.assertEqual(
+            footer_margins.left(), PAINTER_SETTINGS_LAYOUT.footer_margin_x.design
+        )
+        self.assertEqual(
+            footer_margins.right(), PAINTER_SETTINGS_LAYOUT.footer_margin_x.design
+        )
+        self.assertEqual(
+            settings._rizum_footer.height(),
+            PAINTER_SETTINGS_LAYOUT.footer_top.design
+            + PAINTER_SETTINGS_LAYOUT.footer_gap.design
+            + PAINTER_SETTINGS_LAYOUT.footer_row_height.design
+            + PAINTER_SETTINGS_LAYOUT.footer_bottom.design,
+        )
 
 
 if __name__ == "__main__":
