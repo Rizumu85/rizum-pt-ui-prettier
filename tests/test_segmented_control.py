@@ -200,7 +200,7 @@ QFrame { background: #1b1b1b; border: 1px solid #414141; border-radius: 8px; }
             2,
         )
 
-    def test_export_tree_uses_only_the_deepest_hover_surface(self):
+    def test_export_tree_keeps_nested_hover_layers_visually_distinct(self):
         from preview import build_bridge_preview
         from rizum_ui import (
             build_painter_host_preview_stylesheet,
@@ -209,14 +209,20 @@ QFrame { background: #1b1b1b; border: 1px solid #414141; border-radius: 8px; }
 
         window = build_bridge_preview(QtWidgets)
         self.addCleanup(window.deleteLater)
-        stylesheets = (
-            window.settingsSurface().styleSheet(),
+        local_stylesheet = window.settingsSurface().styleSheet()
+        self.assertIn("QFrame#RizumCollapsibleGroup:hover", local_stylesheet)
+        self.assertIn("background: #2c2c2c", local_stylesheet)
+        self.assertIn(
+            'QFrame#RizumExportTreeItem[hovered="true"][child="true"]',
+            local_stylesheet,
+        )
+        self.assertIn("background: #444444", local_stylesheet)
+
+        for stylesheet in (
             build_painter_host_preview_stylesheet(),
             build_stylesheet(mode="full"),
-        )
-
-        for stylesheet in stylesheets:
-            self.assertNotIn("QFrame#RizumCollapsibleGroup:hover", stylesheet)
+        ):
+            self.assertIn("QFrame#RizumCollapsibleGroup:hover", stylesheet)
             self.assertIn("QFrame#RizumCollapsibleHeader:hover", stylesheet)
 
 
