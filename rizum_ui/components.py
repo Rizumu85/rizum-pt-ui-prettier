@@ -1732,7 +1732,7 @@ def make_export_tree_item(name, checkbox, meta="", child=False, parent=None):
         host.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         host.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         host_layout = QtWidgets.QHBoxLayout(host)
-        host_layout.setContentsMargins(24, 0, 0, 0)
+        host_layout.setContentsMargins(24, 0, 4, 0)
         host_layout.setSpacing(0)
 
         row = QtWidgets.QFrame()
@@ -1740,15 +1740,9 @@ def make_export_tree_item(name, checkbox, meta="", child=False, parent=None):
         row.setProperty("child", "true")
         row.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         row_layout = QtWidgets.QHBoxLayout(row)
-        row_layout.setContentsMargins(8, 4, 8, 4)
+        row_layout.setContentsMargins(8, 4, 4, 4)
         row_layout.setSpacing(10)
-        content_indent = QtWidgets.QSpacerItem(
-            16,
-            0,
-            QtWidgets.QSizePolicy.Policy.Fixed,
-            QtWidgets.QSizePolicy.Policy.Minimum,
-        )
-        row_layout.addItem(content_indent)
+        row_layout.addSpacing(0)
 
         label = QtWidgets.QLabel(name)
         label.setObjectName("RizumExportItemName")
@@ -1764,21 +1758,25 @@ def make_export_tree_item(name, checkbox, meta="", child=False, parent=None):
         host._rizum_checkbox = checkbox
         host._rizum_checkbox_slot = checkbox_slot
         host._rizum_child = True
-        host._rizum_content_indent = 16
+        host._rizum_right_inset = 4
+        host._rizum_right_padding = 4
 
-        def set_content_indent(indent):
-            indent = max(12, int(round(indent)))
-            host._rizum_content_indent = indent
-            content_indent.changeSize(
-                indent,
-                0,
-                QtWidgets.QSizePolicy.Policy.Fixed,
-                QtWidgets.QSizePolicy.Policy.Minimum,
+        def set_right_inset(inset, padding):
+            inset = max(3, int(round(inset)))
+            padding = max(3, int(round(padding)))
+            host._rizum_right_inset = inset
+            host._rizum_right_padding = padding
+            host_layout.setContentsMargins(24, 0, inset, 0)
+            row_layout.setContentsMargins(
+                8,
+                4,
+                padding,
+                4,
             )
-            row_layout.invalidate()
+            host_layout.invalidate()
             row.updateGeometry()
 
-        host.setContentIndent = set_content_indent
+        host.setRightInset = set_right_inset
         update_export_tree_item(host, name)
         def refresh_host(name_text=None, meta_text=None):
             update_export_tree_item(host, name_text, meta_text)

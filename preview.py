@@ -848,7 +848,7 @@ QLabel#RizumSvgLabel:hover {{
                 checkbox.setSize(checkbox_size)
             group["widget"].setCompactHeight(group_height)
             for row in group["rows"]:
-                row.setContentIndent(metric(16, 12))
+                row.setRightInset(metric(4, 3), metric(4, 3))
                 update_export_tree_item(row, minimum_height=child_height)
             group["widget"].refreshLayout()
         tree.setFixedHeight(expanded_tree_height())

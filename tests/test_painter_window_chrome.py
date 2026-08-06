@@ -166,11 +166,11 @@ class PainterWindowChromeTests(unittest.TestCase):
             group["parent"].checkboxSize(), bridge.settingsMetric(14, 11)
         )
         self.assertEqual(
-            group["rows"][0]._rizum_content_indent,
-            bridge.settingsMetric(16, 12),
+            group["rows"][0]._rizum_right_inset,
+            bridge.settingsMetric(4, 3),
         )
 
-    def test_export_children_indent_their_content_without_moving_checkboxes(self):
+    def test_export_children_inset_hover_edge_without_moving_checkboxes(self):
         bridge = build_bridge_preview(QtWidgets)
         self.addCleanup(bridge.deleteLater)
         bridge.show()
@@ -182,14 +182,21 @@ class PainterWindowChromeTests(unittest.TestCase):
             QtWidgets.QLabel, "RizumCollapsibleTitle"
         )
         child_host = group["rows"][0]
-        child_label = child_host._rizum_label
         child_row = child_host._rizum_row
 
-        parent_label_x = parent_label.mapTo(group_widget, QtCore.QPoint()).x()
-        child_label_x = child_label.mapTo(group_widget, QtCore.QPoint()).x()
         child_row_x = child_row.mapTo(group_widget, QtCore.QPoint()).x()
+        child_row_right = child_row_x + child_row.width()
         self.assertGreater(child_row_x, 0)
-        self.assertGreaterEqual(child_label_x - parent_label_x, 12)
+        self.assertEqual(group_widget.width() - child_row_right, 4)
+        self.assertLessEqual(
+            abs(
+                child_host._rizum_label.mapTo(
+                    group_widget, QtCore.QPoint()
+                ).x()
+                - parent_label.mapTo(group_widget, QtCore.QPoint()).x()
+            ),
+            1,
+        )
 
         parent_center_x = group["parent"].mapTo(
             group_widget, group["parent"].rect().center()
