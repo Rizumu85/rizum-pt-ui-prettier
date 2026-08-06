@@ -200,6 +200,25 @@ QFrame { background: #1b1b1b; border: 1px solid #414141; border-radius: 8px; }
             2,
         )
 
+    def test_export_tree_uses_only_the_deepest_hover_surface(self):
+        from preview import build_bridge_preview
+        from rizum_ui import (
+            build_painter_host_preview_stylesheet,
+            build_stylesheet,
+        )
+
+        window = build_bridge_preview(QtWidgets)
+        self.addCleanup(window.deleteLater)
+        stylesheets = (
+            window.settingsSurface().styleSheet(),
+            build_painter_host_preview_stylesheet(),
+            build_stylesheet(mode="full"),
+        )
+
+        for stylesheet in stylesheets:
+            self.assertNotIn("QFrame#RizumCollapsibleGroup:hover", stylesheet)
+            self.assertIn("QFrame#RizumCollapsibleHeader:hover", stylesheet)
+
 
 if __name__ == "__main__":
     unittest.main()

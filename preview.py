@@ -725,8 +725,10 @@ QFrame#RizumCollapsibleGroup {{
     border: 0;
     border-radius: {default_theme.radius_small}px;
 }}
-QFrame#RizumCollapsibleGroup:hover {{
+QFrame#RizumCollapsibleHeader:hover {{
     background: {theme["control_pressed"]};
+    border: 0;
+    border-radius: {default_theme.radius_small}px;
 }}
 QFrame#RizumExportTreeItem {{
     background: transparent;

@@ -254,11 +254,6 @@ QFrame#RizumCollapsibleGroup {{
     border-radius: 8px;
 }}
 
-QFrame#RizumCollapsibleGroup:hover {{
-    background: rgba(255, 255, 255, 0.04);
-    border: 0;
-}}
-
 QFrame#RizumCollapsibleGroup[hovered="true"] {{
     background: rgba(255, 255, 255, 0.04);
     border: 0;
@@ -278,8 +273,9 @@ QWidget#RizumCollapsibleChevron {{
 }}
 
 QFrame#RizumCollapsibleHeader:hover {{
-    background: transparent;
+    background: {theme.surface_hover};
     border: 0;
+    border-radius: {theme.radius}px;
 }}
 
 QLabel#RizumCollapsibleTitle {{
