@@ -98,12 +98,9 @@ _PREVIEW_TEXT = {
         "current_stack": "Aktueller Stack",
         "all_stacks": "Alle Stacks",
         "cancel": "Abbrechen",
-        "appearance": "Darstellung",
-        "theme": "Design",
-        "light": "Hell",
-        "dark": "Dunkel",
-        "system": "System",
         "padding": "Randabstand",
+        "bit_depth": "Bittiefe",
+        "texture_set": "Texturset",
         "infinite": "Unendlich",
         "auto_open": "Photoshop automatisch öffnen",
         "auto_open_meta": "Nach erfolgreichem Export starten",
@@ -124,12 +121,9 @@ _PREVIEW_TEXT = {
         "current_stack": "Pila actual",
         "all_stacks": "Todas las pilas",
         "cancel": "Cancelar",
-        "appearance": "Apariencia",
-        "theme": "Tema",
-        "light": "Claro",
-        "dark": "Oscuro",
-        "system": "Sistema",
         "padding": "Margen",
+        "bit_depth": "Profundidad de bits",
+        "texture_set": "Conjunto de texturas",
         "infinite": "Infinito",
         "auto_open": "Abrir Photoshop automáticamente",
         "auto_open_meta": "Iniciar después de exportar correctamente",
@@ -150,12 +144,9 @@ _PREVIEW_TEXT = {
         "current_stack": "Pile actuelle",
         "all_stacks": "Toutes les piles",
         "cancel": "Annuler",
-        "appearance": "Apparence",
-        "theme": "Thème",
-        "light": "Clair",
-        "dark": "Sombre",
-        "system": "Système",
         "padding": "Marge",
+        "bit_depth": "Profondeur de bits",
+        "texture_set": "Jeu de textures",
         "infinite": "Infini",
         "auto_open": "Ouvrir Photoshop automatiquement",
         "auto_open_meta": "Lancer après une exportation réussie",
@@ -176,12 +167,9 @@ _PREVIEW_TEXT = {
         "current_stack": "Stack corrente",
         "all_stacks": "Tutti gli stack",
         "cancel": "Annulla",
-        "appearance": "Aspetto",
-        "theme": "Tema",
-        "light": "Chiaro",
-        "dark": "Scuro",
-        "system": "Sistema",
         "padding": "Margine",
+        "bit_depth": "Profondità colore",
+        "texture_set": "Set di texture",
         "infinite": "Infinito",
         "auto_open": "Apri Photoshop automaticamente",
         "auto_open_meta": "Avvia dopo un’esportazione riuscita",
@@ -202,12 +190,9 @@ _PREVIEW_TEXT = {
         "current_stack": "현재 스택",
         "all_stacks": "모든 스택",
         "cancel": "취소",
-        "appearance": "모양",
-        "theme": "테마",
-        "light": "밝게",
-        "dark": "어둡게",
-        "system": "시스템",
         "padding": "패딩",
+        "bit_depth": "비트 심도",
+        "texture_set": "텍스처 세트",
         "infinite": "무한",
         "auto_open": "Photoshop 자동 열기",
         "auto_open_meta": "내보내기 성공 후 실행",
@@ -228,12 +213,9 @@ _PREVIEW_TEXT = {
         "current_stack": "Pilha atual",
         "all_stacks": "Todas as pilhas",
         "cancel": "Cancelar",
-        "appearance": "Aparência",
-        "theme": "Tema",
-        "light": "Claro",
-        "dark": "Escuro",
-        "system": "Sistema",
         "padding": "Margem",
+        "bit_depth": "Profundidade de bits",
+        "texture_set": "Conjunto de texturas",
         "infinite": "Infinito",
         "auto_open": "Abrir o Photoshop automaticamente",
         "auto_open_meta": "Iniciar após uma exportação bem-sucedida",
@@ -254,12 +236,9 @@ _PREVIEW_TEXT = {
         "current_stack": "当前堆栈",
         "all_stacks": "所有堆栈",
         "cancel": "取消",
-        "appearance": "外观",
-        "theme": "主题",
-        "light": "浅色",
-        "dark": "深色",
-        "system": "跟随系统",
         "padding": "边缘扩展",
+        "bit_depth": "位深度",
+        "texture_set": "纹理集",
         "infinite": "无限",
         "auto_open": "自动打开 Photoshop",
         "auto_open_meta": "导出成功后启动",
@@ -280,12 +259,9 @@ _PREVIEW_TEXT = {
         "current_stack": "現在のスタック",
         "all_stacks": "すべてのスタック",
         "cancel": "キャンセル",
-        "appearance": "外観",
-        "theme": "テーマ",
-        "light": "ライト",
-        "dark": "ダーク",
-        "system": "システム",
         "padding": "パディング",
+        "bit_depth": "ビット深度",
+        "texture_set": "テクスチャセット",
         "infinite": "無限",
         "auto_open": "Photoshopを自動起動",
         "auto_open_meta": "書き出し成功後に起動",
@@ -1038,31 +1014,12 @@ def build_settings_preview(QtWidgets):
 
     layout_spec = PAINTER_SETTINGS_LAYOUT
     dark = dict(PAINTER_DIALOG_STYLE)
-    themes = {
-        "dark": {
-            **dark,
-            "border": "#3a3b3e",
-            "toggle_off": QtGui.QColor(dark["control"]),
-            "toggle_knob_off": QtGui.QColor(dark["muted"]),
-            "toggle_knob_on": QtGui.QColor(dark["muted"]),
-        },
-        "light": {
-            "surface": "#f5f5f5",
-            "control": "#e2e2e2",
-            "control_hover": "#d7d7d7",
-            "control_pressed": "#cacaca",
-            "text": "#202020",
-            "muted": "#777777",
-            "faint": "#8b8b8b",
-            "accent": "#202020",
-            "accent_hover": "#343434",
-            "accent_pressed": "#080808",
-            "accent_text": "#ffffff",
-            "border": "#cecece",
-            "toggle_off": QtGui.QColor("#d7d7d7"),
-            "toggle_knob_off": QtGui.QColor("#8f8f8f"),
-            "toggle_knob_on": QtGui.QColor("#ffffff"),
-        },
+    theme = {
+        **dark,
+        "border": "#3a3b3e",
+        "toggle_off": QtGui.QColor(dark["control"]),
+        "toggle_knob_off": QtGui.QColor(dark["muted"]),
+        "toggle_knob_on": QtGui.QColor(dark["muted"]),
     }
 
     class ToggleSwitch(_QtWidgets.QFrame):
@@ -1073,7 +1030,6 @@ def build_settings_preview(QtWidgets):
         def __init__(self, on=False):
             super().__init__()
             self._on = bool(on)
-            self._theme = themes["dark"]
             self._compact_height = self.BASE_HEIGHT
             self._knob_margin = 3.0
             self._knob_size = 14.0
@@ -1110,10 +1066,6 @@ def build_settings_preview(QtWidgets):
 
         def setChangedCallback(self, callback):
             self._callback = callback
-
-        def setTheme(self, theme):
-            self._theme = theme
-            self.update()
 
         def getOffset(self):
             return self._offset
@@ -1161,15 +1113,15 @@ def build_settings_preview(QtWidgets):
             rect = QtCore.QRectF(0.5, 0.5, self.width() - 1.0, self.height() - 1.0)
             painter.setPen(QtCore.Qt.PenStyle.NoPen)
             painter.setBrush(
-                QtGui.QColor(self._theme["accent"])
+                QtGui.QColor(theme["accent"])
                 if self._on
-                else self._theme["toggle_off"]
+                else theme["toggle_off"]
             )
             painter.drawRoundedRect(rect, rect.height() / 2.0, rect.height() / 2.0)
             painter.setBrush(
-                self._theme["toggle_knob_on"]
+                theme["toggle_knob_on"]
                 if self._on
-                else self._theme["toggle_knob_off"]
+                else theme["toggle_knob_off"]
             )
             painter.drawEllipse(
                 QtCore.QRectF(
@@ -1344,27 +1296,8 @@ def build_settings_preview(QtWidgets):
     body_layout.setSpacing(layout_spec.body_spacing.design)
 
     body_layout.addWidget(
-        make_section(preview_text("appearance", "Appearance"), first=True)
+        make_section(preview_text("export", "Export"), first=True)
     )
-    theme_row, theme_layout = make_row()
-    theme_layout.addWidget(
-        make_label(preview_text("theme", "Theme"), "RizumSettingsItemName")
-    )
-    theme_layout.addStretch(1)
-    theme_control = make_segmented_control(
-        [
-            (preview_text("light", "Light"), "light"),
-            (preview_text("dark", "Dark"), "dark"),
-            (preview_text("system", "System"), "system"),
-        ],
-        current="dark",
-    )
-    theme_control.setCornerRadius(default_theme.radius)
-    theme_control.setPaintInset(1.5)
-    theme_layout.addWidget(theme_control)
-    body_layout.addWidget(theme_row)
-
-    body_layout.addWidget(make_section(preview_text("export", "Export")))
     padding_stack = _QtWidgets.QWidget()
     padding_stack.setObjectName("RizumSettingsPaddingStack")
     padding_stack_layout = _QtWidgets.QVBoxLayout(padding_stack)
@@ -1396,6 +1329,27 @@ def build_settings_preview(QtWidgets):
     dilation_reveal.setGapLayout(padding_stack_layout)
     body_layout.addWidget(padding_stack)
 
+    bit_depth = make_combo_input(
+        [
+            (preview_text("texture_set", "Texture Set"), None),
+            ("8-bit", 8),
+            ("16-bit", 16),
+        ]
+    )
+    bit_depth.setProperty("rizumSettingsRole", "bit-depth")
+    bit_depth.setFitToContents(False)
+    bit_depth.setFixedWidth(126)
+    bit_depth_row, bit_depth_layout = make_row()
+    bit_depth_layout.addWidget(
+        make_label(
+            preview_text("bit_depth", "Bit depth"),
+            "RizumSettingsItemName",
+        )
+    )
+    bit_depth_layout.addStretch(1)
+    bit_depth_layout.addWidget(bit_depth)
+    body_layout.addWidget(bit_depth_row)
+
     auto_row, auto_layout = make_row(tall=True)
     auto_texts = make_text_block(
         preview_text("auto_open", "Auto-open Photoshop"),
@@ -1416,6 +1370,7 @@ def build_settings_preview(QtWidgets):
     path_select_layout.setSpacing(6)
     path_input = _QtWidgets.QLineEdit(r"C:\Program Files\Adobe\Photoshop.exe")
     path_input.setObjectName("RizumSettingsPathInput")
+    path_input.setPlaceholderText("Photoshop.exe")
     path_input.setFrame(False)
     path_input.setClearButtonEnabled(False)
     path_input.setCursorPosition(0)
@@ -1472,10 +1427,10 @@ def build_settings_preview(QtWidgets):
     footer_layout.addStretch(1)
     done_button = SecondaryActionButton(
         preview_text("done", "Done"),
-        dark["accent"],
-        dark["accent_hover"],
-        dark["accent_pressed"],
-        dark["accent_text"],
+        theme["accent"],
+        theme["accent_hover"],
+        theme["accent_pressed"],
+        theme["accent_text"],
         default_theme.radius_small,
     )
     done_button.setProperty("rizumSettingsRole", "done")
@@ -1484,7 +1439,6 @@ def build_settings_preview(QtWidgets):
     content_layout.addWidget(footer)
 
     toggles = [padding_toggle, auto_toggle]
-    current_theme = "dark"
     base_height = None
     design_height = None
 
@@ -1511,12 +1465,8 @@ def build_settings_preview(QtWidgets):
 
     dilation_reveal.setGeometryCallback(sync_window_height)
 
-    def apply_theme(name, update_control=True):
-        nonlocal current_theme
-        current_theme = str(name or "dark")
-        theme_name = "dark" if current_theme == "system" else current_theme
-        theme = themes.get(theme_name, themes["dark"])
-        window.setProperty("theme", theme_name)
+    def apply_visual_style():
+        window.setProperty("theme", "dark")
         content.setPainterContentColor(theme["surface"])
         window._update_surface_stylesheet()
         surface = window.settingsSurface()
@@ -1578,18 +1528,6 @@ QPushButton[variant="icon"]:pressed {{
 }}
 """
         )
-        theme_control.setTheme(
-            {
-                "segment_bg": theme["control"],
-                "segment_slider_bg": theme["accent"],
-                "segment_active_text": theme["accent_text"],
-                "muted": theme["muted"],
-                "hover": theme["control_hover"],
-                "segment_slider_shadow": None,
-            }
-        )
-        if update_control:
-            theme_control.setCurrentData(current_theme, animate=False, emit=False)
         stepper.setTheme(
             {
                 "window_bg": theme["surface"],
@@ -1598,8 +1536,6 @@ QPushButton[variant="icon"]:pressed {{
                 "control_hover": theme["control_hover"],
             }
         )
-        for toggle in toggles:
-            toggle.setTheme(theme)
         done_button._background = QtGui.QColor(theme["accent"])
         done_button._hover_background = QtGui.QColor(theme["accent_hover"])
         done_button._pressed_background = QtGui.QColor(theme["accent_pressed"])
@@ -1619,10 +1555,10 @@ QPushButton[variant="icon"]:pressed {{
             + layout_spec.footer_button_spacing
             + 2 * footer_margin
         )
-        theme_need = (
-            theme_layout.itemAt(0).widget().sizeHint().width()
+        bit_depth_need = (
+            bit_depth_layout.itemAt(0).widget().sizeHint().width()
             + layout_spec.row_spacing
-            + theme_control.sizeHint().width()
+            + bit_depth.width()
             + 2 * body_margin
         )
         auto_need = (
@@ -1631,7 +1567,7 @@ QPushButton[variant="icon"]:pressed {{
             + auto_toggle.width()
             + 2 * body_margin
         )
-        return max(base, footer_need, theme_need, auto_need)
+        return max(base, footer_need, bit_depth_need, auto_need)
 
     def apply_scale():
         body_margin = layout_spec.body_margin_x.resolve(window)
@@ -1666,8 +1602,27 @@ QPushButton[variant="icon"]:pressed {{
                     name_metrics.height() + text_spacing + meta_metrics.height()
                 )
 
-        theme_control.setCompactHeight(layout_spec.control_height.resolve(window))
         stepper.setCompactHeight(layout_spec.stepper_height.resolve(window))
+        control_height = layout_spec.control_height.resolve(window)
+        bit_depth.setCompactHeight(control_height)
+        bit_depth.setFitToContents(True)
+        bit_depth.fitToContents()
+        combo_margins = bit_depth.layout().contentsMargins()
+        # The combo label uses rich text, whose size hint can exceed the
+        # plain-font measurement used by fitToContents in long translations.
+        localized_bit_depth_width = max(
+            bit_depth.width(),
+            bit_depth._label.sizeHint().width()
+            + combo_margins.left()
+            + combo_margins.right()
+            + bit_depth.layout().spacing()
+            + bit_depth._arrow_size
+            + metric(6, 5),
+        )
+        bit_depth.setFitToContents(False)
+        bit_depth.setFixedWidth(
+            max(metric(126, 95), localized_bit_depth_width)
+        )
         toggle_height = metric(ToggleSwitch.BASE_HEIGHT, ToggleSwitch.MIN_HEIGHT)
         for toggle in toggles:
             toggle.setCompactHeight(toggle_height)
@@ -1675,7 +1630,6 @@ QPushButton[variant="icon"]:pressed {{
         dilation_reveal.setExpandedHeight(detail_height)
         dilation_reveal.setGap(body_layout.spacing())
 
-        control_height = layout_spec.control_height.resolve(window)
         path_select.setFixedHeight(control_height)
         path_input.setFixedHeight(max(15, control_height - metric(8, 6)))
         icon_frame = metric(26, 20)
@@ -1710,7 +1664,7 @@ QPushButton[variant="icon"]:pressed {{
             max(metric(72, 54), done_button.sizeHint().width() + metric(8, 6))
         )
         window.setFixedWidth(required_width())
-        apply_theme(current_theme, update_control=False)
+        apply_visual_style()
 
     def remeasure_base_height():
         nonlocal base_height, design_height
@@ -1749,23 +1703,19 @@ QPushButton[variant="icon"]:pressed {{
         dilation_reveal.setExpanded(not enabled)
 
     padding_toggle.setChangedCallback(sync_padding_dilation)
-    theme_control.currentDataChanged.connect(
-        lambda name: apply_theme(name, update_control=False)
-    )
     window.settingsUiScaleChanged.connect(on_scale_changed)
     dilation_reveal.setExpanded(not padding_toggle.isOn(), animate=False)
     apply_scale()
     remeasure_base_height()
 
-    window.setTheme = apply_theme
     window._rizum_body_layout = body_layout
-    window._rizum_theme_control = theme_control
     window._rizum_rows = rows
     window._rizum_footer = footer
     window._rizum_footer_row = footer_row
     window._rizum_done_button = done_button
     window._rizum_padding_toggle = padding_toggle
     window._rizum_dilation_reveal = dilation_reveal
+    window._rizum_bit_depth = bit_depth
     return window
 
 

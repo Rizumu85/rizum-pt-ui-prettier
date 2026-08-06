@@ -172,7 +172,7 @@ QFrame { background: #1b1b1b; border: 1px solid #414141; border-radius: 8px; }
                             f"asymmetric cap at scale={scale}, x={x}, y={y}",
                         )
 
-    def test_pt_bridge_preview_uses_the_shared_segmented_control(self):
+    def test_pt_bridge_preview_omits_the_nonexistent_theme_control(self):
         from preview import build_settings_preview
 
         window = build_settings_preview(QtWidgets)
@@ -183,9 +183,7 @@ QFrame { background: #1b1b1b; border: 1px solid #414141; border-radius: 8px; }
             if child.objectName() == "RizumSegmentedControl"
         ]
 
-        self.assertEqual(len(controls), 1)
-        self.assertEqual(controls[0].currentData(), "dark")
-        self.assertTrue(hasattr(controls[0], "setTheme"))
+        self.assertEqual(len(controls), 0)
         self.assertEqual(
             len(window.findChildren(QtWidgets.QFrame, "RizumInsetSeparator")),
             1,

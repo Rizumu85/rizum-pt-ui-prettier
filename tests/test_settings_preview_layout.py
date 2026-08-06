@@ -18,6 +18,7 @@ class SettingsPreviewLayoutTests(unittest.TestCase):
 
     def setUp(self):
         self.app.setProperty("rizumUiFontScale", 1.0)
+        self.app.setProperty("rizumPreviewLanguage", "en")
 
     def make_panel(self):
         panel = build_settings_preview(QtWidgets)
@@ -30,14 +31,39 @@ class SettingsPreviewLayoutTests(unittest.TestCase):
 
         self.assertIn("background: #202020", stylesheet)
         self.assertNotIn("QFrame#RizumSettingsRow:hover", stylesheet)
+        sections = panel.findChildren(QtWidgets.QLabel, "RizumSettingsSection")
         self.assertEqual(
-            panel._rizum_theme_control.height(),
+            [label.text() for label in sections],
+            ["EXPORT", "PHOTOSHOP", "ABOUT"],
+        )
+        self.assertEqual(
+            panel._rizum_bit_depth.height(),
             PAINTER_SETTINGS_LAYOUT.control_height.design,
         )
         self.assertEqual(
             [row.height() for row in panel._rizum_rows],
-            [40, 46, 46, 46, 40, 40],
+            [46, 46, 40, 46, 40, 40],
         )
+
+    def test_preview_replicates_the_live_bit_depth_choices(self):
+        panel = self.make_panel()
+        control = panel._rizum_bit_depth
+
+        self.assertEqual(control.findData(None), 0)
+        self.assertEqual(control.findData(8), 1)
+        self.assertEqual(control.findData(16), 2)
+        control.setCurrentIndex(0)
+        self.assertEqual(control.currentText(), "Texture Set")
+
+    def test_localized_bit_depth_value_is_not_clipped_at_large_scale(self):
+        self.app.setProperty("rizumPreviewLanguage", "es")
+        self.app.setProperty("rizumUiFontScale", 1.5)
+        panel = self.make_panel()
+        panel.show()
+        self.app.processEvents()
+
+        label = panel._rizum_bit_depth._label
+        self.assertLessEqual(label.sizeHint().width(), label.width())
 
     def test_ui_scale_updates_layout_and_painted_controls_together(self):
         panel = self.make_panel()
@@ -48,9 +74,9 @@ class SettingsPreviewLayoutTests(unittest.TestCase):
         self.assertEqual(body_margins.top(), 13)
         self.assertEqual(
             [row.height() for row in panel._rizum_rows],
-            [44, 51, 51, 51, 44, 44],
+            [51, 51, 44, 51, 44, 44],
         )
-        self.assertEqual(panel._rizum_theme_control.height(), 33)
+        self.assertEqual(panel._rizum_bit_depth.height(), 33)
         self.assertEqual(panel._rizum_done_button.height(), 31)
         self.assertEqual(panel._rizum_padding_toggle.height(), 22)
 
