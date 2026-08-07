@@ -275,6 +275,22 @@ class PainterWindowChromeTests(unittest.TestCase):
         self.assertEqual(parent_slot.objectName(), "RizumControlSlot")
         self.assertEqual(parent_slot.width(), expected_slot)
 
+    def test_export_hover_moves_exclusively_without_relying_on_leave_events(self):
+        bridge = build_bridge_preview(QtWidgets)
+        self.addCleanup(bridge.deleteLater)
+        rows = bridge._rizum_groups[0]["rows"][:2]
+        first_filter = rows[0]._rizum_hover_filter
+        second_filter = rows[1]._rizum_hover_filter
+
+        first_filter.set_hovered(True)
+        second_filter.set_hovered(True)
+
+        self.assertFalse(rows[0]._rizum_row.property("hovered"))
+        self.assertTrue(rows[1]._rizum_row.property("hovered"))
+
+        second_filter.refresh_hovered()
+        self.assertFalse(rows[1]._rizum_row.property("hovered"))
+
     def test_export_labels_elide_before_trailing_controls(self):
         bridge = build_bridge_preview(QtWidgets)
         self.addCleanup(bridge.deleteLater)
