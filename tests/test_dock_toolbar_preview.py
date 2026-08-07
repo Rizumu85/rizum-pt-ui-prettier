@@ -47,6 +47,7 @@ class DockToolbarPreviewTests(unittest.TestCase):
         self.assertEqual(export.text(), "Export")
         self.assertEqual(export.height(), 28)
         self.assertEqual(export.minimumWidth(), 96)
+        self.assertEqual(export.maximumWidth(), 200)
         self.assertEqual(
             export.sizePolicy().horizontalPolicy(),
             QtWidgets.QSizePolicy.Policy.Expanding,
@@ -62,6 +63,7 @@ class DockToolbarPreviewTests(unittest.TestCase):
         self.assertEqual((settings.width(), settings.height()), (22, 22))
         self.assertFalse(bridge.isEnabled())
         self.assertTrue(settings.isEnabled())
+        self.assertEqual(settings._icon_path.name, "settings.svg")
 
     def test_toolbar_stays_uncropped_at_210px(self):
         host, toolbar = make_host(210)
@@ -77,7 +79,7 @@ class DockToolbarPreviewTests(unittest.TestCase):
             right_edge = button.mapTo(toolbar, button.rect().topRight()).x()
             self.assertLessEqual(right_edge, toolbar.width())
 
-    def test_export_grows_with_wider_containers(self):
+    def test_export_grows_until_its_visual_width_cap(self):
         widths = {}
         for width in (210, 300, 420):
             host, toolbar = make_host(width)
@@ -85,7 +87,16 @@ class DockToolbarPreviewTests(unittest.TestCase):
             widths[width] = toolbar._rizum_export_button.width()
 
         self.assertLess(widths[210], widths[300])
-        self.assertLess(widths[300], widths[420])
+        self.assertEqual(widths[300], 200)
+        self.assertEqual(widths[420], 200)
+
+    def test_trailing_tools_remain_right_aligned_after_export_caps(self):
+        host, toolbar = make_host(420)
+        self.addCleanup(host.deleteLater)
+
+        settings = toolbar._rizum_settings_button
+        right_edge = settings.mapTo(toolbar, settings.rect().topRight()).x()
+        self.assertEqual(toolbar.width() - right_edge - 1, 12)
 
 
 if __name__ == "__main__":

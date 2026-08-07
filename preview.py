@@ -1168,11 +1168,22 @@ def build_dock_toolbar_preview(QtWidgets):
     export.setObjectName("RizumDockToolbarExport")
     export.setCompactHeight(metric(28, 21))
     export.setMinimumWidth(metric(96, 72))
+    export.setMaximumWidth(metric(200, 150))
     export.setSizePolicy(
         _QtWidgets.QSizePolicy.Policy.Expanding,
         _QtWidgets.QSizePolicy.Policy.Fixed,
     )
-    row.addWidget(export, 1)
+    export_host = _QtWidgets.QWidget()
+    export_host.setObjectName("RizumDockToolbarExportHost")
+    export_host.setStyleSheet(
+        "QWidget#RizumDockToolbarExportHost { background: transparent; border: 0; }"
+    )
+    export_row = _QtWidgets.QHBoxLayout(export_host)
+    export_row.setContentsMargins(0, 0, 0, 0)
+    export_row.setSpacing(0)
+    export_row.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+    export_row.addWidget(export)
+    row.addWidget(export_host, 1)
 
     icon_frame = metric(22, 17)
     icon_size = metric(16, 12)
@@ -1190,7 +1201,7 @@ def build_dock_toolbar_preview(QtWidgets):
     bridge.setToolTip("Open bridge app (unavailable)")
     row.addWidget(bridge)
 
-    settings = make_icon_button("action-sun.svg", "Settings")
+    settings = make_icon_button("settings.svg", "Settings")
     settings.setObjectName("RizumDockToolbarSettings")
     settings.setFixedSize(icon_frame, icon_frame)
     settings.setPaintedIconSize(icon_size)
@@ -1210,6 +1221,7 @@ def build_dock_toolbar_preview(QtWidgets):
         _QtWidgets.QSizePolicy.Policy.Fixed,
     )
     toolbar._rizum_export_button = export
+    toolbar._rizum_export_host = export_host
     toolbar._rizum_bridge_button = bridge
     toolbar._rizum_settings_button = settings
     return toolbar
