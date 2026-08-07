@@ -38,7 +38,7 @@ class DockToolbarPreviewTests(unittest.TestCase):
         self.assertEqual((margins.left(), margins.right()), (12, 12))
         self.assertEqual(toolbar.layout().spacing(), 6)
 
-    def test_export_is_the_expanding_primary_action(self):
+    def test_export_uses_its_natural_compact_width(self):
         toolbar = build_dock_toolbar_preview(QtWidgets)
         self.addCleanup(toolbar.deleteLater)
 
@@ -46,11 +46,11 @@ class DockToolbarPreviewTests(unittest.TestCase):
         self.assertIsInstance(export, IconActionButton)
         self.assertEqual(export.text(), "Export")
         self.assertEqual(export.height(), 28)
-        self.assertEqual(export.minimumWidth(), 96)
-        self.assertEqual(export.maximumWidth(), 200)
+        self.assertGreaterEqual(export.minimumWidth(), 96)
+        self.assertEqual(export.width(), export.sizeHint().width())
         self.assertEqual(
             export.sizePolicy().horizontalPolicy(),
-            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Fixed,
         )
 
     def test_bridge_and_settings_are_compact_icon_buttons(self):
@@ -79,24 +79,28 @@ class DockToolbarPreviewTests(unittest.TestCase):
             right_edge = button.mapTo(toolbar, button.rect().topRight()).x()
             self.assertLessEqual(right_edge, toolbar.width())
 
-    def test_export_grows_until_its_visual_width_cap(self):
-        widths = {}
+    def test_cluster_stays_together_as_the_container_grows(self):
+        export_widths = {}
+        trailing_space = {}
         for width in (210, 300, 420):
             host, toolbar = make_host(width)
             self.addCleanup(host.deleteLater)
-            widths[width] = toolbar._rizum_export_button.width()
+            export = toolbar._rizum_export_button
+            bridge = toolbar._rizum_bridge_button
+            settings = toolbar._rizum_settings_button
+            export_widths[width] = export.width()
+            export_right = export.mapTo(toolbar, export.rect().topRight()).x()
+            bridge_left = bridge.mapTo(toolbar, bridge.rect().topLeft()).x()
+            bridge_right = bridge.mapTo(toolbar, bridge.rect().topRight()).x()
+            settings_left = settings.mapTo(toolbar, settings.rect().topLeft()).x()
+            settings_right = settings.mapTo(toolbar, settings.rect().topRight()).x()
+            self.assertEqual(bridge_left - export_right - 1, 6)
+            self.assertEqual(settings_left - bridge_right - 1, 6)
+            trailing_space[width] = toolbar.width() - settings_right - 1
 
-        self.assertLess(widths[210], widths[300])
-        self.assertEqual(widths[300], 200)
-        self.assertEqual(widths[420], 200)
-
-    def test_trailing_tools_remain_right_aligned_after_export_caps(self):
-        host, toolbar = make_host(420)
-        self.addCleanup(host.deleteLater)
-
-        settings = toolbar._rizum_settings_button
-        right_edge = settings.mapTo(toolbar, settings.rect().topRight()).x()
-        self.assertEqual(toolbar.width() - right_edge - 1, 12)
+        self.assertEqual(len(set(export_widths.values())), 1)
+        self.assertLess(trailing_space[210], trailing_space[300])
+        self.assertLess(trailing_space[300], trailing_space[420])
 
 
 if __name__ == "__main__":

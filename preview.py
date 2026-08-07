@@ -1126,12 +1126,11 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
 
 
 def build_dock_toolbar_preview(QtWidgets):
-    """Build the single-row responsive dock toolbar (Kimi K3 variant).
+    """Build the compact-cluster dock toolbar proposal.
 
     Preview-only counterpart to the original three-tile
-    ``make_dock_actions_panel``: one expanding primary Export action plus
-    compact Bridge/Settings icon buttons, without the dark card-in-card,
-    shadows, or press-scaled tiles of the original.
+    ``make_dock_actions_panel``: Export and the two compact utilities stay
+    together while all surplus dock width remains at the trailing edge.
     """
     from PySide6 import QtCore, QtWidgets as _QtWidgets
 
@@ -1168,22 +1167,12 @@ def build_dock_toolbar_preview(QtWidgets):
     export.setObjectName("RizumDockToolbarExport")
     export.setCompactHeight(metric(28, 21))
     export.setMinimumWidth(metric(96, 72))
-    export.setMaximumWidth(metric(200, 150))
+    export.setFixedWidth(max(export.minimumWidth(), export.sizeHint().width()))
     export.setSizePolicy(
-        _QtWidgets.QSizePolicy.Policy.Expanding,
+        _QtWidgets.QSizePolicy.Policy.Fixed,
         _QtWidgets.QSizePolicy.Policy.Fixed,
     )
-    export_host = _QtWidgets.QWidget()
-    export_host.setObjectName("RizumDockToolbarExportHost")
-    export_host.setStyleSheet(
-        "QWidget#RizumDockToolbarExportHost { background: transparent; border: 0; }"
-    )
-    export_row = _QtWidgets.QHBoxLayout(export_host)
-    export_row.setContentsMargins(0, 0, 0, 0)
-    export_row.setSpacing(0)
-    export_row.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
-    export_row.addWidget(export)
-    row.addWidget(export_host, 1)
+    row.addWidget(export)
 
     icon_frame = metric(22, 17)
     icon_size = metric(16, 12)
@@ -1208,6 +1197,7 @@ def build_dock_toolbar_preview(QtWidgets):
     if hasattr(settings, "setCompactTooltipScale"):
         settings.setCompactTooltipScale(scale)
     row.addWidget(settings)
+    row.addStretch(1)
 
     toolbar.setFixedHeight(metric(44, 33))
     toolbar.setMinimumWidth(
@@ -1221,7 +1211,6 @@ def build_dock_toolbar_preview(QtWidgets):
         _QtWidgets.QSizePolicy.Policy.Fixed,
     )
     toolbar._rizum_export_button = export
-    toolbar._rizum_export_host = export_host
     toolbar._rizum_bridge_button = bridge
     toolbar._rizum_settings_button = settings
     return toolbar
@@ -2601,7 +2590,7 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
         0,
         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
     )
-    dock_caption("KIMI K3")
+    dock_caption("COMPACT CLUSTER")
     preview_scale = float(app.property("rizumUiFontScale") or 1.0) if app else 1.0
     for dock_width in (210, 300, 420):
         frame = QtWidgets.QFrame()
@@ -2621,7 +2610,7 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
             0,
             QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
         )
-    dock_caption("KIMI K3 - RESIZABLE")
+    dock_caption("COMPACT CLUSTER - RESIZABLE")
     resizable_toolbar = build_dock_toolbar_preview(QtWidgets)
     resizable_toolbar.setStyleSheet(
         resizable_toolbar.styleSheet()
