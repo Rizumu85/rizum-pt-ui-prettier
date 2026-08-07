@@ -1563,9 +1563,9 @@ def build_settings_preview(QtWidgets):
     auto_layout.addStretch(1)
     auto_toggle = ToggleSwitch(False)
     auto_layout.addWidget(auto_toggle)
-    body_layout.addWidget(auto_row)
 
     body_layout.addWidget(make_section(preview_text("photoshop", "Photoshop")))
+    body_layout.addWidget(auto_row)
     path_row, path_layout = make_row()
     path_select = _QtWidgets.QFrame()
     path_select.setObjectName("RizumSettingsMockSelect")
