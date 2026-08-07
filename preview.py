@@ -40,7 +40,6 @@ from rizum_ui import (
     make_collapsible_group,
     make_drag_collapsible_group,
     make_drag_tree_item,
-    make_dock_actions_panel,
     make_export_tree_item,
     make_field_row,
     make_icon_button,
@@ -401,7 +400,6 @@ def reload_ui_kit():
     global make_collapsible_group
     global make_drag_collapsible_group
     global make_drag_tree_item
-    global make_dock_actions_panel
     global make_export_tree_item
     global make_field_row
     global make_icon_button
@@ -459,7 +457,6 @@ def reload_ui_kit():
     make_collapsible_group = rizum_ui.make_collapsible_group
     make_drag_collapsible_group = rizum_ui.make_drag_collapsible_group
     make_drag_tree_item = rizum_ui.make_drag_tree_item
-    make_dock_actions_panel = rizum_ui.make_dock_actions_panel
     make_export_tree_item = rizum_ui.make_export_tree_item
     make_field_row = rizum_ui.make_field_row
     make_icon_button = rizum_ui.make_icon_button
@@ -2565,56 +2562,28 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
     overview_left_layout = QtWidgets.QVBoxLayout(overview_left)
     overview_left_layout.setContentsMargins(0, 0, 0, 0)
     overview_left_layout.setSpacing(16)
+    bridge_preview = build_bridge_preview(QtWidgets)
     overview_left_layout.addWidget(
-        build_bridge_preview(QtWidgets),
+        bridge_preview,
         0,
         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
     )
     dock_compare = QtWidgets.QWidget()
     dock_compare.setObjectName("RizumDockCompare")
+    dock_compare.setFixedWidth(bridge_preview.width())
     dock_compare_layout = QtWidgets.QVBoxLayout(dock_compare)
     dock_compare_layout.setContentsMargins(0, 0, 0, 0)
     dock_compare_layout.setSpacing(6)
 
-    def dock_caption(text):
-        label = QtWidgets.QLabel(text)
-        label.setObjectName("RizumPreviewToolLabel")
-        dock_compare_layout.addWidget(label)
-        return label
-
-    dock_caption("ORIGINAL")
-    dock_compare_layout.addWidget(
-        make_dock_actions_panel(),
-        0,
-        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
-    )
-    dock_caption("K3 - FLEXIBLE EXPORT")
-    preview_scale = float(app.property("rizumUiFontScale") or 1.0) if app else 1.0
-    for dock_width in (210, 300, 420):
-        frame = QtWidgets.QFrame()
-        frame.setObjectName("RizumDockToolbarFrame")
-        frame.setFixedWidth(int(round(dock_width * preview_scale)))
-        frame.setStyleSheet(
-            "QFrame#RizumDockToolbarFrame {"
-            " background: transparent; border: 1px solid #3a3a3a;"
-            " border-radius: 6px; }"
-        )
-        frame_layout = QtWidgets.QVBoxLayout(frame)
-        frame_layout.setContentsMargins(0, 0, 0, 0)
-        frame_layout.setSpacing(0)
-        frame_layout.addWidget(build_dock_toolbar_preview(QtWidgets))
-        dock_compare_layout.addWidget(
-            frame,
-            0,
-            QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
-        )
-    dock_caption("K3 - FLEXIBLE EXPORT / RESIZABLE")
-    resizable_toolbar = build_dock_toolbar_preview(QtWidgets)
-    resizable_toolbar.setStyleSheet(
-        resizable_toolbar.styleSheet()
+    dock_label = QtWidgets.QLabel("PT BRIDGE DOCK")
+    dock_label.setObjectName("RizumPreviewToolLabel")
+    dock_compare_layout.addWidget(dock_label)
+    dock_toolbar = build_dock_toolbar_preview(QtWidgets)
+    dock_toolbar.setStyleSheet(
+        dock_toolbar.styleSheet()
         + "QWidget#RizumDockToolbar { border: 1px solid #3a3a3a; border-radius: 6px; }"
     )
-    dock_compare_layout.addWidget(resizable_toolbar)
+    dock_compare_layout.addWidget(dock_toolbar)
     overview_left_layout.addWidget(
         dock_compare,
         0,
