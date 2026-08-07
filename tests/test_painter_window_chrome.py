@@ -231,6 +231,7 @@ class PainterWindowChromeTests(unittest.TestCase):
     def test_export_children_inset_hover_edge_without_moving_checkboxes(self):
         bridge = build_bridge_preview(QtWidgets)
         self.addCleanup(bridge.deleteLater)
+        bridge.setSettingsUiScale(1.25)
         bridge.show()
         self.app.processEvents()
 
@@ -245,7 +246,10 @@ class PainterWindowChromeTests(unittest.TestCase):
         child_row_x = child_row.mapTo(group_widget, QtCore.QPoint()).x()
         child_row_right = child_row_x + child_row.width()
         self.assertGreater(child_row_x, 0)
-        self.assertEqual(group_widget.width() - child_row_right, 4)
+        self.assertEqual(
+            group_widget.width() - child_row_right,
+            bridge.settingsMetric(4, 3),
+        )
         self.assertLessEqual(
             abs(
                 child_host._rizum_label.mapTo(
@@ -264,6 +268,41 @@ class PainterWindowChromeTests(unittest.TestCase):
                 group_widget, checkbox.rect().center()
             ).x()
             self.assertLessEqual(abs(child_center_x - parent_center_x), 1)
+
+        expected_slot = max(18, round(24 * bridge.settingsMetric(32, 24) / 32))
+        self.assertEqual(child_host._rizum_checkbox_slot.width(), expected_slot)
+        parent_slot = group["parent"].parentWidget()
+        self.assertEqual(parent_slot.objectName(), "RizumControlSlot")
+        self.assertEqual(parent_slot.width(), expected_slot)
+
+    def test_export_labels_elide_before_trailing_controls(self):
+        bridge = build_bridge_preview(QtWidgets)
+        self.addCleanup(bridge.deleteLater)
+        bridge.show()
+        self.app.processEvents()
+
+        group = bridge._rizum_groups[0]
+        child = group["rows"][0]
+        long_name = "Base Color With A Deliberately Long Localized Channel Name"
+        child.refreshLayout(long_name)
+        group["widget"].refreshLayout(
+            title_text="Material Set With A Deliberately Long Localized Name"
+        )
+        self.app.processEvents()
+
+        child_label = child._rizum_label
+        child_checkbox = child._rizum_checkbox_slot
+        self.assertEqual(child_label.fullText(), long_name)
+        self.assertNotEqual(child_label.text(), long_name)
+        self.assertLessEqual(
+            child_label.geometry().right(),
+            child_checkbox.geometry().left(),
+        )
+        title_label = group["widget"].findChild(
+            QtWidgets.QLabel,
+            "RizumCollapsibleTitle",
+        )
+        self.assertNotEqual(title_label.text(), title_label.fullText())
 
     def test_settings_preview_uses_canonical_codex_layout(self):
         settings = build_settings_preview(QtWidgets)
