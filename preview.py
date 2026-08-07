@@ -21,7 +21,6 @@ from rizum_ui import (
     PAINTER_WINDOW_CONTENT_RADIUS,
     PainterSettingsDialog,
     SecondaryActionButton,
-    TextActionButton,
     animate_drag_tree_item_added,
     apply_compact_dock_surface,
     apply_painter_like_base,
@@ -383,7 +382,6 @@ def reload_ui_kit():
     global PAINTER_WINDOW_CONTENT_RADIUS
     global PainterSettingsDialog
     global SecondaryActionButton
-    global TextActionButton
     global animate_drag_tree_item_added
     global apply_compact_dock_surface
     global apply_painter_like_base
@@ -442,7 +440,6 @@ def reload_ui_kit():
     PAINTER_WINDOW_CONTENT_RADIUS = rizum_ui.PAINTER_WINDOW_CONTENT_RADIUS
     PainterSettingsDialog = rizum_ui.PainterSettingsDialog
     SecondaryActionButton = rizum_ui.SecondaryActionButton
-    TextActionButton = rizum_ui.TextActionButton
     animate_drag_tree_item_added = rizum_ui.animate_drag_tree_item_added
     apply_compact_dock_surface = rizum_ui.apply_compact_dock_surface
     apply_painter_like_base = rizum_ui.apply_painter_like_base
@@ -1310,10 +1307,18 @@ def build_font_preview_original(QtWidgets):
     footer_layout.setContentsMargins(10, 0, 10, 0)
     footer_layout.setSpacing(8)
     footer_layout.addStretch(1)
+    save_feedback = QtWidgets.QLabel("")
+    save_feedback.setObjectName("RizumHintLabel")
+    save_feedback.setFixedHeight(22)
+    save_feedback.hide()
+    footer_layout.addWidget(save_feedback)
+    undo_button = make_icon_button("undo.svg", "Undo")
+    undo_button.setProperty("accent", True)
+    footer_layout.addWidget(undo_button)
     reset_button = ActionButton.create("Reset", "dialog-secondary")
-    apply_button = ActionButton.create("Apply", "dialog-primary")
+    save_button = ActionButton.create("Save", "dialog-primary")
     footer_layout.addWidget(reset_button)
-    footer_layout.addWidget(apply_button)
+    footer_layout.addWidget(save_button)
     footer_outer.addWidget(footer_row, 1)
     card_layout.addWidget(footer_widget)
 
@@ -1343,7 +1348,11 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
         next_font.setPointSizeF(point_size)
         for widget in [panel, *panel.findChildren(_QtWidgets.QWidget)]:
             widget.setFont(next_font)
-        for button in (folder_btn, refresh_btn):
+        icon_frame = max(21, int(round(32 * scale)))
+        icon_size = max(12, int(round(17 * scale)))
+        for button in (folder_btn, refresh_btn, undo_button):
+            button.setFixedSize(icon_frame, icon_frame)
+            button.setPaintedIconSize(icon_size)
             if hasattr(button, "setCompactTooltipScale"):
                 button.setCompactTooltipScale(scale)
 
@@ -1359,7 +1368,7 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
             hint_widget, "No hinting", minimum=88, maximum=150
         )
         reset_button.refreshLayout(minimum=68, maximum=118)
-        apply_button.refreshLayout(minimum=72, maximum=112)
+        save_button.refreshLayout(minimum=72, maximum=112)
         panel.setMinimumWidth(0)
         panel.setMinimumWidth(
             max(COMPACT_DOCK_MIN_WIDTH, panel.minimumSizeHint().width())
@@ -1370,17 +1379,15 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
     size_control.valueChanged.connect(refresh_metrics)
     panel._rizum_size_control_variant = "original"
     panel._rizum_size_control = size_control
+    panel._rizum_undo_button = undo_button
     panel._rizum_reset_button = reset_button
-    panel._rizum_save_button = apply_button
+    panel._rizum_save_button = save_button
     return panel
 
 
-def build_font_preview(QtWidgets, *, size_control_variant="spin"):
-    from PySide6 import QtCore, QtGui
+def build_font_preview(QtWidgets):
+    from PySide6 import QtGui
     from PySide6 import QtWidgets as _QtWidgets
-
-    if size_control_variant not in {"spin", "compact"}:
-        raise ValueError(f"Unsupported UI Font size control: {size_control_variant}")
 
     panel = QtWidgets.QWidget()
     panel.setObjectName("RizumUiFontPreview")
@@ -1431,16 +1438,7 @@ def build_font_preview(QtWidgets, *, size_control_variant="spin"):
         return compact_label_width(["Size", "Font"], widget=panel, minimum=28, maximum=56, padding=6)
 
     current_label_width = label_width()
-    if size_control_variant == "compact":
-        size_control = make_compact_stepper(
-            1.0,
-            minimum=0.75,
-            maximum=2.0,
-            step=0.05,
-            decimals=2,
-        )
-    else:
-        size_control = make_spin_input(1.0)
+    size_control = make_spin_input(1.0)
     size_row = make_field_row(
         "Size",
         size_control,
@@ -1448,13 +1446,6 @@ def build_font_preview(QtWidgets, *, size_control_variant="spin"):
         gap=8,
         width=120,
     )
-    scale_suffix = QtWidgets.QLabel("×")
-    scale_suffix.setObjectName("RizumHintLabel")
-    scale_suffix.setAttribute(
-        QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents,
-        True,
-    )
-    size_row.layout().insertWidget(size_row.layout().count() - 1, scale_suffix)
     main_layout.addWidget(size_row)
 
     font_combo = make_combo_input()
@@ -1504,11 +1495,11 @@ def build_font_preview(QtWidgets, *, size_control_variant="spin"):
     footer_layout.setSpacing(8)
     undo_button = make_icon_button("undo.svg", "Undo unsaved changes")
     undo_button.setProperty("accent", True)
-    reset_button = TextActionButton("Reset")
+    reset_button = SecondaryActionButton("Reset")
     save_button = AnimatedSaveButton("Save")
+    footer_layout.addStretch(1)
     footer_layout.addWidget(undo_button)
     footer_layout.addWidget(reset_button)
-    footer_layout.addStretch(1)
     footer_layout.addWidget(save_button)
     footer_outer.addWidget(footer_row, 1)
     card_layout.addWidget(footer_widget)
@@ -1650,6 +1641,13 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
         footer_button_height = metric(26, 20)
         reset_button.setCompactHeight(footer_button_height)
         save_button.setCompactHeight(footer_button_height)
+        reset_button.setFixedWidth(
+            compact_footer_button_width(
+                reset_button,
+                minimum=metric(68, 51),
+                maximum=metric(118, 89),
+            )
+        )
         save_button.setFixedWidth(
             compact_footer_button_width(
                 save_button,
@@ -1674,7 +1672,7 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
         refresh_action_state()
 
     size_control.valueChanged.connect(size_changed)
-    panel._rizum_size_control_variant = size_control_variant
+    panel._rizum_size_control_variant = "spin"
     panel._rizum_size_control = size_control
     panel._rizum_font_combo = font_combo
     panel._rizum_hinting_checkbox = no_hinting
@@ -1697,20 +1695,7 @@ def build_font_comparison(QtWidgets):
     candidates = []
     for title, builder in (
         ("ORIGINAL", lambda: build_font_preview_original(QtWidgets)),
-        (
-            "KIMI K3",
-            lambda: build_font_preview(
-                QtWidgets,
-                size_control_variant="compact",
-            ),
-        ),
-        (
-            "KIMI K3 + CURRENT STEPPER",
-            lambda: build_font_preview(
-                QtWidgets,
-                size_control_variant="spin",
-            ),
-        ),
+        ("SHARED COMPONENTS", lambda: build_font_preview(QtWidgets)),
     ):
         candidate = QtWidgets.QWidget()
         candidate.setObjectName("RizumUiFontCandidate")
@@ -1730,6 +1715,9 @@ def build_font_comparison(QtWidgets):
         candidate_layout.addStretch(1)
         comparison_layout.addWidget(candidate)
         candidates.append(panel)
+    comparison_height = max(panel.height() for panel in candidates)
+    for panel in candidates:
+        panel.setFixedHeight(comparison_height)
     comparison._rizum_candidates = candidates
     return comparison
 
