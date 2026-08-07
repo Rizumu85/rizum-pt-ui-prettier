@@ -108,7 +108,8 @@ class PainterWindowChromeTests(unittest.TestCase):
             top_margins.left(), PAINTER_SETTINGS_LAYOUT.body_margin_x.design
         )
         self.assertEqual(
-            top_margins.right(), PAINTER_SETTINGS_LAYOUT.body_margin_x.design
+            top_margins.right() - top_margins.left(),
+            bridge._rizum_tree_scrollbar.width(),
         )
 
         footer = bridge.findChild(QtWidgets.QWidget, "RizumExportFooter")
@@ -188,6 +189,43 @@ class PainterWindowChromeTests(unittest.TestCase):
             subtitle._rizum_compact_tooltip_filter._text,
             "1 of 2 channels selected",
         )
+
+    def test_export_preview_mirrors_live_scope_height_and_action_state(self):
+        bridge = build_bridge_preview(QtWidgets)
+        self.addCleanup(bridge.deleteLater)
+        bridge.show()
+        self.app.processEvents()
+        current_height = bridge.height()
+
+        self.assertEqual(len(bridge._rizum_groups), 1)
+        self.assertTrue(bridge._rizum_export_button.isEnabled())
+        self.assertEqual(bridge._rizum_tree_scrollbar.maximum(), 0)
+
+        bridge._rizum_scope_combo.setCurrentIndex(1)
+        self.app.processEvents()
+
+        self.assertGreater(len(bridge._rizum_groups), 1)
+        self.assertGreater(bridge.height(), current_height)
+        self.assertFalse(bridge._rizum_export_button.isEnabled())
+        self.assertGreater(bridge._rizum_tree_scrollbar.maximum(), 0)
+        self.assertGreater(
+            bridge._rizum_tree_scroll.viewport().height(),
+            bridge.settingsMetric(400, 300),
+        )
+
+    def test_export_preview_collapse_removes_blank_scroll_range(self):
+        bridge = build_bridge_preview(QtWidgets)
+        self.addCleanup(bridge.deleteLater)
+        bridge._rizum_scope_combo.setCurrentIndex(1)
+        bridge.show()
+        self.app.processEvents()
+
+        for group in bridge._rizum_groups:
+            group["widget"].setExpanded(False)
+        QtTest.QTest.qWait(350)
+        self.app.processEvents()
+
+        self.assertEqual(bridge._rizum_tree_scrollbar.maximum(), 0)
 
     def test_bridge_preview_scales_fixed_component_internals(self):
         bridge = build_bridge_preview(QtWidgets)

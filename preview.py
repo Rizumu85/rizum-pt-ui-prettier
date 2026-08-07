@@ -9,6 +9,7 @@ from pathlib import Path
 
 from rizum_ui import (
     ActionButton,
+    AnimatedSaveButton,
     Card,
     IconActionButton,
     SectionHeader,
@@ -369,6 +370,7 @@ def qt_argv():
 def reload_ui_kit():
     """Reload UI-kit modules and refresh imported helpers."""
     global ActionButton
+    global AnimatedSaveButton
     global Card
     global IconActionButton
     global SectionHeader
@@ -426,6 +428,7 @@ def reload_ui_kit():
     import rizum_ui.animation
 
     ActionButton = rizum_ui.ActionButton
+    AnimatedSaveButton = rizum_ui.AnimatedSaveButton
     Card = rizum_ui.Card
     IconActionButton = rizum_ui.IconActionButton
     SectionHeader = rizum_ui.SectionHeader
@@ -523,8 +526,8 @@ def build_bridge_preview(QtWidgets):
 
     mode_combo = make_combo_input(
         [
-            preview_text("current_stack", "Current Stack"),
-            preview_text("all_stacks", "All Stacks"),
+            (preview_text("current_stack", "Current Stack"), "current"),
+            (preview_text("all_stacks", "All Stacks"), "all"),
         ]
     )
     mode_combo.setObjectName("RizumExportScopeInput")
@@ -562,14 +565,67 @@ def build_bridge_preview(QtWidgets):
     top_separator.setObjectName("RizumExportTopDivider")
     content_layout.addWidget(top_separator)
 
+    tree_scroll = _QtWidgets.QScrollArea()
+    tree_scroll.setObjectName("RizumExportTreeScroll")
+    tree_scroll.setWidgetResizable(True)
+    tree_scroll.setFrameShape(_QtWidgets.QFrame.Shape.NoFrame)
+    tree_scroll.setHorizontalScrollBarPolicy(
+        QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    )
+    tree_scroll.setVerticalScrollBarPolicy(
+        QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    )
+    tree_scroll.viewport().setAutoFillBackground(False)
+    internal_scrollbar = tree_scroll.verticalScrollBar()
+    internal_scrollbar.setObjectName("RizumExportInternalScrollbar")
+    internal_scrollbar.setStyleSheet(
+        "QScrollBar#RizumExportInternalScrollbar {"
+        " min-width: 0; max-width: 0; width: 0;"
+        " background: transparent; border: 0; }"
+    )
+    internal_scrollbar.setFixedWidth(0)
+
+    # Painter may reserve space for its native scrollbar. The preview mirrors
+    # the live dialog's fixed-width proxy so horizontal alignment stays stable.
+    tree_scrollbar = _QtWidgets.QScrollBar(QtCore.Qt.Orientation.Vertical)
+    tree_scrollbar.setObjectName("RizumExportTreeScrollbar")
+    tree_scrollbar.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+    tree_scrollbar.valueChanged.connect(internal_scrollbar.setValue)
+    internal_scrollbar.valueChanged.connect(tree_scrollbar.setValue)
+
+    tree_container = _QtWidgets.QWidget()
+    tree_container.setObjectName("RizumExportTreeContainer")
+    tree_container_layout = _QtWidgets.QHBoxLayout(tree_container)
+    tree_container_layout.setContentsMargins(0, 0, 0, 0)
+    tree_container_layout.setSpacing(0)
+    tree_container_layout.addWidget(tree_scroll, 1)
+    tree_container_layout.addWidget(tree_scrollbar)
+
     tree = _QtWidgets.QFrame()
     tree.setObjectName("RizumExportTree")
+    tree.setSizePolicy(
+        _QtWidgets.QSizePolicy.Policy.Expanding,
+        _QtWidgets.QSizePolicy.Policy.Fixed,
+    )
     tree_layout = _QtWidgets.QVBoxLayout(tree)
     tree_layout.setContentsMargins(12, 8, 12, 8)
     tree_layout.setSpacing(layout_spec.body_spacing.design)
-    content_layout.addWidget(tree, 1)
+    tree_layout.addStretch(1)
+    tree_scroll.setWidget(tree)
+    content_layout.addWidget(tree_container, 1)
 
     groups = []
+    target_specs = [
+        ("M_body", ["basecolor", "User1"]),
+        ("M_clothes", ["Base Color"]),
+        ("M_coat", ["Base Color", "Normal"]),
+        ("M_face", ["Base Color", "Opacity"]),
+        ("M_hair_back1", ["Base Color"]),
+        ("M_hair_back2", ["Base Color"]),
+        ("M_hair_front", ["Base Color", "Opacity"]),
+        ("M_shoes", ["Base Color"]),
+        ("M_skirt", ["Base Color"]),
+    ]
 
     def make_tree_item(name, checkbox, meta="", child=False):
         return make_export_tree_item(name, checkbox, meta=meta, child=child)
@@ -605,10 +661,11 @@ def build_bridge_preview(QtWidgets):
         else:
             group["parent"].setIndeterminate(True)
         update_selection_summary(group, checked_count)
+        refresh_export_state()
 
-    def add_group(name, children):
-        parent_cb = make_mock_checkbox(True)
-        child_cbs = [make_mock_checkbox(True) for _ in children]
+    def add_group(name, children, checked):
+        parent_cb = make_mock_checkbox(checked)
+        child_cbs = [make_mock_checkbox(checked) for _ in children]
         group = {"parent": parent_cb, "children": child_cbs, "rows": []}
         child_rows = []
 
@@ -634,11 +691,12 @@ def build_bridge_preview(QtWidgets):
             old(event)
             for child_cb in g["children"]:
                 child_cb.setChecked(cb.isChecked())
+            update_parent(g)
 
         parent_cb.mousePressEvent = parent_mouse
         group_frame = make_collapsible_group(
             name,
-            selection_counter(len(children), len(children)),
+            selection_counter(len(children) if checked else 0, len(children)),
             children=child_rows,
             trailing_widget=parent_cb,
             expanded=True,
@@ -651,15 +709,20 @@ def build_bridge_preview(QtWidgets):
         subtitle.setTextFormat(QtCore.Qt.TextFormat.RichText)
         install_compact_tooltip(
             subtitle,
-            selection_tooltip(len(children), len(children)),
+            selection_tooltip(len(children) if checked else 0, len(children)),
         )
         group["subtitle"] = subtitle
-        update_selection_summary(group, len(children))
-        tree_layout.addWidget(group_frame)
+        update_selection_summary(group, len(children) if checked else 0)
+        tree_layout.insertWidget(tree_layout.count() - 1, group_frame)
         groups.append(group)
+        content_frame = group_frame._rizum_content
+        sync_group_height = content_frame._height_changed
 
-    add_group("M_body", ["basecolor", "User1"])
-    tree_layout.addStretch(1)
+        def sync_preview_tree_height(value, sync_group=sync_group_height):
+            sync_group(value)
+            sync_tree_content_height()
+
+        content_frame._height_changed = sync_preview_tree_height
 
     footer_separator = make_inset_separator(
         layout_spec.footer_margin_x.design,
@@ -692,14 +755,7 @@ def build_bridge_preview(QtWidgets):
         default_theme.radius_small,
     )
     cancel.setObjectName("RizumExportCancel")
-    export = SecondaryActionButton(
-        preview_text("export", "Export"),
-        theme["accent"],
-        theme["accent_hover"],
-        theme["accent_pressed"],
-        theme["accent_text"],
-        default_theme.radius_small,
-    )
+    export = AnimatedSaveButton(preview_text("export", "Export"))
     export.setObjectName("RizumExportConfirm")
     footer_layout.addWidget(cancel)
     footer_layout.addStretch(1)
@@ -707,16 +763,48 @@ def build_bridge_preview(QtWidgets):
     footer_outer.addWidget(footer_row)
     content_layout.addWidget(footer)
 
-    expand_btn.clicked.connect(lambda: [group["widget"].setExpanded(True) for group in groups])
-    collapse_btn.clicked.connect(lambda: [group["widget"].setExpanded(False) for group in groups])
+    expand_btn.clicked.connect(
+        lambda: [group["widget"].setExpanded(True) for group in groups]
+    )
+    collapse_btn.clicked.connect(
+        lambda: [group["widget"].setExpanded(False) for group in groups]
+    )
+
+    def refresh_export_state():
+        selected = any(
+            checkbox.isChecked()
+            for group in groups
+            for checkbox in group["children"]
+        )
+        export.setDirty(selected, animate=window.isVisible())
+
     def set_all_checked(checked):
         for group in groups:
             for checkbox in [group["parent"], *group["children"]]:
                 checkbox.setChecked(checked)
             update_parent(group)
+        refresh_export_state()
 
     select_all_btn.clicked.connect(lambda: set_all_checked(True))
     select_none_btn.clicked.connect(lambda: set_all_checked(False))
+
+    def clear_groups():
+        for group in groups:
+            tree_layout.removeWidget(group["widget"])
+            group["widget"].deleteLater()
+        groups.clear()
+
+    def refresh_scope(*_args):
+        clear_groups()
+        show_all = mode_combo.currentData() == "all"
+        specs = target_specs if show_all else target_specs[:1]
+        for name, channels in specs:
+            add_group(name, channels, checked=not show_all)
+        internal_scrollbar.setValue(0)
+        refresh_export_state()
+        apply_scale()
+
+    mode_combo.currentIndexChanged.connect(refresh_scope)
 
     def metric(value, minimum=None):
         return window.settingsMetric(value, minimum)
@@ -735,6 +823,9 @@ QFrame#RizumPainterSettingsSurface {{
     background: {theme["surface"]};
 }}
 QWidget#RizumExportTopControls,
+QWidget#RizumExportTreeContainer,
+QScrollArea#RizumExportTreeScroll,
+QScrollArea#RizumExportTreeScroll > QWidget > QWidget,
 QFrame#RizumExportTree,
 QWidget#RizumExportFooter,
 QWidget#RizumExportFooterRow,
@@ -746,6 +837,38 @@ QWidget#RizumCollapsibleContentInner,
 QFrame#RizumExportTreeItemHost {{
     background: transparent;
     border: 0;
+}}
+QScrollBar#RizumExportTreeScrollbar {{
+    background: transparent;
+    border: 0;
+    margin: 0;
+    width: {metric(10, 8)}px;
+}}
+QScrollBar#RizumExportTreeScrollbar::handle:vertical {{
+    background: #515151;
+    border: 0;
+    border-radius: {max(3, metric(4, 3))}px;
+    min-height: {metric(28, 21)}px;
+    margin: {metric(2, 1)}px;
+}}
+QScrollBar#RizumExportTreeScrollbar::handle:vertical:hover {{
+    background: #686868;
+}}
+QScrollBar#RizumExportTreeScrollbar::handle:vertical:pressed {{
+    background: #777777;
+}}
+QScrollBar#RizumExportTreeScrollbar[scrollable="false"]::handle:vertical {{
+    background: transparent;
+}}
+QScrollBar#RizumExportTreeScrollbar::add-line:vertical,
+QScrollBar#RizumExportTreeScrollbar::sub-line:vertical {{
+    background: transparent;
+    border: 0;
+    height: 0;
+}}
+QScrollBar#RizumExportTreeScrollbar::add-page:vertical,
+QScrollBar#RizumExportTreeScrollbar::sub-page:vertical {{
+    background: transparent;
 }}
 QWidget#RizumExportTopDivider QFrame#RizumInsetSeparator,
 QWidget#RizumExportFooterDivider QFrame#RizumInsetSeparator {{
@@ -811,21 +934,112 @@ QLabel#RizumSvgLabel:hover {{
             button.setProperty("iconHoverColor", theme["text"])
             button.update()
 
-    def expanded_tree_height():
+    def tree_content_height():
         margins = tree_layout.contentsMargins()
         height = margins.top() + margins.bottom()
         for index, group in enumerate(groups):
             if index:
                 height += tree_layout.spacing()
-            group_layout = group["widget"].layout()
-            group_margins = group_layout.contentsMargins()
-            height += (
-                group_margins.top()
-                + group["widget"]._rizum_header.height()
-                + group["widget"]._rizum_content_inner.sizeHint().height()
-                + group_margins.bottom()
-            )
+            height += group["widget"].height()
         return height
+
+    def first_group_prefix_height(group, maximum):
+        widget = group["widget"]
+        group_margins = widget.layout().contentsMargins()
+        base = (
+            group_margins.top()
+            + widget._rizum_header.height()
+            + group_margins.bottom()
+        )
+        if not widget.isExpanded() or base >= maximum:
+            return min(base, maximum)
+
+        height = base
+        content_group_layout = widget._rizum_content_layout
+        for index, row in enumerate(group["rows"]):
+            addition = row.height()
+            if index:
+                addition += content_group_layout.spacing()
+            if height + addition > maximum:
+                break
+            height += addition
+        return height
+
+    def quantized_tree_height(content_height, maximum):
+        if content_height <= maximum or not groups:
+            return content_height
+
+        margins = tree_layout.contentsMargins()
+        height = margins.top()
+        complete_groups = 0
+        truncated = False
+        for group in groups:
+            spacing = tree_layout.spacing() if complete_groups else 0
+            candidate = (
+                height
+                + spacing
+                + group["widget"].height()
+                + margins.bottom()
+            )
+            if candidate > maximum:
+                truncated = True
+                if not complete_groups:
+                    available = max(
+                        0,
+                        maximum - height - spacing - margins.bottom(),
+                    )
+                    height += spacing + first_group_prefix_height(
+                        group,
+                        available,
+                    )
+                break
+            height += spacing + group["widget"].height()
+            complete_groups += 1
+        if truncated:
+            return max(1, height + tree_layout.spacing())
+        return max(1, height + margins.bottom())
+
+    def set_tree_scrollable(scrolling):
+        scrolling = bool(scrolling)
+        if tree_scrollbar.property("scrollable") == scrolling:
+            return
+        tree_scrollbar.setProperty("scrollable", scrolling)
+        tree_scrollbar.style().unpolish(tree_scrollbar)
+        tree_scrollbar.style().polish(tree_scrollbar)
+        tree_scrollbar.update()
+
+    def sync_scrollbar_range(_minimum, _maximum):
+        maximum = max(0, tree.height() - tree_scroll.viewport().height())
+        tree_scrollbar.setRange(0, maximum)
+        tree_scrollbar.setPageStep(internal_scrollbar.pageStep())
+        tree_scrollbar.setSingleStep(internal_scrollbar.singleStep())
+        tree_scrollbar.setValue(internal_scrollbar.value())
+        set_tree_scrollable(maximum > 0)
+
+    def sync_tree_content_height():
+        tree_layout.activate()
+        content_height = tree_content_height()
+        tree.setFixedHeight(content_height)
+        viewport_height = max(1, tree_scroll.viewport().height())
+        scroll_maximum = max(0, content_height - viewport_height)
+        tree_scrollbar.setRange(0, scroll_maximum)
+        tree_scrollbar.setPageStep(viewport_height)
+        tree_scrollbar.setSingleStep(internal_scrollbar.singleStep())
+        tree_scrollbar.setValue(min(internal_scrollbar.value(), scroll_maximum))
+        scrolling = scroll_maximum > 0
+        set_tree_scrollable(scrolling)
+        if not scrolling:
+            internal_scrollbar.setValue(0)
+
+    internal_scrollbar.rangeChanged.connect(sync_scrollbar_range)
+
+    old_tree_scroll_resize = tree_scroll.resizeEvent
+
+    def tree_scroll_resize(event):
+        old_tree_scroll_resize(event)
+        QtCore.QTimer.singleShot(0, sync_tree_content_height)
+
+    tree_scroll.resizeEvent = tree_scroll_resize
 
     def footer_button_width(button, minimum=56, maximum=112):
         scale = window.settingsUiScale()
@@ -898,7 +1112,26 @@ QLabel#RizumSvgLabel:hover {{
                 row.setRightInset(metric(4, 3), metric(4, 3))
                 update_export_tree_item(row, minimum_height=child_height)
             group["widget"].refreshLayout()
-        tree.setFixedHeight(expanded_tree_height())
+
+        tree_layout.activate()
+        content_height = tree_content_height()
+        viewport_height = quantized_tree_height(
+            content_height,
+            metric(500, 375),
+        )
+        tree.setFixedHeight(content_height)
+        tree_container.setFixedHeight(viewport_height)
+        tree_scroll.setFixedHeight(viewport_height)
+        internal_scrollbar.setFixedWidth(0)
+        scrollbar_gutter = metric(10, 8)
+        tree_scrollbar.setFixedWidth(scrollbar_gutter)
+        top_controls.layout().setContentsMargins(
+            margin,
+            0,
+            margin + scrollbar_gutter,
+            0,
+        )
+        set_tree_scrollable(content_height > viewport_height)
 
         footer_margin = layout_spec.footer_margin_x.resolve(window)
         footer_top = layout_spec.footer_top.resolve(window)
@@ -930,7 +1163,7 @@ QLabel#RizumSvgLabel:hover {{
         window.setFixedHeight(
             top_controls.height()
             + top_separator.height()
-            + tree.height()
+            + viewport_height
             + footer_separator.height()
             + footer.height()
         )
@@ -946,9 +1179,12 @@ QLabel#RizumSvgLabel:hover {{
 
     window.refreshLayout = refresh_layout
     window.settingsUiScaleChanged.connect(lambda _scale: apply_scale())
-    apply_scale()
+    refresh_scope()
     window._rizum_top_controls = top_controls
     window._rizum_tree = tree
+    window._rizum_tree_scroll = tree_scroll
+    window._rizum_tree_scrollbar = tree_scrollbar
+    window._rizum_scope_combo = mode_combo
     window._rizum_groups = groups
     window._rizum_footer = footer
     window._rizum_footer_row = footer_row
