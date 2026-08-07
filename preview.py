@@ -1481,6 +1481,7 @@ def build_font_preview(QtWidgets):
 
     card = make_compact_dock_card()
     card_layout = card.layout()
+    card_layout.setContentsMargins(0, 0, 0, 8)
     outer_layout.addWidget(card)
 
     main_widget = QtWidgets.QWidget()
@@ -1668,13 +1669,20 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
             row.setFixedHeight(row_height)
             control.setCompactHeight(row_height)
 
-        icon_frame = metric(22, 17)
-        icon_size = metric(16, 12)
-        for button in (folder_btn, refresh_btn, undo_button):
-            button.setFixedSize(icon_frame, icon_frame)
-            button.setPaintedIconSize(icon_size)
+        tool_icon_frame = metric(22, 17)
+        tool_icon_size = metric(16, 12)
+        for button in (folder_btn, refresh_btn):
+            button.setFixedSize(tool_icon_frame, tool_icon_frame)
+            button.setPaintedIconSize(tool_icon_size)
             if hasattr(button, "setCompactTooltipScale"):
                 button.setCompactTooltipScale(scale)
+
+        undo_frame = metric(32, 24)
+        undo_icon_size = metric(17, 13)
+        undo_button.setFixedSize(undo_frame, undo_frame)
+        undo_button.setPaintedIconSize(undo_icon_size)
+        if hasattr(undo_button, "setCompactTooltipScale"):
+            undo_button.setCompactTooltipScale(scale)
 
         checkbox_size = metric(14, 11)
         no_hinting.setSize(checkbox_size)
@@ -1686,6 +1694,7 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
             metric(6, 5),
         )
         main_layout.setSpacing(metric(10, 8))
+        card_layout.setContentsMargins(0, 0, 0, metric(8, 6))
 
         next_label_width = label_width()
         field_gap = metric(8, 6)
@@ -1729,7 +1738,7 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
         save_button.setFixedWidth(
             compact_footer_button_width(
                 save_button,
-                minimum=metric(64, 48),
+                minimum=metric(72, 54),
                 maximum=metric(112, 84),
             )
         )
@@ -1752,6 +1761,7 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
     size_control.valueChanged.connect(size_changed)
     panel._rizum_size_control_variant = "spin"
     panel._rizum_size_control = size_control
+    panel._rizum_card_layout = card_layout
     panel._rizum_font_combo = font_combo
     panel._rizum_hinting_checkbox = no_hinting
     panel._rizum_icon_buttons = (folder_btn, refresh_btn, undo_button)

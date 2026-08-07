@@ -31,11 +31,14 @@ class FontPreviewTests(unittest.TestCase):
         self.assertEqual(panel._rizum_size_control.objectName(), "RizumMockInput")
         self.assertIsInstance(panel._rizum_reset_button, SecondaryActionButton)
         self.assertIsInstance(panel._rizum_save_button, AnimatedSaveButton)
+        self.assertEqual(panel._rizum_card_layout.getContentsMargins(), (0, 0, 0, 8))
         self.assertEqual(panel._rizum_footer.height(), 48)
         self.assertEqual(
             [(button.width(), button.height()) for button in panel._rizum_icon_buttons],
-            [(22, 22), (22, 22), (22, 22)],
+            [(22, 22), (22, 22), (32, 32)],
         )
+        self.assertEqual(panel._rizum_reset_button.size(), QtCore.QSize(68, 26))
+        self.assertEqual(panel._rizum_save_button.size(), QtCore.QSize(72, 26))
 
     def test_comparison_keeps_the_original_as_a_visual_baseline(self):
         comparison = build_font_comparison(QtWidgets)
@@ -121,12 +124,16 @@ class FontPreviewTests(unittest.TestCase):
         panel._rizum_size_control.setValue(1.5)
         self.app.processEvents()
         self.assertEqual(panel._rizum_size_control.height(), 48)
+        self.assertEqual(panel._rizum_card_layout.getContentsMargins(), (0, 0, 0, 12))
         self.assertEqual(panel._rizum_footer.height(), 72)
+        self.assertEqual(panel._rizum_undo_button.size(), QtCore.QSize(48, 48))
 
         panel._rizum_size_control.setValue(0.75)
         self.app.processEvents()
         self.assertEqual(panel._rizum_size_control.height(), 24)
+        self.assertEqual(panel._rizum_card_layout.getContentsMargins(), (0, 0, 0, 6))
         self.assertEqual(panel._rizum_footer.height(), 36)
+        self.assertEqual(panel._rizum_undo_button.size(), QtCore.QSize(24, 24))
 
 
 if __name__ == "__main__":
