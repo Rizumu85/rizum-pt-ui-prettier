@@ -1126,11 +1126,11 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
 
 
 def build_dock_toolbar_preview(QtWidgets):
-    """Build the compact-cluster dock toolbar proposal.
+    """Build K3's single-flex-element dock toolbar proposal.
 
     Preview-only counterpart to the original three-tile
-    ``make_dock_actions_panel``: Export and the two compact utilities stay
-    together while all surplus dock width remains at the trailing edge.
+    ``make_dock_actions_panel``: Export owns all surplus width so its two
+    compact utilities remain attached with a constant gap at every width.
     """
     from PySide6 import QtCore, QtWidgets as _QtWidgets
 
@@ -1167,12 +1167,11 @@ def build_dock_toolbar_preview(QtWidgets):
     export.setObjectName("RizumDockToolbarExport")
     export.setCompactHeight(metric(28, 21))
     export.setMinimumWidth(metric(96, 72))
-    export.setFixedWidth(max(export.minimumWidth(), export.sizeHint().width()))
     export.setSizePolicy(
-        _QtWidgets.QSizePolicy.Policy.Fixed,
+        _QtWidgets.QSizePolicy.Policy.Expanding,
         _QtWidgets.QSizePolicy.Policy.Fixed,
     )
-    row.addWidget(export)
+    row.addWidget(export, 1)
 
     icon_frame = metric(22, 17)
     icon_size = metric(16, 12)
@@ -1197,7 +1196,6 @@ def build_dock_toolbar_preview(QtWidgets):
     if hasattr(settings, "setCompactTooltipScale"):
         settings.setCompactTooltipScale(scale)
     row.addWidget(settings)
-    row.addStretch(1)
 
     toolbar.setFixedHeight(metric(44, 33))
     toolbar.setMinimumWidth(
@@ -2590,7 +2588,7 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
         0,
         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
     )
-    dock_caption("COMPACT CLUSTER")
+    dock_caption("K3 - FLEXIBLE EXPORT")
     preview_scale = float(app.property("rizumUiFontScale") or 1.0) if app else 1.0
     for dock_width in (210, 300, 420):
         frame = QtWidgets.QFrame()
@@ -2610,7 +2608,7 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
             0,
             QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
         )
-    dock_caption("COMPACT CLUSTER - RESIZABLE")
+    dock_caption("K3 - FLEXIBLE EXPORT / RESIZABLE")
     resizable_toolbar = build_dock_toolbar_preview(QtWidgets)
     resizable_toolbar.setStyleSheet(
         resizable_toolbar.styleSheet()

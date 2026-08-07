@@ -38,7 +38,7 @@ class DockToolbarPreviewTests(unittest.TestCase):
         self.assertEqual((margins.left(), margins.right()), (12, 12))
         self.assertEqual(toolbar.layout().spacing(), 6)
 
-    def test_export_uses_its_natural_compact_width(self):
+    def test_export_is_the_single_expanding_action(self):
         toolbar = build_dock_toolbar_preview(QtWidgets)
         self.addCleanup(toolbar.deleteLater)
 
@@ -46,11 +46,10 @@ class DockToolbarPreviewTests(unittest.TestCase):
         self.assertIsInstance(export, IconActionButton)
         self.assertEqual(export.text(), "Export")
         self.assertEqual(export.height(), 28)
-        self.assertGreaterEqual(export.minimumWidth(), 96)
-        self.assertEqual(export.width(), export.sizeHint().width())
+        self.assertEqual(export.minimumWidth(), 96)
         self.assertEqual(
             export.sizePolicy().horizontalPolicy(),
-            QtWidgets.QSizePolicy.Policy.Fixed,
+            QtWidgets.QSizePolicy.Policy.Expanding,
         )
 
     def test_bridge_and_settings_are_compact_icon_buttons(self):
@@ -79,9 +78,8 @@ class DockToolbarPreviewTests(unittest.TestCase):
             right_edge = button.mapTo(toolbar, button.rect().topRight()).x()
             self.assertLessEqual(right_edge, toolbar.width())
 
-    def test_cluster_stays_together_as_the_container_grows(self):
+    def test_export_absorbs_surplus_without_splitting_the_cluster(self):
         export_widths = {}
-        trailing_space = {}
         for width in (210, 300, 420):
             host, toolbar = make_host(width)
             self.addCleanup(host.deleteLater)
@@ -96,11 +94,10 @@ class DockToolbarPreviewTests(unittest.TestCase):
             settings_right = settings.mapTo(toolbar, settings.rect().topRight()).x()
             self.assertEqual(bridge_left - export_right - 1, 6)
             self.assertEqual(settings_left - bridge_right - 1, 6)
-            trailing_space[width] = toolbar.width() - settings_right - 1
+            self.assertEqual(toolbar.width() - settings_right - 1, 12)
 
-        self.assertEqual(len(set(export_widths.values())), 1)
-        self.assertLess(trailing_space[210], trailing_space[300])
-        self.assertLess(trailing_space[300], trailing_space[420])
+        self.assertLess(export_widths[210], export_widths[300])
+        self.assertLess(export_widths[300], export_widths[420])
 
 
 if __name__ == "__main__":
