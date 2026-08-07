@@ -68,9 +68,11 @@ WATCHED_MODULES = [
     "rizum_ui.stylesheet",
     "rizum_ui.settings_layout",
     "rizum_ui.components",
+    "rizum_ui.settings_controls",
     "rizum_ui.animation",
     "rizum_ui",
     "view_roll_preview",
+    "liquify_preview",
 ]
 
 PREVIEW_LANGUAGES = (
@@ -293,7 +295,7 @@ def preview_language():
 def preview_text(key, fallback):
     return _PREVIEW_TEXT.get(preview_language(), {}).get(key, fallback)
 WATCHED_FILES = sorted(
-    [PREVIEW_FILE, ROOT / "view_roll_preview.py"]
+    [PREVIEW_FILE, ROOT / "view_roll_preview.py", ROOT / "liquify_preview.py"]
     + list((ROOT / "rizum_ui").glob("*.py"))
     + list((ROOT / "icons").glob("*.svg"))
 )
@@ -3012,6 +3014,11 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
     )
     settings_layout.addStretch(1)
     tabs.addTab(settings_page, preview_text("settings", "Settings"))
+
+    import liquify_preview
+
+    liquify_page = liquify_preview.build_liquify_preview(QtWidgets)
+    tabs.addTab(liquify_page, "Liquify")
 
     import view_roll_preview
 

@@ -23,6 +23,7 @@ from .settings_controls import (
     PAINTER_DIALOG_STYLE,
     SecondaryActionButton,
     ShortcutCaptureField,
+    StatusBanner,
     TextActionButton,
 )
 from .components import (
@@ -121,6 +122,7 @@ __all__ = [
     "SecondaryActionButton",
     "SectionHeader",
     "StatusPill",
+    "StatusBanner",
     "ShortcutCaptureField",
     "TextActionButton",
     "Theme",

@@ -28,6 +28,178 @@ PAINTER_DIALOG_STYLE = MappingProxyType(
 )
 
 
+class StatusBanner(QtWidgets.QFrame):
+    """Compact dock status surface with an optional in-place action."""
+
+    actionTriggered = QtCore.Signal()
+
+    BASE_HEIGHT = 54
+    MIN_HEIGHT = 41  # round(54 x 0.75)
+    _TONES = {
+        "neutral": "#666666",
+        "accent": "#f2f2f2",
+        "info": "#6aa8ff",
+        "good": default_theme.success,
+        "warn": default_theme.warning,
+        "bad": default_theme.danger,
+    }
+
+    def __init__(
+        self,
+        title: str = "",
+        subtitle: str = "",
+        tone: str = "neutral",
+        action_text: str = "",
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self.setObjectName("RizumStatusBanner")
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet(
+            """
+QFrame#RizumStatusBanner {
+    background: transparent;
+    border: 0;
+}
+QFrame#RizumStatusBanner QLabel#RizumStatusBannerTitle {
+    color: #f2f2f2;
+    background: transparent;
+    border: 0;
+}
+QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
+    color: #9a9a9a;
+    background: transparent;
+    border: 0;
+}
+"""
+        )
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Fixed,
+        )
+        self._compact_height = self.BASE_HEIGHT
+        self._tone = "neutral"
+        self._tone_color = QtGui.QColor(self._TONES["neutral"])
+        self._accent_width = 3
+        self._radius = float(default_theme.radius_small)
+
+        self._layout = QtWidgets.QHBoxLayout(self)
+        self._layout.setContentsMargins(12, 7, 10, 7)
+        self._layout.setSpacing(8)
+
+        text_host = QtWidgets.QWidget(self)
+        text_host.setObjectName("RizumTransparent")
+        self._text_layout = QtWidgets.QVBoxLayout(text_host)
+        self._text_layout.setContentsMargins(0, 0, 0, 0)
+        self._text_layout.setSpacing(1)
+        self._title = QtWidgets.QLabel(title, text_host)
+        self._title.setObjectName("RizumStatusBannerTitle")
+        self._subtitle = QtWidgets.QLabel(subtitle, text_host)
+        self._subtitle.setObjectName("RizumStatusBannerSubtitle")
+        for label in (self._title, self._subtitle):
+            label.setAttribute(
+                QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+                True,
+            )
+            label.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Ignored,
+                QtWidgets.QSizePolicy.Policy.Preferred,
+            )
+        self._text_layout.addWidget(self._title)
+        self._text_layout.addWidget(self._subtitle)
+        self._layout.addWidget(text_host, 1)
+
+        self._action = TextActionButton(action_text, parent=self)
+        self._action.clicked.connect(self.actionTriggered)
+        self._layout.addWidget(self._action)
+        self.setStatus(title, subtitle, tone, action_text)
+        self.setCompactHeight(self.BASE_HEIGHT)
+
+    def title(self) -> str:
+        return self._title.text()
+
+    def subtitle(self) -> str:
+        return self._subtitle.text()
+
+    def tone(self) -> str:
+        return self._tone
+
+    def actionText(self) -> str:
+        return self._action.text()
+
+    def setStatus(
+        self,
+        title: str,
+        subtitle: str = "",
+        tone: str = "neutral",
+        action_text: str = "",
+    ) -> None:
+        self._title.setText(str(title))
+        self._subtitle.setText(str(subtitle))
+        self._subtitle.setVisible(bool(subtitle))
+        self._tone = tone if tone in self._TONES else "neutral"
+        self._tone_color = QtGui.QColor(self._TONES[self._tone])
+        self._action.setText(str(action_text))
+        self._action.setVisible(bool(action_text))
+        self._action.setCompactHeight(
+            max(
+                TextActionButton.MIN_HEIGHT,
+                int(round(26 * self._compact_height / self.BASE_HEIGHT)),
+            )
+        )
+        self.updateGeometry()
+        self.update()
+
+    def setCompactHeight(self, height: int) -> None:
+        self._compact_height = max(self.MIN_HEIGHT, int(round(height)))
+        scale = self._compact_height / float(self.BASE_HEIGHT)
+        self.setFixedHeight(self._compact_height)
+        self._accent_width = max(2, int(round(3 * scale)))
+        self._radius = max(4.5, default_theme.radius_small * scale)
+        self._layout.setContentsMargins(
+            max(9, int(round(12 * scale))),
+            max(5, int(round(7 * scale))),
+            max(8, int(round(10 * scale))),
+            max(5, int(round(7 * scale))),
+        )
+        self._layout.setSpacing(max(6, int(round(8 * scale))))
+        self._text_layout.setSpacing(max(1, int(round(scale))))
+
+        title_font = QtGui.QFont(self.font())
+        title_font.setPixelSize(max(9, int(round(12 * scale))))
+        title_font.setWeight(QtGui.QFont.Weight.Medium)
+        subtitle_font = QtGui.QFont(self.font())
+        subtitle_font.setPixelSize(max(8, int(round(10 * scale))))
+        subtitle_font.setWeight(QtGui.QFont.Weight.Normal)
+        self._title.setFont(title_font)
+        self._subtitle.setFont(subtitle_font)
+        self._action.setCompactHeight(max(21, int(round(26 * scale))))
+        self.updateGeometry()
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        del event
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
+        painter.setBrush(QtGui.QColor("#252525"))
+        frame = QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        painter.drawRoundedRect(frame, self._radius, self._radius)
+        painter.setBrush(self._tone_color)
+        accent = QtCore.QRectF(
+            frame.left(),
+            frame.top() + self._radius,
+            self._accent_width,
+            max(1.0, frame.height() - self._radius * 2),
+        )
+        painter.drawRoundedRect(
+            accent,
+            self._accent_width / 2.0,
+            self._accent_width / 2.0,
+        )
+        painter.end()
+
+
 class TextActionButton(QtWidgets.QAbstractButton):
     """Text-only secondary action with quiet hover and press feedback."""
 
@@ -1243,6 +1415,7 @@ __all__ = [
     "AnimatedSaveButton",
     "ModeParameterSlot",
     "PAINTER_DIALOG_STYLE",
+    "StatusBanner",
     "SecondaryActionButton",
     "ShortcutCaptureField",
     "TextActionButton",
