@@ -21,6 +21,7 @@ from rizum_ui import (
     PAINTER_WINDOW_CONTENT_RADIUS,
     PainterSettingsDialog,
     SecondaryActionButton,
+    TextActionButton,
     animate_drag_tree_item_added,
     apply_compact_dock_surface,
     apply_painter_like_base,
@@ -382,6 +383,7 @@ def reload_ui_kit():
     global PAINTER_WINDOW_CONTENT_RADIUS
     global PainterSettingsDialog
     global SecondaryActionButton
+    global TextActionButton
     global animate_drag_tree_item_added
     global apply_compact_dock_surface
     global apply_painter_like_base
@@ -440,6 +442,7 @@ def reload_ui_kit():
     PAINTER_WINDOW_CONTENT_RADIUS = rizum_ui.PAINTER_WINDOW_CONTENT_RADIUS
     PainterSettingsDialog = rizum_ui.PainterSettingsDialog
     SecondaryActionButton = rizum_ui.SecondaryActionButton
+    TextActionButton = rizum_ui.TextActionButton
     animate_drag_tree_item_added = rizum_ui.animate_drag_tree_item_added
     apply_compact_dock_surface = rizum_ui.apply_compact_dock_surface
     apply_painter_like_base = rizum_ui.apply_painter_like_base
@@ -1193,9 +1196,12 @@ QLabel#RizumSvgLabel:hover {{
     return window
 
 
-def build_font_preview(QtWidgets):
-    from PySide6 import QtGui
+def build_font_preview(QtWidgets, *, size_control_variant="spin"):
+    from PySide6 import QtCore, QtGui
     from PySide6 import QtWidgets as _QtWidgets
+
+    if size_control_variant not in {"spin", "compact"}:
+        raise ValueError(f"Unsupported UI Font size control: {size_control_variant}")
 
     panel = QtWidgets.QWidget()
     panel.setObjectName("RizumUiFontPreview")
@@ -1245,11 +1251,17 @@ def build_font_preview(QtWidgets):
     def label_width():
         return compact_label_width(["Size", "Font"], widget=panel, minimum=28, maximum=56, padding=6)
 
-    def scale_control_width():
-        return compact_text_width("2.00", widget=size_control, minimum=120, maximum=150, padding=78)
-
     current_label_width = label_width()
-    size_control = make_spin_input(1.0)
+    if size_control_variant == "compact":
+        size_control = make_compact_stepper(
+            1.0,
+            minimum=0.75,
+            maximum=2.0,
+            step=0.05,
+            decimals=2,
+        )
+    else:
+        size_control = make_spin_input(1.0)
     size_row = make_field_row(
         "Size",
         size_control,
@@ -1257,13 +1269,19 @@ def build_font_preview(QtWidgets):
         gap=8,
         width=120,
     )
+    scale_suffix = QtWidgets.QLabel("×")
+    scale_suffix.setObjectName("RizumHintLabel")
+    scale_suffix.setAttribute(
+        QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+        True,
+    )
+    size_row.layout().insertWidget(size_row.layout().count() - 1, scale_suffix)
     main_layout.addWidget(size_row)
 
     font_combo = make_combo_input()
     for family in ["System Default", "MiSans", "MiSans Demibold", "Inter", "Segoe UI"]:
         font_combo.addItem(family, family)
     font_combo.setFitToContents(False)
-    font_combo.setMinimumWidth(54)
     font_row = make_field_row(
         "Font",
         font_combo,
@@ -1305,16 +1323,80 @@ def build_font_preview(QtWidgets):
     footer_layout = QtWidgets.QHBoxLayout(footer_row)
     footer_layout.setContentsMargins(10, 0, 10, 0)
     footer_layout.setSpacing(8)
-    footer_layout.addStretch(1)
-    reset_button = ActionButton.create("Reset", "dialog-secondary")
-    apply_button = ActionButton.create("Apply", "dialog-primary")
+    undo_button = make_icon_button("undo.svg", "Undo unsaved changes")
+    undo_button.setProperty("accent", True)
+    reset_button = TextActionButton("Reset")
+    save_button = AnimatedSaveButton("Save")
+    footer_layout.addWidget(undo_button)
     footer_layout.addWidget(reset_button)
-    footer_layout.addWidget(apply_button)
+    footer_layout.addStretch(1)
+    footer_layout.addWidget(save_button)
     footer_outer.addWidget(footer_row, 1)
     card_layout.addWidget(footer_widget)
 
+    saved_state = {
+        "size": 1.0,
+        "font": font_combo.currentData(),
+        "hinting": no_hinting.isChecked(),
+    }
+    updating_state = False
+
+    def current_state():
+        return {
+            "size": round(float(size_control.value()), 2),
+            "font": font_combo.currentData(),
+            "hinting": no_hinting.isChecked(),
+        }
+
+    def refresh_action_state(*_args):
+        if updating_state:
+            return
+        dirty = current_state() != saved_state
+        save_button.setDirty(dirty, animate=panel.isVisible())
+        undo_button.setEnabled(dirty)
+
+    def set_state(state):
+        nonlocal updating_state
+        updating_state = True
+        try:
+            size_control.setValue(state["size"])
+            font_index = font_combo.findData(state["font"])
+            font_combo.setCurrentIndex(max(0, font_index))
+            no_hinting.setChecked(state["hinting"])
+        finally:
+            updating_state = False
+        refresh_metrics(state["size"])
+        refresh_action_state()
+
+    def reset_to_defaults():
+        set_state({"size": 1.0, "font": "System Default", "hinting": True})
+
+    def save_state():
+        saved_state.update(current_state())
+        undo_button.setEnabled(False)
+        save_button.showSavedFeedback()
+
+    original_hinting_press = no_hinting.mousePressEvent
+
+    def hinting_press(event):
+        original_hinting_press(event)
+        refresh_action_state()
+
+    no_hinting.mousePressEvent = hinting_press
+    undo_button.clicked.connect(lambda: set_state(saved_state))
+    reset_button.clicked.connect(reset_to_defaults)
+    save_button.clicked.connect(save_state)
+    font_combo.currentIndexChanged.connect(refresh_action_state)
+
     def refresh_metrics(scale=None):
         scale = float(scale if scale is not None else size_control.value())
+
+        def metric(value, minimum=None):
+            result = int(round(value * scale))
+            if minimum is not None:
+                result = max(minimum, result)
+            return result
+
         point_size = base_size * scale
         panel.setStyleSheet(
             base_panel_stylesheet
@@ -1323,8 +1405,6 @@ QWidget#RizumUiFontPreview,
 QWidget#RizumUiFontPreview QLabel#RizumFieldLabel,
 QWidget#RizumUiFontPreview QLabel#RizumHintLabel,
 QWidget#RizumUiFontPreview QLabel#RizumMockText,
-QWidget#RizumUiFontPreview QPushButton[variant="dialog-secondary"],
-QWidget#RizumUiFontPreview QPushButton[variant="dialog-primary"],
 QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
     font-size: {point_size:.2f}pt;
 }}
@@ -1334,27 +1414,96 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
         next_font.setPointSizeF(point_size)
         for widget in [panel, *panel.findChildren(_QtWidgets.QWidget)]:
             widget.setFont(next_font)
-        for button in (folder_btn, refresh_btn):
+
+        row_height = metric(32, 24)
+        for row, control in ((size_row, size_control), (font_row, font_combo)):
+            row.setFixedHeight(row_height)
+            control.setCompactHeight(row_height)
+
+        icon_frame = metric(22, 17)
+        icon_size = metric(16, 12)
+        for button in (folder_btn, refresh_btn, undo_button):
+            button.setFixedSize(icon_frame, icon_frame)
+            button.setPaintedIconSize(icon_size)
             if hasattr(button, "setCompactTooltipScale"):
                 button.setCompactTooltipScale(scale)
 
+        checkbox_size = metric(14, 11)
+        no_hinting.setSize(checkbox_size)
+
+        main_layout.setContentsMargins(
+            metric(12, 9),
+            metric(12, 9),
+            metric(12, 9),
+            metric(6, 5),
+        )
+        main_layout.setSpacing(metric(10, 8))
+
         next_label_width = label_width()
-        tool_row.setContentsMargins(next_label_width + 8, -6, 0, 2)
+        field_gap = metric(8, 6)
+        size_row.layout().setSpacing(field_gap)
+        font_row.layout().setSpacing(field_gap)
+        tool_row.setContentsMargins(
+            next_label_width + field_gap,
+            -metric(6, 5),
+            0,
+            metric(2, 2),
+        )
+        icon_group.setSpacing(metric(4, 3))
         update_compact_field_row(
             size_row,
             label_width=next_label_width,
-            control_width=scale_control_width(),
+            control_width=metric(120, 90),
         )
         update_compact_field_row(font_row, label_width=next_label_width)
-        update_inline_checkbox_row(hint_widget, "No hinting", minimum=88, maximum=150)
-        reset_button.refreshLayout(minimum=68, maximum=118)
-        apply_button.refreshLayout(minimum=72, maximum=112)
+        font_combo.setMinimumWidth(metric(54, 41))
+        update_inline_checkbox_row(
+            hint_widget,
+            "No hinting",
+            minimum=metric(88, 66),
+            maximum=metric(150, 113),
+        )
+
+        footer_height = metric(48, 36)
+        footer_widget.setFixedHeight(footer_height)
+        footer_layout.setContentsMargins(metric(10, 8), 0, metric(10, 8), 0)
+        footer_layout.setSpacing(metric(8, 6))
+        footer_button_height = metric(26, 20)
+        reset_button.setCompactHeight(footer_button_height)
+        save_button.setCompactHeight(footer_button_height)
+        save_button.setFixedWidth(
+            compact_footer_button_width(
+                save_button,
+                minimum=metric(64, 48),
+                maximum=metric(112, 84),
+            )
+        )
+
         panel.setMinimumWidth(0)
-        panel.setMinimumWidth(max(COMPACT_DOCK_MIN_WIDTH, panel.minimumSizeHint().width()))
+        panel.setMinimumWidth(
+            max(metric(COMPACT_DOCK_MIN_WIDTH, 188), panel.minimumSizeHint().width())
+        )
         panel.setFixedWidth(panel.minimumWidth())
+        panel.setMinimumHeight(metric(COMPACT_DOCK_DEFAULT_HEIGHT, 138))
+        panel.setFixedHeight(max(panel.minimumHeight(), panel.minimumSizeHint().height()))
 
     refresh_metrics()
-    size_control.valueChanged.connect(refresh_metrics)
+    refresh_action_state()
+
+    def size_changed(value):
+        refresh_metrics(value)
+        refresh_action_state()
+
+    size_control.valueChanged.connect(size_changed)
+    panel._rizum_size_control_variant = size_control_variant
+    panel._rizum_size_control = size_control
+    panel._rizum_font_combo = font_combo
+    panel._rizum_hinting_checkbox = no_hinting
+    panel._rizum_icon_buttons = (folder_btn, refresh_btn, undo_button)
+    panel._rizum_footer = footer_widget
+    panel._rizum_undo_button = undo_button
+    panel._rizum_reset_button = reset_button
+    panel._rizum_save_button = save_button
     return panel
 
 
@@ -2827,7 +2976,32 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
     )
     overview_left_layout.addStretch(1)
     grid.addWidget(overview_left, 0, 0, 2, 1, QtCore.Qt.AlignmentFlag.AlignTop)
-    grid.addWidget(build_font_preview(QtWidgets), 0, 1)
+    font_compare = QtWidgets.QWidget()
+    font_compare.setObjectName("RizumUiFontCompare")
+    font_compare_layout = QtWidgets.QHBoxLayout(font_compare)
+    font_compare_layout.setContentsMargins(0, 0, 0, 0)
+    font_compare_layout.setSpacing(12)
+    for title, variant in (
+        ("KIMI K3", "compact"),
+        ("KIMI K3 + CURRENT STEPPER", "spin"),
+    ):
+        candidate = QtWidgets.QWidget()
+        candidate.setObjectName("RizumUiFontCandidate")
+        candidate_layout = QtWidgets.QVBoxLayout(candidate)
+        candidate_layout.setContentsMargins(0, 0, 0, 0)
+        candidate_layout.setSpacing(6)
+        candidate_label = QtWidgets.QLabel(title)
+        candidate_label.setObjectName("RizumPreviewToolLabel")
+        candidate_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+        candidate_layout.addWidget(candidate_label)
+        candidate_layout.addWidget(
+            build_font_preview(QtWidgets, size_control_variant=variant),
+            0,
+            QtCore.Qt.AlignmentFlag.AlignTop,
+        )
+        candidate_layout.addStretch(1)
+        font_compare_layout.addWidget(candidate)
+    grid.addWidget(font_compare, 0, 1)
     grid.addWidget(build_lab(QtWidgets), 1, 1)
     grid.setColumnStretch(0, 0)
     grid.setColumnStretch(1, 1)
