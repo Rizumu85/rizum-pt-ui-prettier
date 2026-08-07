@@ -760,7 +760,7 @@ QFrame#RizumExportScopeInput:focus {{
     background: transparent;
 }}
 QFrame#RizumExportScopeInput:hover {{
-    background: {theme["control"]};
+    background: {default_theme.action_hover};
 }}
 QFrame#RizumCollapsibleGroup {{
     background: transparent;
@@ -777,7 +777,10 @@ QFrame#RizumExportTreeItem {{
     border-radius: {default_theme.radius_small}px;
 }}
 QFrame#RizumExportTreeItem[hovered="true"][child="true"] {{
-    background: {theme["control_hover"]};
+    background: {default_theme.action_hover};
+}}
+QFrame#RizumExportTreeItem[pressed="true"][child="true"] {{
+    background: {default_theme.action_pressed};
 }}
 QLabel#RizumExportItemName,
 QLabel#RizumCollapsibleTitle {{

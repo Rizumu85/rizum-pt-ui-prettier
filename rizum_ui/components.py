@@ -1663,13 +1663,16 @@ def bind_hover_state(host, row, *widgets, property_name="hovered"):
         def __init__(self):
             super().__init__(host)
 
-        def set_hovered(self, is_hovered):
-            if row.property(property_name) == is_hovered:
+        def set_row_property(self, name, value):
+            if row.property(name) == value:
                 return
-            row.setProperty(property_name, is_hovered)
+            row.setProperty(name, value)
             row.style().unpolish(row)
             row.style().polish(row)
             row.update()
+
+        def set_hovered(self, is_hovered):
+            self.set_row_property(property_name, is_hovered)
 
         def refresh_hovered(self):
             self.set_hovered(any(widget.underMouse() for widget in watched))
@@ -1680,6 +1683,14 @@ def bind_hover_state(host, row, *widgets, property_name="hovered"):
                 self.set_hovered(True)
             elif event_type == QtCore.QEvent.Type.Leave:
                 QtCore.QTimer.singleShot(0, self.refresh_hovered)
+            elif event_type in (
+                QtCore.QEvent.Type.MouseButtonPress,
+                QtCore.QEvent.Type.MouseButtonRelease,
+            ) and event.button() == QtCore.Qt.MouseButton.LeftButton:
+                self.set_row_property(
+                    "pressed",
+                    event_type == QtCore.QEvent.Type.MouseButtonPress,
+                )
             return False
 
     for widget in watched:
@@ -2459,6 +2470,8 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
     """Create a themed icon button from the shared icons folder."""
     from PySide6 import QtCore, QtGui, QtWidgets
 
+    from .theme import default_theme
+
     try:
         from PySide6 import QtSvg
     except Exception:
@@ -2594,15 +2607,24 @@ def make_icon_button(icon_name, tooltip="", size=16, compact=True):
             painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
             painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
             # Hover/pressed background mirrors the stepper: adjusted(1,1,-1,-1)
-            # so the highlight sits 1px inside the button edge, with 6px corners.
+            # so the highlight sits 1px inside the button edge. Fill and radius
+            # come from the shared clickable-layer tokens.
             if self.isEnabled() and (self.underMouse() or self.isDown()):
-                bg_alpha = 75 if self.isDown() else 30
                 frame_size = max(1, min(self.width(), self.height()))
                 frame_scale = max(0.75, frame_size / float(self._button_base_size))
                 hover_inset = max(1, int(round(1 * frame_scale)))
-                hover_radius = max(5, int(round(6 * frame_scale)))
+                hover_radius = max(
+                    5,
+                    int(round(default_theme.radius_small * frame_scale)),
+                )
                 painter.setPen(QtCore.Qt.PenStyle.NoPen)
-                painter.setBrush(QtGui.QColor(255, 255, 255, bg_alpha))
+                painter.setBrush(
+                    QtGui.QColor(
+                        default_theme.action_pressed
+                        if self.isDown()
+                        else default_theme.action_hover
+                    )
+                )
                 rect = QtCore.QRectF(self.rect()).adjusted(
                     hover_inset,
                     hover_inset,

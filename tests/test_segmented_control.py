@@ -216,7 +216,12 @@ QFrame { background: #1b1b1b; border: 1px solid #414141; border-radius: 8px; }
             'QFrame#RizumExportTreeItem[hovered="true"][child="true"]',
             local_stylesheet,
         )
-        self.assertIn("background: #444444", local_stylesheet)
+        self.assertIn("background: #1effffff", local_stylesheet)
+        self.assertIn(
+            'QFrame#RizumExportTreeItem[pressed="true"][child="true"]',
+            local_stylesheet,
+        )
+        self.assertIn("background: #4bffffff", local_stylesheet)
 
         for stylesheet in (
             build_painter_host_preview_stylesheet(),

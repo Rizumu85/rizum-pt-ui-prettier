@@ -149,7 +149,7 @@ class PainterWindowChromeTests(unittest.TestCase):
         )
         self.assertIn(
             "QFrame#RizumExportScopeInput:hover {\n"
-            "    background: #333333;",
+            "    background: #1effffff;",
             stylesheet,
         )
         self.assertNotIn(
