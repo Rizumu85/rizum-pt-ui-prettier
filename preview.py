@@ -29,6 +29,7 @@ from rizum_ui import (
     compact_label_width,
     compact_progress_width,
     compact_text_width,
+    install_compact_tooltip,
     make_compact_action_bar,
     make_compact_dock_card,
     make_compact_dock_layout,
@@ -95,6 +96,7 @@ _PREVIEW_TEXT = {
         "export": "Exportieren",
         "current_stack": "Aktueller Stack",
         "all_stacks": "Alle Stacks",
+        "selected_channels": "{selected} von {total} Kanälen ausgewählt",
         "cancel": "Abbrechen",
         "padding": "Randabstand",
         "bit_depth": "Bittiefe",
@@ -118,6 +120,7 @@ _PREVIEW_TEXT = {
         "export": "Exportar",
         "current_stack": "Pila actual",
         "all_stacks": "Todas las pilas",
+        "selected_channels": "{selected} de {total} canales seleccionados",
         "cancel": "Cancelar",
         "padding": "Margen",
         "bit_depth": "Profundidad de bits",
@@ -141,6 +144,7 @@ _PREVIEW_TEXT = {
         "export": "Exporter",
         "current_stack": "Pile actuelle",
         "all_stacks": "Toutes les piles",
+        "selected_channels": "{selected} sur {total} canaux sélectionnés",
         "cancel": "Annuler",
         "padding": "Marge",
         "bit_depth": "Profondeur de bits",
@@ -164,6 +168,7 @@ _PREVIEW_TEXT = {
         "export": "Esporta",
         "current_stack": "Stack corrente",
         "all_stacks": "Tutti gli stack",
+        "selected_channels": "{selected} canali su {total} selezionati",
         "cancel": "Annulla",
         "padding": "Margine",
         "bit_depth": "Profondità colore",
@@ -187,6 +192,7 @@ _PREVIEW_TEXT = {
         "export": "내보내기",
         "current_stack": "현재 스택",
         "all_stacks": "모든 스택",
+        "selected_channels": "채널 {total}개 중 {selected}개 선택됨",
         "cancel": "취소",
         "padding": "패딩",
         "bit_depth": "비트 심도",
@@ -210,6 +216,7 @@ _PREVIEW_TEXT = {
         "export": "Exportar",
         "current_stack": "Pilha atual",
         "all_stacks": "Todas as pilhas",
+        "selected_channels": "{selected} de {total} canais selecionados",
         "cancel": "Cancelar",
         "padding": "Margem",
         "bit_depth": "Profundidade de bits",
@@ -233,6 +240,7 @@ _PREVIEW_TEXT = {
         "export": "导出",
         "current_stack": "当前堆栈",
         "all_stacks": "所有堆栈",
+        "selected_channels": "已选择 {selected}/{total} 个通道",
         "cancel": "取消",
         "padding": "边缘扩展",
         "bit_depth": "位深度",
@@ -256,6 +264,7 @@ _PREVIEW_TEXT = {
         "export": "書き出し",
         "current_stack": "現在のスタック",
         "all_stacks": "すべてのスタック",
+        "selected_channels": "{total} チャンネル中 {selected} 件を選択",
         "cancel": "キャンセル",
         "padding": "パディング",
         "bit_depth": "ビット深度",
@@ -380,6 +389,7 @@ def reload_ui_kit():
     global compact_label_width
     global compact_progress_width
     global compact_text_width
+    global install_compact_tooltip
     global make_compact_action_bar
     global make_compact_dock_card
     global make_compact_dock_layout
@@ -436,6 +446,7 @@ def reload_ui_kit():
     compact_label_width = rizum_ui.compact_label_width
     compact_progress_width = rizum_ui.compact_progress_width
     compact_text_width = rizum_ui.compact_text_width
+    install_compact_tooltip = rizum_ui.install_compact_tooltip
     make_compact_action_bar = rizum_ui.make_compact_action_bar
     make_compact_dock_card = rizum_ui.make_compact_dock_card
     make_compact_dock_layout = rizum_ui.make_compact_dock_layout
@@ -563,6 +574,28 @@ def build_bridge_preview(QtWidgets):
     def make_tree_item(name, checkbox, meta="", child=False):
         return make_export_tree_item(name, checkbox, meta=meta, child=child)
 
+    def selection_counter(selected, total):
+        return (
+            f'<span style="color:{theme["text"]};">{selected}</span>'
+            f'<span style="color:{theme["faint"]};"> / {total}</span>'
+        )
+
+    def selection_tooltip(selected, total):
+        template = preview_text(
+            "selected_channels",
+            "{selected} of {total} channels selected",
+        )
+        return template.format(selected=selected, total=total)
+
+    def update_selection_summary(group, selected):
+        total = len(group["children"])
+        tooltip = selection_tooltip(selected, total)
+        group["widget"].refreshLayout(
+            subtitle_text=selection_counter(selected, total)
+        )
+        group["subtitle"].setCompactTooltipText(tooltip)
+        group["subtitle"].setAccessibleName(tooltip)
+
     def update_parent(group):
         checked_count = sum(1 for child in group["children"] if child.isChecked())
         if checked_count == 0:
@@ -571,12 +604,7 @@ def build_bridge_preview(QtWidgets):
             group["parent"].setChecked(True)
         else:
             group["parent"].setIndeterminate(True)
-        channel_word = "channel" if len(group["children"]) == 1 else "channels"
-        group["widget"].refreshLayout(
-            subtitle_text=(
-                f"{checked_count} selected / {len(group['children'])} {channel_word}"
-            )
-        )
+        update_selection_summary(group, checked_count)
 
     def add_group(name, children):
         parent_cb = make_mock_checkbox(True)
@@ -610,12 +638,23 @@ def build_bridge_preview(QtWidgets):
         parent_cb.mousePressEvent = parent_mouse
         group_frame = make_collapsible_group(
             name,
-            f"{len(children)} selected / {len(children)} channels",
+            selection_counter(len(children), len(children)),
             children=child_rows,
             trailing_widget=parent_cb,
             expanded=True,
         )
         group["widget"] = group_frame
+        subtitle = group_frame.findChild(
+            _QtWidgets.QLabel,
+            "RizumCollapsibleSubtitle",
+        )
+        subtitle.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        install_compact_tooltip(
+            subtitle,
+            selection_tooltip(len(children), len(children)),
+        )
+        group["subtitle"] = subtitle
+        update_selection_summary(group, len(children))
         tree_layout.addWidget(group_frame)
         groups.append(group)
 
@@ -849,6 +888,8 @@ QLabel#RizumSvgLabel:hover {{
         for group in groups:
             for checkbox in (group["parent"], *group["children"]):
                 checkbox.setSize(checkbox_size)
+            group["subtitle"].setFixedWidth(metric(42, 32))
+            group["subtitle"].setCompactTooltipScale(window.settingsUiScale())
             group["widget"].setCompactHeight(group_height)
             for row in group["rows"]:
                 row.setRightInset(metric(4, 3), metric(4, 3))

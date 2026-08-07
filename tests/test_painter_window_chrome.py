@@ -5,7 +5,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtTest, QtWidgets
 
 from preview import build_bridge_preview, build_settings_preview
 from rizum_ui import (
@@ -157,6 +157,38 @@ class PainterWindowChromeTests(unittest.TestCase):
             stylesheet,
         )
 
+    def test_export_group_uses_a_compact_selection_counter(self):
+        bridge = build_bridge_preview(QtWidgets)
+        self.addCleanup(bridge.deleteLater)
+        bridge.show()
+        self.app.processEvents()
+
+        group = bridge._rizum_groups[0]
+        subtitle = group["widget"].findChild(
+            QtWidgets.QLabel, "RizumCollapsibleSubtitle"
+        )
+        self.assertNotIn("selected", subtitle.text())
+        self.assertNotIn("channels", subtitle.text())
+        self.assertIn("#f2f2f2", subtitle.text())
+        self.assertIn("#858585", subtitle.text())
+        self.assertIn("2", subtitle.text())
+        self.assertIn("/ 2", subtitle.text())
+        self.assertEqual(
+            subtitle._rizum_compact_tooltip_filter._text,
+            "2 of 2 channels selected",
+        )
+
+        QtTest.QTest.mouseClick(
+            group["children"][0],
+            QtCore.Qt.MouseButton.LeftButton,
+        )
+        self.assertIn(">1<", subtitle.text())
+        self.assertIn("/ 2", subtitle.text())
+        self.assertEqual(
+            subtitle._rizum_compact_tooltip_filter._text,
+            "1 of 2 channels selected",
+        )
+
     def test_bridge_preview_scales_fixed_component_internals(self):
         bridge = build_bridge_preview(QtWidgets)
         self.addCleanup(bridge.deleteLater)
@@ -190,6 +222,10 @@ class PainterWindowChromeTests(unittest.TestCase):
         self.assertEqual(
             group["rows"][0]._rizum_right_inset,
             bridge.settingsMetric(4, 3),
+        )
+        self.assertEqual(
+            group["subtitle"].width(),
+            bridge.settingsMetric(42, 32),
         )
 
     def test_export_children_inset_hover_edge_without_moving_checkboxes(self):
