@@ -1194,7 +1194,7 @@ QLabel#RizumSvgLabel:hover {{
 
 
 def build_font_preview_original(QtWidgets):
-    from PySide6 import QtGui
+    from PySide6 import QtCore, QtGui
     from PySide6 import QtWidgets as _QtWidgets
 
     panel = QtWidgets.QWidget()
@@ -1211,6 +1211,7 @@ def build_font_preview_original(QtWidgets):
 
     card = make_compact_dock_card()
     card_layout = card.layout()
+    card_layout.setContentsMargins(0, 0, 0, 8)
     outer_layout.addWidget(card)
 
     main_widget = QtWidgets.QWidget()
@@ -1242,9 +1243,13 @@ def build_font_preview_original(QtWidgets):
     if base_size <= 0:
         base_size = 11.0
 
-    def label_width():
+    def label_width(scale=1.0):
         return compact_label_width(
-            ["Size", "Font"], widget=panel, minimum=28, maximum=56, padding=6
+            ["Size", "Font"],
+            widget=panel,
+            minimum=int(round(36 * scale)),
+            maximum=int(round(116 * scale)),
+            padding=14,
         )
 
     current_label_width = label_width()
@@ -1276,7 +1281,7 @@ def build_font_preview_original(QtWidgets):
     tool_row.setSpacing(0)
     icon_group = QtWidgets.QHBoxLayout()
     icon_group.setContentsMargins(0, 0, 0, 0)
-    icon_group.setSpacing(4)
+    icon_group.setSpacing(2)
     folder_btn = make_icon_button("folder.svg", "Open fonts folder")
     refresh_btn = make_icon_button("refresh.svg", "Refresh font list")
     folder_btn.setProperty("accent", True)
@@ -1287,8 +1292,9 @@ def build_font_preview_original(QtWidgets):
     tool_row.addStretch(1)
     no_hinting = make_mock_checkbox()
     hint_widget = make_inline_checkbox_row(
-        "No hinting", no_hinting, minimum=88, maximum=150
+        "No hinting", no_hinting, minimum=108, maximum=184
     )
+    hint_widget.layout().setContentsMargins(8, 4, 9, 4)
     tool_row.addWidget(hint_widget)
     main_layout.addLayout(tool_row)
 
@@ -1309,11 +1315,18 @@ def build_font_preview_original(QtWidgets):
     footer_layout.addStretch(1)
     save_feedback = QtWidgets.QLabel("")
     save_feedback.setObjectName("RizumHintLabel")
+    save_feedback.setStyleSheet(
+        "color: #37c98b; background: transparent; border: 0;"
+    )
+    save_feedback.setAlignment(
+        QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
+    )
     save_feedback.setFixedHeight(22)
     save_feedback.hide()
     footer_layout.addWidget(save_feedback)
     undo_button = make_icon_button("undo.svg", "Undo")
     undo_button.setProperty("accent", True)
+    undo_button.setEnabled(False)
     footer_layout.addWidget(undo_button)
     reset_button = ActionButton.create("Reset", "dialog-secondary")
     save_button = ActionButton.create("Save", "dialog-primary")
@@ -1322,13 +1335,24 @@ def build_font_preview_original(QtWidgets):
     footer_outer.addWidget(footer_row, 1)
     card_layout.addWidget(footer_widget)
 
-    def scale_control_width():
+    def scale_control_width(scale=1.0):
         return compact_text_width(
-            "2.00", widget=size_control, minimum=120, maximum=150, padding=78
+            "2.00",
+            widget=size_control,
+            minimum=int(round(120 * scale)),
+            maximum=int(round(150 * scale)),
+            padding=int(round(78 * scale)),
         )
 
     def refresh_metrics(scale=None):
         scale = float(scale if scale is not None else size_control.value())
+
+        def metric(value, minimum=None):
+            result = int(round(value * scale))
+            if minimum is not None:
+                result = max(minimum, result)
+            return result
+
         point_size = base_size * scale
         panel.setStyleSheet(
             base_panel_stylesheet
@@ -1348,6 +1372,19 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
         next_font.setPointSizeF(point_size)
         for widget in [panel, *panel.findChildren(_QtWidgets.QWidget)]:
             widget.setFont(next_font)
+
+        row_height = metric(32, 24)
+        for row, control in ((size_row, size_control), (font_row, font_combo)):
+            row.setFixedHeight(row_height)
+            control.setCompactHeight(row_height)
+
+        main_layout.setContentsMargins(
+            metric(12), metric(12), metric(12), metric(6)
+        )
+        main_layout.setSpacing(metric(10))
+        card_layout.setContentsMargins(0, 0, 0, metric(8))
+        footer_widget.setFixedHeight(metric(48, 36))
+
         icon_frame = max(21, int(round(32 * scale)))
         icon_size = max(12, int(round(17 * scale)))
         for button in (folder_btn, refresh_btn, undo_button):
@@ -1356,29 +1393,70 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
             if hasattr(button, "setCompactTooltipScale"):
                 button.setCompactTooltipScale(scale)
 
-        next_label_width = label_width()
-        tool_row.setContentsMargins(next_label_width + 8, -6, 0, 2)
+        no_hinting.setSize(metric(14, 11))
+        hint_widget.layout().setContentsMargins(
+            metric(8), metric(4), metric(9), metric(4)
+        )
+
+        next_label_width = label_width(scale)
+        tool_row.setContentsMargins(
+            next_label_width + 8, int(round(-6 * scale)), 0, metric(2)
+        )
         update_compact_field_row(
             size_row,
             label_width=next_label_width,
-            control_width=scale_control_width(),
+            control_width=scale_control_width(scale),
         )
         update_compact_field_row(font_row, label_width=next_label_width)
         update_inline_checkbox_row(
-            hint_widget, "No hinting", minimum=88, maximum=150
+            hint_widget,
+            "No hinting",
+            minimum=metric(108),
+            maximum=metric(184),
         )
-        reset_button.refreshLayout(minimum=68, maximum=118)
-        save_button.refreshLayout(minimum=72, maximum=112)
+        footer_button_height = metric(26, 20)
+        set_compact_footer_button_width(
+            reset_button,
+            compact_footer_button_width(
+                reset_button,
+                minimum=68,
+                maximum=metric(118),
+            ),
+            height=footer_button_height,
+        )
+        set_compact_footer_button_width(
+            save_button,
+            compact_footer_button_width(
+                save_button,
+                minimum=72,
+                maximum=metric(112),
+            ),
+            height=footer_button_height,
+        )
         panel.setMinimumWidth(0)
+        panel.setMinimumHeight(0)
+        panel.updateGeometry()
         panel.setMinimumWidth(
             max(COMPACT_DOCK_MIN_WIDTH, panel.minimumSizeHint().width())
         )
+        panel.setMinimumHeight(
+            max(COMPACT_DOCK_DEFAULT_HEIGHT, panel.minimumSizeHint().height())
+        )
         panel.setFixedWidth(panel.minimumWidth())
+        panel.setFixedHeight(panel.minimumHeight())
 
     refresh_metrics()
     size_control.valueChanged.connect(refresh_metrics)
     panel._rizum_size_control_variant = "original"
     panel._rizum_size_control = size_control
+    panel._rizum_card_layout = card_layout
+    panel._rizum_main_layout = main_layout
+    panel._rizum_rows = (size_row, font_row)
+    panel._rizum_tool_row = tool_row
+    panel._rizum_icon_group = icon_group
+    panel._rizum_hint_widget = hint_widget
+    panel._rizum_footer = footer_widget
+    panel._rizum_icon_buttons = (folder_btn, refresh_btn, undo_button)
     panel._rizum_undo_button = undo_button
     panel._rizum_reset_button = reset_button
     panel._rizum_save_button = save_button
