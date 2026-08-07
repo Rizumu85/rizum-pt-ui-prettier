@@ -32,6 +32,11 @@ class FontPreviewTests(unittest.TestCase):
         self.assertIsInstance(panel._rizum_reset_button, SecondaryActionButton)
         self.assertIsInstance(panel._rizum_save_button, AnimatedSaveButton)
         self.assertEqual(panel._rizum_card_layout.getContentsMargins(), (0, 0, 0, 8))
+        self.assertEqual(
+            panel._rizum_hint_widget.layout().getContentsMargins(),
+            (8, 4, 8, 4),
+        )
+        self.assertEqual(panel._rizum_hint_widget.layout().spacing(), 10)
         self.assertEqual(panel._rizum_footer.height(), 48)
         self.assertEqual(
             [(button.width(), button.height()) for button in panel._rizum_icon_buttons],
@@ -121,10 +126,17 @@ class FontPreviewTests(unittest.TestCase):
 
     def test_redesign_scales_from_the_original_baseline(self):
         panel = self.make_panel()
+        base_label_width = panel._rizum_rows[0]._rizum_label.width()
         panel._rizum_size_control.setValue(1.5)
         self.app.processEvents()
         self.assertEqual(panel._rizum_size_control.height(), 48)
         self.assertEqual(panel._rizum_card_layout.getContentsMargins(), (0, 0, 0, 12))
+        self.assertGreater(panel._rizum_rows[0]._rizum_label.width(), base_label_width)
+        self.assertEqual(
+            panel._rizum_hint_widget.layout().getContentsMargins(),
+            (12, 6, 12, 6),
+        )
+        self.assertEqual(panel._rizum_hint_widget.layout().spacing(), 15)
         self.assertEqual(panel._rizum_footer.height(), 72)
         self.assertEqual(panel._rizum_undo_button.size(), QtCore.QSize(48, 48))
 
@@ -132,6 +144,12 @@ class FontPreviewTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(panel._rizum_size_control.height(), 24)
         self.assertEqual(panel._rizum_card_layout.getContentsMargins(), (0, 0, 0, 6))
+        self.assertLess(panel._rizum_rows[0]._rizum_label.width(), base_label_width)
+        self.assertEqual(
+            panel._rizum_hint_widget.layout().getContentsMargins(),
+            (6, 3, 6, 3),
+        )
+        self.assertEqual(panel._rizum_hint_widget.layout().spacing(), 8)
         self.assertEqual(panel._rizum_footer.height(), 36)
         self.assertEqual(panel._rizum_undo_button.size(), QtCore.QSize(24, 24))
 

@@ -1513,8 +1513,14 @@ def build_font_preview(QtWidgets):
     if base_size <= 0:
         base_size = 11.0
 
-    def label_width():
-        return compact_label_width(["Size", "Font"], widget=panel, minimum=28, maximum=56, padding=6)
+    def label_width(scale=1.0):
+        return compact_label_width(
+            ["Size", "Font"],
+            widget=panel,
+            minimum=max(21, int(round(28 * scale))),
+            maximum=max(42, int(round(56 * scale))),
+            padding=max(5, int(round(6 * scale))),
+        )
 
     current_label_width = label_width()
     size_control = make_spin_input(1.0)
@@ -1696,7 +1702,7 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
         main_layout.setSpacing(metric(10, 8))
         card_layout.setContentsMargins(0, 0, 0, metric(8, 6))
 
-        next_label_width = label_width()
+        next_label_width = label_width(scale)
         field_gap = metric(8, 6)
         size_row.layout().setSpacing(field_gap)
         font_row.layout().setSpacing(field_gap)
@@ -1719,6 +1725,7 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
             "No hinting",
             minimum=metric(88, 66),
             maximum=metric(150, 113),
+            scale=scale,
         )
 
         footer_height = metric(48, 36)
@@ -1762,6 +1769,11 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
     panel._rizum_size_control_variant = "spin"
     panel._rizum_size_control = size_control
     panel._rizum_card_layout = card_layout
+    panel._rizum_main_layout = main_layout
+    panel._rizum_rows = (size_row, font_row)
+    panel._rizum_tool_row = tool_row
+    panel._rizum_icon_group = icon_group
+    panel._rizum_hint_widget = hint_widget
     panel._rizum_font_combo = font_combo
     panel._rizum_hinting_checkbox = no_hinting
     panel._rizum_icon_buttons = (folder_btn, refresh_btn, undo_button)
