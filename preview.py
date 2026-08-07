@@ -1196,6 +1196,185 @@ QLabel#RizumSvgLabel:hover {{
     return window
 
 
+def build_font_preview_original(QtWidgets):
+    from PySide6 import QtGui
+    from PySide6 import QtWidgets as _QtWidgets
+
+    panel = QtWidgets.QWidget()
+    panel.setObjectName("RizumUiFontPreview")
+    panel.setMinimumSize(COMPACT_DOCK_MIN_WIDTH, COMPACT_DOCK_DEFAULT_HEIGHT)
+    panel.resize(COMPACT_DOCK_DEFAULT_WIDTH, COMPACT_DOCK_DEFAULT_HEIGHT)
+    panel.setSizePolicy(
+        _QtWidgets.QSizePolicy.Policy.Fixed,
+        _QtWidgets.QSizePolicy.Policy.Fixed,
+    )
+    apply_compact_dock_surface(panel)
+    base_panel_stylesheet = panel.styleSheet()
+    outer_layout = make_compact_dock_layout(panel)
+
+    card = make_compact_dock_card()
+    card_layout = card.layout()
+    outer_layout.addWidget(card)
+
+    main_widget = QtWidgets.QWidget()
+    main_widget.setObjectName("RizumTransparent")
+    main_layout = QtWidgets.QVBoxLayout(main_widget)
+    main_layout.setContentsMargins(12, 12, 12, 6)
+    main_layout.setSpacing(10)
+
+    preview_family = ""
+    font_dir = ROOT.parent / "rizum-pt-ui-font" / "fonts"
+    for font_name in ("MiSans-Regular.ttf", "MiSans-Medium.ttf"):
+        font_path = font_dir / font_name
+        if not font_path.exists():
+            continue
+        font_id = QtGui.QFontDatabase.addApplicationFont(str(font_path))
+        if font_id < 0:
+            continue
+        families = QtGui.QFontDatabase.applicationFontFamilies(font_id)
+        if families:
+            preview_family = families[0]
+            break
+
+    base_font = QtGui.QFont(panel.font())
+    if preview_family:
+        base_font.setFamily(preview_family)
+    base_size = base_font.pointSizeF()
+    if base_size <= 0:
+        base_size = float(base_font.pointSize())
+    if base_size <= 0:
+        base_size = 11.0
+
+    def label_width():
+        return compact_label_width(
+            ["Size", "Font"], widget=panel, minimum=28, maximum=56, padding=6
+        )
+
+    current_label_width = label_width()
+    size_control = make_spin_input(1.0)
+    size_row = make_field_row(
+        "Size",
+        size_control,
+        label_width=current_label_width,
+        gap=8,
+        width=120,
+    )
+    main_layout.addWidget(size_row)
+
+    font_combo = make_combo_input()
+    for family in ["System Default", "MiSans", "MiSans Demibold", "Inter", "Segoe UI"]:
+        font_combo.addItem(family, family)
+    font_combo.setFitToContents(False)
+    font_combo.setMinimumWidth(54)
+    font_row = make_field_row(
+        "Font",
+        font_combo,
+        label_width=current_label_width,
+        gap=8,
+    )
+    main_layout.addWidget(font_row)
+
+    tool_row = QtWidgets.QHBoxLayout()
+    tool_row.setContentsMargins(current_label_width + 8, -6, 0, 2)
+    tool_row.setSpacing(0)
+    icon_group = QtWidgets.QHBoxLayout()
+    icon_group.setContentsMargins(0, 0, 0, 0)
+    icon_group.setSpacing(4)
+    folder_btn = make_icon_button("folder.svg", "Open fonts folder")
+    refresh_btn = make_icon_button("refresh.svg", "Refresh font list")
+    folder_btn.setProperty("accent", True)
+    refresh_btn.setProperty("accent", True)
+    icon_group.addWidget(folder_btn)
+    icon_group.addWidget(refresh_btn)
+    tool_row.addLayout(icon_group)
+    tool_row.addStretch(1)
+    no_hinting = make_mock_checkbox()
+    hint_widget = make_inline_checkbox_row(
+        "No hinting", no_hinting, minimum=88, maximum=150
+    )
+    tool_row.addWidget(hint_widget)
+    main_layout.addLayout(tool_row)
+
+    card_layout.addWidget(main_widget)
+    card_layout.addStretch(1)
+
+    footer_widget = QtWidgets.QWidget()
+    footer_widget.setObjectName("RizumTransparent")
+    footer_widget.setFixedHeight(48)
+    footer_outer = QtWidgets.QVBoxLayout(footer_widget)
+    footer_outer.setContentsMargins(0, 0, 0, 0)
+    footer_outer.setSpacing(0)
+    footer_row = QtWidgets.QWidget()
+    footer_row.setObjectName("RizumTransparent")
+    footer_layout = QtWidgets.QHBoxLayout(footer_row)
+    footer_layout.setContentsMargins(10, 0, 10, 0)
+    footer_layout.setSpacing(8)
+    footer_layout.addStretch(1)
+    reset_button = ActionButton.create("Reset", "dialog-secondary")
+    apply_button = ActionButton.create("Apply", "dialog-primary")
+    footer_layout.addWidget(reset_button)
+    footer_layout.addWidget(apply_button)
+    footer_outer.addWidget(footer_row, 1)
+    card_layout.addWidget(footer_widget)
+
+    def scale_control_width():
+        return compact_text_width(
+            "2.00", widget=size_control, minimum=120, maximum=150, padding=78
+        )
+
+    def refresh_metrics(scale=None):
+        scale = float(scale if scale is not None else size_control.value())
+        point_size = base_size * scale
+        panel.setStyleSheet(
+            base_panel_stylesheet
+            + f"""
+QWidget#RizumUiFontPreview,
+QWidget#RizumUiFontPreview QLabel#RizumFieldLabel,
+QWidget#RizumUiFontPreview QLabel#RizumHintLabel,
+QWidget#RizumUiFontPreview QLabel#RizumMockText,
+QWidget#RizumUiFontPreview QPushButton[variant="dialog-secondary"],
+QWidget#RizumUiFontPreview QPushButton[variant="dialog-primary"],
+QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
+    font-size: {point_size:.2f}pt;
+}}
+"""
+        )
+        next_font = QtGui.QFont(base_font)
+        next_font.setPointSizeF(point_size)
+        for widget in [panel, *panel.findChildren(_QtWidgets.QWidget)]:
+            widget.setFont(next_font)
+        for button in (folder_btn, refresh_btn):
+            if hasattr(button, "setCompactTooltipScale"):
+                button.setCompactTooltipScale(scale)
+
+        next_label_width = label_width()
+        tool_row.setContentsMargins(next_label_width + 8, -6, 0, 2)
+        update_compact_field_row(
+            size_row,
+            label_width=next_label_width,
+            control_width=scale_control_width(),
+        )
+        update_compact_field_row(font_row, label_width=next_label_width)
+        update_inline_checkbox_row(
+            hint_widget, "No hinting", minimum=88, maximum=150
+        )
+        reset_button.refreshLayout(minimum=68, maximum=118)
+        apply_button.refreshLayout(minimum=72, maximum=112)
+        panel.setMinimumWidth(0)
+        panel.setMinimumWidth(
+            max(COMPACT_DOCK_MIN_WIDTH, panel.minimumSizeHint().width())
+        )
+        panel.setFixedWidth(panel.minimumWidth())
+
+    refresh_metrics()
+    size_control.valueChanged.connect(refresh_metrics)
+    panel._rizum_size_control_variant = "original"
+    panel._rizum_size_control = size_control
+    panel._rizum_reset_button = reset_button
+    panel._rizum_save_button = apply_button
+    return panel
+
+
 def build_font_preview(QtWidgets, *, size_control_variant="spin"):
     from PySide6 import QtCore, QtGui
     from PySide6 import QtWidgets as _QtWidgets
@@ -1505,6 +1684,54 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
     panel._rizum_reset_button = reset_button
     panel._rizum_save_button = save_button
     return panel
+
+
+def build_font_comparison(QtWidgets):
+    from PySide6 import QtCore
+
+    comparison = QtWidgets.QWidget()
+    comparison.setObjectName("RizumUiFontCompare")
+    comparison_layout = QtWidgets.QHBoxLayout(comparison)
+    comparison_layout.setContentsMargins(0, 0, 0, 0)
+    comparison_layout.setSpacing(12)
+    candidates = []
+    for title, builder in (
+        ("ORIGINAL", lambda: build_font_preview_original(QtWidgets)),
+        (
+            "KIMI K3",
+            lambda: build_font_preview(
+                QtWidgets,
+                size_control_variant="compact",
+            ),
+        ),
+        (
+            "KIMI K3 + CURRENT STEPPER",
+            lambda: build_font_preview(
+                QtWidgets,
+                size_control_variant="spin",
+            ),
+        ),
+    ):
+        candidate = QtWidgets.QWidget()
+        candidate.setObjectName("RizumUiFontCandidate")
+        candidate_layout = QtWidgets.QVBoxLayout(candidate)
+        candidate_layout.setContentsMargins(0, 0, 0, 0)
+        candidate_layout.setSpacing(6)
+        candidate_label = QtWidgets.QLabel(title)
+        candidate_label.setObjectName("RizumPreviewToolLabel")
+        candidate_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+        candidate_layout.addWidget(candidate_label)
+        panel = builder()
+        candidate_layout.addWidget(
+            panel,
+            0,
+            QtCore.Qt.AlignmentFlag.AlignTop,
+        )
+        candidate_layout.addStretch(1)
+        comparison_layout.addWidget(candidate)
+        candidates.append(panel)
+    comparison._rizum_candidates = candidates
+    return comparison
 
 
 def build_dock_toolbar_preview(QtWidgets):
@@ -2976,32 +3203,7 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
     )
     overview_left_layout.addStretch(1)
     grid.addWidget(overview_left, 0, 0, 2, 1, QtCore.Qt.AlignmentFlag.AlignTop)
-    font_compare = QtWidgets.QWidget()
-    font_compare.setObjectName("RizumUiFontCompare")
-    font_compare_layout = QtWidgets.QHBoxLayout(font_compare)
-    font_compare_layout.setContentsMargins(0, 0, 0, 0)
-    font_compare_layout.setSpacing(12)
-    for title, variant in (
-        ("KIMI K3", "compact"),
-        ("KIMI K3 + CURRENT STEPPER", "spin"),
-    ):
-        candidate = QtWidgets.QWidget()
-        candidate.setObjectName("RizumUiFontCandidate")
-        candidate_layout = QtWidgets.QVBoxLayout(candidate)
-        candidate_layout.setContentsMargins(0, 0, 0, 0)
-        candidate_layout.setSpacing(6)
-        candidate_label = QtWidgets.QLabel(title)
-        candidate_label.setObjectName("RizumPreviewToolLabel")
-        candidate_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
-        candidate_layout.addWidget(candidate_label)
-        candidate_layout.addWidget(
-            build_font_preview(QtWidgets, size_control_variant=variant),
-            0,
-            QtCore.Qt.AlignmentFlag.AlignTop,
-        )
-        candidate_layout.addStretch(1)
-        font_compare_layout.addWidget(candidate)
-    grid.addWidget(font_compare, 0, 1)
+    grid.addWidget(build_font_preview_original(QtWidgets), 0, 1)
     grid.addWidget(build_lab(QtWidgets), 1, 1)
     grid.setColumnStretch(0, 0)
     grid.setColumnStretch(1, 1)
@@ -3043,6 +3245,18 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
         1,
     )
     tabs.addTab(view_roll_page, preview_text("view_roll", "View Roll"))
+
+    font_page = QtWidgets.QWidget()
+    font_page_layout = QtWidgets.QVBoxLayout(font_page)
+    font_page_layout.setContentsMargins(0, 12, 0, 0)
+    font_page_layout.setSpacing(0)
+    font_page_layout.addWidget(
+        build_font_comparison(QtWidgets),
+        0,
+        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+    )
+    font_page_layout.addStretch(1)
+    tabs.addTab(font_page, "UI Font")
 
     tab_index = int(window.property("rizumPreviewTabIndex") or 0)
     tabs.setCurrentIndex(max(0, min(tab_index, tabs.count() - 1)))

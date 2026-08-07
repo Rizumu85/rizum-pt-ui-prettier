@@ -7,7 +7,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6 import QtCore, QtTest, QtWidgets
 
-from preview import build_font_preview
+from preview import (
+    build_font_comparison,
+    build_font_preview,
+    build_font_preview_original,
+)
 from rizum_ui import AnimatedSaveButton, TextActionButton
 
 
@@ -35,6 +39,22 @@ class FontPreviewTests(unittest.TestCase):
                 [(button.width(), button.height()) for button in panel._rizum_icon_buttons],
                 [(22, 22), (22, 22), (22, 22)],
             )
+
+    def test_comparison_keeps_the_original_as_a_visual_baseline(self):
+        comparison = build_font_comparison(QtWidgets)
+        self.addCleanup(comparison.deleteLater)
+
+        self.assertEqual(
+            [panel._rizum_size_control_variant for panel in comparison._rizum_candidates],
+            ["original", "compact", "spin"],
+        )
+        original = comparison._rizum_candidates[0]
+        self.assertEqual(original._rizum_reset_button.text(), "Reset")
+        self.assertEqual(original._rizum_save_button.text(), "Apply")
+
+        standalone = build_font_preview_original(QtWidgets)
+        self.addCleanup(standalone.deleteLater)
+        self.assertEqual(standalone.size(), original.size())
 
     def test_save_state_is_owned_by_the_footer_action(self):
         panel = self.make_panel("spin")
