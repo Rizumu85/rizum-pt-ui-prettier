@@ -10,6 +10,7 @@ from pathlib import Path
 from rizum_ui import (
     ActionButton,
     Card,
+    IconActionButton,
     SectionHeader,
     COMPACT_DOCK_DEFAULT_HEIGHT,
     COMPACT_DOCK_DEFAULT_WIDTH,
@@ -370,6 +371,7 @@ def reload_ui_kit():
     """Reload UI-kit modules and refresh imported helpers."""
     global ActionButton
     global Card
+    global IconActionButton
     global SectionHeader
     global COMPACT_DOCK_DEFAULT_HEIGHT
     global COMPACT_DOCK_DEFAULT_WIDTH
@@ -427,6 +429,7 @@ def reload_ui_kit():
 
     ActionButton = rizum_ui.ActionButton
     Card = rizum_ui.Card
+    IconActionButton = rizum_ui.IconActionButton
     SectionHeader = rizum_ui.SectionHeader
     COMPACT_DOCK_DEFAULT_HEIGHT = rizum_ui.COMPACT_DOCK_DEFAULT_HEIGHT
     COMPACT_DOCK_DEFAULT_WIDTH = rizum_ui.COMPACT_DOCK_DEFAULT_WIDTH
@@ -1120,6 +1123,96 @@ QWidget#RizumUiFontPreview QMenu#RizumPopupMenu {{
     refresh_metrics()
     size_control.valueChanged.connect(refresh_metrics)
     return panel
+
+
+def build_dock_toolbar_preview(QtWidgets):
+    """Build the single-row responsive dock toolbar (Kimi K3 variant).
+
+    Preview-only counterpart to the original three-tile
+    ``make_dock_actions_panel``: one expanding primary Export action plus
+    compact Bridge/Settings icon buttons, without the dark card-in-card,
+    shadows, or press-scaled tiles of the original.
+    """
+    from PySide6 import QtCore, QtWidgets as _QtWidgets
+
+    theme = dict(PAINTER_DIALOG_STYLE)
+    app = _QtWidgets.QApplication.instance()
+    scale = float(app.property("rizumUiFontScale") or 1.0) if app is not None else 1.0
+
+    def metric(value, minimum=None):
+        result = int(round(value * scale))
+        if minimum is not None:
+            result = max(minimum, result)
+        return result
+
+    toolbar = _QtWidgets.QWidget()
+    toolbar.setObjectName("RizumDockToolbar")
+    toolbar.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+    toolbar.setStyleSheet(
+        "QWidget#RizumDockToolbar { background: transparent; border: 0; }"
+    )
+    row = _QtWidgets.QHBoxLayout(toolbar)
+    margin = metric(12, 9)
+    row.setContentsMargins(margin, 0, margin, 0)
+    row.setSpacing(metric(6, 5))
+
+    export = IconActionButton(
+        preview_text("export", "Export"),
+        "action-export.svg",
+        theme["accent"],
+        theme["accent_hover"],
+        theme["accent_pressed"],
+        theme["accent_text"],
+        default_theme.radius_small,
+    )
+    export.setObjectName("RizumDockToolbarExport")
+    export.setCompactHeight(metric(28, 21))
+    export.setMinimumWidth(metric(96, 72))
+    export.setSizePolicy(
+        _QtWidgets.QSizePolicy.Policy.Expanding,
+        _QtWidgets.QSizePolicy.Policy.Fixed,
+    )
+    row.addWidget(export, 1)
+
+    icon_frame = metric(22, 17)
+    icon_size = metric(16, 12)
+
+    bridge = make_icon_button("action-bridge.svg", "Open bridge app")
+    bridge.setObjectName("RizumDockToolbarBridge")
+    bridge.setFixedSize(icon_frame, icon_frame)
+    bridge.setPaintedIconSize(icon_size)
+    bridge.setEnabled(False)
+    if hasattr(bridge, "setCompactTooltipScale"):
+        bridge.setCompactTooltipScale(scale)
+    # Disabled widgets never receive hover events, so the compact tooltip
+    # cannot pop up; keep a native tooltip as the reachable fallback.
+    bridge.setAttribute(QtCore.Qt.WidgetAttribute.WA_AlwaysShowToolTips, True)
+    bridge.setToolTip("Open bridge app (unavailable)")
+    row.addWidget(bridge)
+
+    settings = make_icon_button("action-sun.svg", "Settings")
+    settings.setObjectName("RizumDockToolbarSettings")
+    settings.setFixedSize(icon_frame, icon_frame)
+    settings.setPaintedIconSize(icon_size)
+    if hasattr(settings, "setCompactTooltipScale"):
+        settings.setCompactTooltipScale(scale)
+    row.addWidget(settings)
+
+    toolbar.setFixedHeight(metric(44, 33))
+    toolbar.setMinimumWidth(
+        margin * 2
+        + export.minimumWidth()
+        + icon_frame * 2
+        + row.spacing() * 2
+    )
+    toolbar.setSizePolicy(
+        _QtWidgets.QSizePolicy.Policy.Expanding,
+        _QtWidgets.QSizePolicy.Policy.Fixed,
+    )
+    toolbar._rizum_export_button = export
+    toolbar._rizum_bridge_button = bridge
+    toolbar._rizum_settings_button = settings
+    return toolbar
 
 
 def build_lab(QtWidgets):
@@ -2478,10 +2571,55 @@ def _build_preview_candidate(window, QtWidgets, watch_enabled, rebuild_callback=
         0,
         QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
     )
-    overview_left_layout.addWidget(
+    dock_compare = QtWidgets.QWidget()
+    dock_compare.setObjectName("RizumDockCompare")
+    dock_compare_layout = QtWidgets.QVBoxLayout(dock_compare)
+    dock_compare_layout.setContentsMargins(0, 0, 0, 0)
+    dock_compare_layout.setSpacing(6)
+
+    def dock_caption(text):
+        label = QtWidgets.QLabel(text)
+        label.setObjectName("RizumPreviewToolLabel")
+        dock_compare_layout.addWidget(label)
+        return label
+
+    dock_caption("ORIGINAL")
+    dock_compare_layout.addWidget(
         make_dock_actions_panel(),
         0,
-        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignHCenter,
+        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
+    )
+    dock_caption("KIMI K3")
+    preview_scale = float(app.property("rizumUiFontScale") or 1.0) if app else 1.0
+    for dock_width in (210, 300, 420):
+        frame = QtWidgets.QFrame()
+        frame.setObjectName("RizumDockToolbarFrame")
+        frame.setFixedWidth(int(round(dock_width * preview_scale)))
+        frame.setStyleSheet(
+            "QFrame#RizumDockToolbarFrame {"
+            " background: transparent; border: 1px solid #3a3a3a;"
+            " border-radius: 6px; }"
+        )
+        frame_layout = QtWidgets.QVBoxLayout(frame)
+        frame_layout.setContentsMargins(0, 0, 0, 0)
+        frame_layout.setSpacing(0)
+        frame_layout.addWidget(build_dock_toolbar_preview(QtWidgets))
+        dock_compare_layout.addWidget(
+            frame,
+            0,
+            QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
+        )
+    dock_caption("KIMI K3 - RESIZABLE")
+    resizable_toolbar = build_dock_toolbar_preview(QtWidgets)
+    resizable_toolbar.setStyleSheet(
+        resizable_toolbar.styleSheet()
+        + "QWidget#RizumDockToolbar { border: 1px solid #3a3a3a; border-radius: 6px; }"
+    )
+    dock_compare_layout.addWidget(resizable_toolbar)
+    overview_left_layout.addWidget(
+        dock_compare,
+        0,
+        QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft,
     )
     overview_left_layout.addStretch(1)
     grid.addWidget(overview_left, 0, 0, 2, 1, QtCore.Qt.AlignmentFlag.AlignTop)
