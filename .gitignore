@@ -4,3 +4,4 @@ __pycache__/
 tmp/
 visual-diff/
 .pytest_cache/
+/gpui_preview/target/

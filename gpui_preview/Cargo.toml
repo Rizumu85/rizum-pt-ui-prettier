@@ -1,0 +1,10 @@
+[package]
+name = "rizum-pt-bridge-preview"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+anyhow = "1"
+# GPUI is pre-1.0; pinning keeps the component lab stable while its public API evolves.
+gpui = "=0.2.2"
