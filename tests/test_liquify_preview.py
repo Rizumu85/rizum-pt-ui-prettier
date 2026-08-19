@@ -300,7 +300,11 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
                 "Copy Diagnostics",
             ],
         )
-        self.assertIn("QMenu#RizumPopupMenu::separator", panel._menu.styleSheet())
+        menu_style = panel._menu.styleSheet()
+        self.assertIn("QMenu#RizumPopupMenu::separator", menu_style)
+        self.assertIn("QMenu#RizumPopupMenu::icon", menu_style)
+        self.assertIn("position: relative", menu_style)
+        self.assertIn("left: 6px", menu_style)
         for action in (
             panel._refresh_action,
             panel._repair_action,

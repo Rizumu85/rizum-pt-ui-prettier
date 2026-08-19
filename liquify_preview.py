@@ -839,6 +839,10 @@ QMenu#RizumPopupMenu::separator {
     border-top: 1px solid #3a3a3a;
     margin: 4px 8px;
 }
+QMenu#RizumPopupMenu::icon {
+    position: relative;
+    left: 6px;
+}
 """
         )
         self._refresh_action = _make_menu_action(
