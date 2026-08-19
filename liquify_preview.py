@@ -814,6 +814,15 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
 
         self._menu = QtWidgets.QMenu(self)
         self._menu.setObjectName("RizumPopupMenu")
+        self._menu.setStyleSheet(
+            """
+QMenu#RizumPopupMenu::separator {
+    height: 1px;
+    background: #3a3a3a;
+    margin: 4px 8px;
+}
+"""
+        )
         self._refresh_action = _make_menu_action(
             self._menu,
             _menu_text("refresh"),
@@ -824,6 +833,11 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
             _menu_text("repair"),
             "wrench.svg",
         )
+        self._delete_action = _make_menu_action(
+            self._menu,
+            _menu_text("delete"),
+            "x.svg",
+        )
         self._menu.addSeparator()
         self._add_action = _make_menu_action(self._menu, _menu_text("add"))
         self._remove_action = _make_menu_action(self._menu, _menu_text("remove"))
@@ -832,11 +846,6 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
             self._menu,
             _menu_text("clear"),
             "reset.svg",
-        )
-        self._delete_action = _make_menu_action(
-            self._menu,
-            _menu_text("delete"),
-            "x.svg",
         )
         self._menu.addSeparator()
         self._copy_action = _make_menu_action(

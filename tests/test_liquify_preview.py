@@ -280,6 +280,25 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
             sum(action.isSeparator() for action in panel._menu.actions()),
             3,
         )
+        self.assertEqual(
+            [
+                None if action.isSeparator() else action.text()
+                for action in panel._menu.actions()
+            ],
+            [
+                "Refresh Targets",
+                "Repair Target",
+                "Delete Target",
+                None,
+                "Add Selected Layers",
+                "Remove Selected Layers",
+                None,
+                "Clear Flow",
+                None,
+                "Copy Diagnostics",
+            ],
+        )
+        self.assertIn("QMenu#RizumPopupMenu::separator", panel._menu.styleSheet())
         for action in (
             panel._refresh_action,
             panel._repair_action,
