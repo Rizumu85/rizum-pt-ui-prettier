@@ -673,6 +673,9 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
         # Pin the host font scale so QSettings on the dev machine cannot leak in.
         cls.app.setProperty("rizumUiFontScale", 1.0)
 
+    def setUp(self):
+        self.app.setProperty("rizumPreviewLanguage", "en")
+
     def make_panel(self, scale):
         panel = ViewRollConceptPanel()
         self.addCleanup(panel.deleteLater)
@@ -718,6 +721,21 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                 for index, rect in enumerate(rects):
                     for other in rects[index + 1 :]:
                         self.assertFalse(rect.intersects(other))
+
+    def test_localized_footer_actions_expand_instead_of_clipping(self):
+        for language in SUPPORTED_TRANSLATION_CODES:
+            with self.subTest(language=language):
+                self.app.setProperty("rizumPreviewLanguage", language)
+                panel = self.make_panel(1.0)
+                metrics = QtGui.QFontMetrics(panel._footer_button_font())
+                for button in (panel.cancel_button, panel.save_button):
+                    content_width = button.width() - (
+                        2 * FOOTER_BUTTON_PADDING_X + 2
+                    )
+                    self.assertLessEqual(
+                        metrics.horizontalAdvance(button.text()),
+                        content_width,
+                    )
 
     def test_initial_show_preserves_view_roll_surface_rules(self):
         panel = ViewRollConceptPanel()
