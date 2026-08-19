@@ -202,10 +202,13 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
         self.app.processEvents()
         return panel
 
-    def test_ready_state_hides_the_banner_and_keeps_minimal_chrome(self):
+    def test_ready_state_uses_the_same_status_hierarchy_as_other_states(self):
         panel = self.make_panel("ready")
 
-        self.assertFalse(panel.status_banner.isVisible())
+        self.assertTrue(panel.status_banner.isVisible())
+        self.assertEqual(panel.status_banner.title(), "Ready · Folder · Character")
+        self.assertEqual(panel.status_banner.subtitle(), "3 layers ready to apply")
+        self.assertEqual(panel.status_banner.tone(), "good")
         self.assertEqual(panel.primary_button.text(), "Start Liquify")
         self.assertTrue(panel.apply_button.isEnabled())
         self.assertEqual(
@@ -218,7 +221,7 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
         panel = self.make_panel()
         expectations = {
             "empty": ("Create Target", False, True, "neutral", ""),
-            "ready": ("Start Liquify", True, False, "", ""),
+            "ready": ("Start Liquify", True, True, "good", ""),
             "active": ("Back to Paint", True, True, "accent", ""),
             "repair": ("Repair & Start", False, True, "warn", ""),
             "blocked": ("Start Liquify", False, True, "warn", "View"),
@@ -247,13 +250,14 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
             "Applied to 3 layers",
         )
 
-    def test_ready_state_is_shorter_than_codex_ready_state(self):
+    def test_ready_state_matches_codex_status_rhythm(self):
         v2 = self.make_panel("ready")
         codex = LiquifyPreviewPanel("ready")
         self.addCleanup(codex.deleteLater)
         codex.show()
         self.app.processEvents()
-        self.assertLess(v2.height(), codex.height())
+        self.assertEqual(v2.status_banner.height(), codex.status_banner.height())
+        self.assertEqual(v2.height(), codex.height())
 
     def test_target_menu_hosts_maintenance_and_clear_flow(self):
         panel = self.make_panel("ready")
@@ -263,15 +267,26 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
             if not action.isSeparator()
         ]
         for expected in (
-            "Refresh Liquify targets",
-            "Repair",
-            "Add selected layers",
-            "Remove selected layers",
-            "Delete target",
+            "Refresh Targets",
+            "Repair Target",
+            "Add Selected Layers",
+            "Remove Selected Layers",
             "Clear Flow",
-            "Copy diagnostics",
+            "Delete Target",
+            "Copy Diagnostics",
         ):
             self.assertIn(expected, texts)
+        self.assertEqual(
+            sum(action.isSeparator() for action in panel._menu.actions()),
+            3,
+        )
+        for action in (
+            panel._refresh_action,
+            panel._repair_action,
+            panel._clear_action,
+            panel._delete_action,
+        ):
+            self.assertFalse(action.icon().isNull())
 
         # Default combo target is a folder: membership actions stay disabled.
         panel._sync_menu_actions()

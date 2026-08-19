@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from rizum_ui import (
     AnimatedSaveButton,
@@ -18,6 +18,7 @@ from rizum_ui import (
     make_icon_button,
     make_inset_separator,
 )
+from rizum_ui.components import render_svg_pixmap
 
 
 _TEXT = {
@@ -133,6 +134,90 @@ _V2_PRIMARY_TEXT = {
     "zh_CN": {"start": "开始液化", "return": "返回绘画", "repair_start": "修复并开始"},
 }
 
+_MENU_TEXT = {
+    "en": {
+        "refresh": "Refresh Targets",
+        "repair": "Repair Target",
+        "add": "Add Selected Layers",
+        "remove": "Remove Selected Layers",
+        "clear": "Clear Flow",
+        "delete": "Delete Target",
+        "diagnostics": "Copy Diagnostics",
+    },
+    "de": {
+        "refresh": "Ziele aktualisieren",
+        "repair": "Ziel reparieren",
+        "add": "Ausgewählte Ebenen hinzufügen",
+        "remove": "Ausgewählte Ebenen entfernen",
+        "clear": "Flow leeren",
+        "delete": "Ziel löschen",
+        "diagnostics": "Diagnose kopieren",
+    },
+    "es": {
+        "refresh": "Actualizar objetivos",
+        "repair": "Reparar objetivo",
+        "add": "Añadir capas seleccionadas",
+        "remove": "Quitar capas seleccionadas",
+        "clear": "Borrar Flow",
+        "delete": "Eliminar objetivo",
+        "diagnostics": "Copiar diagnóstico",
+    },
+    "fr": {
+        "refresh": "Actualiser les cibles",
+        "repair": "Réparer la cible",
+        "add": "Ajouter les calques sélectionnés",
+        "remove": "Retirer les calques sélectionnés",
+        "clear": "Effacer le Flow",
+        "delete": "Supprimer la cible",
+        "diagnostics": "Copier le diagnostic",
+    },
+    "it": {
+        "refresh": "Aggiorna obiettivi",
+        "repair": "Ripara obiettivo",
+        "add": "Aggiungi livelli selezionati",
+        "remove": "Rimuovi livelli selezionati",
+        "clear": "Cancella Flow",
+        "delete": "Elimina obiettivo",
+        "diagnostics": "Copia diagnostica",
+    },
+    "ja_JP": {
+        "refresh": "ターゲットを更新",
+        "repair": "ターゲットを修復",
+        "add": "選択レイヤーを追加",
+        "remove": "選択レイヤーを削除",
+        "clear": "Flowを消去",
+        "delete": "ターゲットを削除",
+        "diagnostics": "診断をコピー",
+    },
+    "ko": {
+        "refresh": "대상 새로 고침",
+        "repair": "대상 복구",
+        "add": "선택 레이어 추가",
+        "remove": "선택 레이어 제거",
+        "clear": "Flow 지우기",
+        "delete": "대상 삭제",
+        "diagnostics": "진단 복사",
+    },
+    "pt": {
+        "refresh": "Atualizar alvos",
+        "repair": "Reparar alvo",
+        "add": "Adicionar camadas selecionadas",
+        "remove": "Remover camadas selecionadas",
+        "clear": "Limpar Flow",
+        "delete": "Excluir alvo",
+        "diagnostics": "Copiar diagnóstico",
+    },
+    "zh_CN": {
+        "refresh": "刷新目标",
+        "repair": "修复目标",
+        "add": "加入所选图层",
+        "remove": "移除所选图层",
+        "clear": "清空 Flow",
+        "delete": "删除目标",
+        "diagnostics": "复制诊断",
+    },
+}
+
 
 def _language() -> str:
     app = QtWidgets.QApplication.instance()
@@ -151,6 +236,14 @@ def _v2_primary_text(key: str) -> str:
     return _V2_PRIMARY_TEXT.get(language, _V2_PRIMARY_TEXT["en"]).get(
         key,
         _text(key),
+    )
+
+
+def _menu_text(key: str) -> str:
+    language = _language()
+    return _MENU_TEXT.get(language, _MENU_TEXT["en"]).get(
+        key,
+        _MENU_TEXT["en"][key],
     )
 
 
@@ -224,6 +317,22 @@ def _make_primary_button(parent) -> SecondaryActionButton:
         QtWidgets.QSizePolicy.Policy.Fixed,
     )
     return button
+
+
+def _make_menu_action(menu, text: str, icon_name: str | None = None):
+    action = menu.addAction(text)
+    if icon_name:
+        app = QtWidgets.QApplication.instance()
+        scale = float(app.property("rizumUiFontScale") or 1.0) if app else 1.0
+        icon_size = max(12, int(round(16 * scale)))
+        pixmap = render_svg_pixmap(
+            icon_name,
+            icon_size,
+            PAINTER_DIALOG_STYLE["muted"],
+        )
+        action.setIcon(QtGui.QIcon(pixmap))
+        action.setIconVisibleInMenu(True)
+    return action
 
 
 class _ApplyConfirmationPopup(QtWidgets.QFrame):
@@ -614,10 +723,8 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
     """Kimi K3 V2 comparison panel: same workflow, lower default density.
 
     Decisions a refactor should not undo:
-    - "ready" shows no banner; the combo, the enabled Apply button, and the
-      Start Liquify action already carry that state. The banner only appears
-      when it adds information (empty/active/repair/blocked, or a
-      transient clear-flow confirmation).
+    - "ready" uses the same banner hierarchy as every other operational state;
+      its target identity and layer count are useful confirmation, not chrome.
     - Refresh, repair, member maintenance, Clear Flow, and diagnostics live
       in one target menu; only target creation keeps a permanent icon.
     - Repair has a single path (the primary action), matching the real
@@ -707,15 +814,35 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
 
         self._menu = QtWidgets.QMenu(self)
         self._menu.setObjectName("RizumPopupMenu")
-        self._refresh_action = self._menu.addAction(_text("refresh_tip"))
-        self._repair_action = self._menu.addAction(_text("repair_action"))
+        self._refresh_action = _make_menu_action(
+            self._menu,
+            _menu_text("refresh"),
+            "refresh.svg",
+        )
+        self._repair_action = _make_menu_action(
+            self._menu,
+            _menu_text("repair"),
+            "wrench.svg",
+        )
         self._menu.addSeparator()
-        self._add_action = self._menu.addAction(_text("add_members"))
-        self._remove_action = self._menu.addAction(_text("remove_members"))
-        self._delete_action = self._menu.addAction(_text("delete_target"))
+        self._add_action = _make_menu_action(self._menu, _menu_text("add"))
+        self._remove_action = _make_menu_action(self._menu, _menu_text("remove"))
         self._menu.addSeparator()
-        self._clear_action = self._menu.addAction(_text("clear"))
-        self._copy_action = self._menu.addAction(_text("copy_diagnostics"))
+        self._clear_action = _make_menu_action(
+            self._menu,
+            _menu_text("clear"),
+            "reset.svg",
+        )
+        self._delete_action = _make_menu_action(
+            self._menu,
+            _menu_text("delete"),
+            "x.svg",
+        )
+        self._menu.addSeparator()
+        self._copy_action = _make_menu_action(
+            self._menu,
+            _menu_text("diagnostics"),
+        )
 
         self.new_target_button.clicked.connect(lambda: self.setState("active"))
         self.more_button.clicked.connect(self._show_menu)
@@ -757,7 +884,7 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
             banner = ("empty_title", "empty_subtitle", "neutral", "")
             primary = "create"
         elif state == "ready":
-            banner = None
+            banner = ("ready_title", "ready_subtitle", "good", "")
             primary = "start"
         elif state == "active":
             banner = ("active_brief", "mode_tip", "accent", "")
@@ -769,16 +896,13 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
             banner = ("blocked_title", "blocked_subtitle", "warn", "view")
             primary = "start"
 
-        if banner is None:
-            self.status_banner.hide()
-        else:
-            self.status_banner.setStatus(
-                _text(banner[0]),
-                _text(banner[1]),
-                banner[2],
-                _text(banner[3]) if banner[3] else "",
-            )
-            self.status_banner.show()
+        self.status_banner.setStatus(
+            _text(banner[0]),
+            _text(banner[1]),
+            banner[2],
+            _text(banner[3]) if banner[3] else "",
+        )
+        self.status_banner.show()
         self.primary_button.setText(_v2_primary_text(primary))
         self.refreshMetrics()
         if emit:
