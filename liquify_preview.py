@@ -817,8 +817,9 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
         self._menu.setStyleSheet(
             """
 QMenu#RizumPopupMenu::separator {
-    height: 1px;
-    background: #3a3a3a;
+    height: 0;
+    background: transparent;
+    border-top: 1px solid #3a3a3a;
     margin: 4px 8px;
 }
 """
