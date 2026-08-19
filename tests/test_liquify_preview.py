@@ -206,8 +206,10 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
         panel = self.make_panel("ready")
 
         self.assertTrue(panel.status_banner.isVisible())
-        self.assertEqual(panel.status_banner.title(), "Ready · Folder · Character")
-        self.assertEqual(panel.status_banner.subtitle(), "3 layers ready to apply")
+        self.assertEqual(panel.status_banner.title(), "Ready")
+        self.assertEqual(panel.status_banner.subtitle(), "3 layers")
+        self.assertNotIn("Folder", panel.status_banner.title())
+        self.assertNotIn("Character", panel.status_banner.title())
         self.assertEqual(panel.status_banner.tone(), "good")
         self.assertEqual(panel.primary_button.text(), "Start Liquify")
         self.assertTrue(panel.apply_button.isEnabled())

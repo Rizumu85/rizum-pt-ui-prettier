@@ -134,6 +134,18 @@ _V2_PRIMARY_TEXT = {
     "zh_CN": {"start": "开始液化", "return": "返回绘画", "repair_start": "修复并开始"},
 }
 
+_V2_READY_TEXT = {
+    "en": "3 layers",
+    "de": "3 Ebenen",
+    "es": "3 capas",
+    "fr": "3 calques",
+    "it": "3 livelli",
+    "ja_JP": "3レイヤー",
+    "ko": "3개 레이어",
+    "pt": "3 camadas",
+    "zh_CN": "3 个图层",
+}
+
 _MENU_TEXT = {
     "en": {
         "refresh": "Refresh Targets",
@@ -237,6 +249,11 @@ def _v2_primary_text(key: str) -> str:
         key,
         _text(key),
     )
+
+
+def _v2_ready_text() -> str:
+    language = _language()
+    return _V2_READY_TEXT.get(language, _V2_READY_TEXT["en"])
 
 
 def _menu_text(key: str) -> str:
@@ -723,8 +740,8 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
     """Kimi K3 V2 comparison panel: same workflow, lower default density.
 
     Decisions a refactor should not undo:
-    - "ready" uses the same banner hierarchy as every other operational state;
-      its target identity and layer count are useful confirmation, not chrome.
+    - "ready" keeps only the useful layer count; target identity already lives
+      in the picker and must not be repeated in the banner.
     - Refresh, repair, member maintenance, Clear Flow, and diagnostics live
       in one target menu; only target creation keeps a permanent icon.
     - Repair has a single path (the primary action), matching the real
@@ -894,7 +911,7 @@ QMenu#RizumPopupMenu::separator {
             banner = ("empty_title", "empty_subtitle", "neutral", "")
             primary = "create"
         elif state == "ready":
-            banner = ("ready_title", "ready_subtitle", "good", "")
+            banner = None
             primary = "start"
         elif state == "active":
             banner = ("active_brief", "mode_tip", "accent", "")
@@ -906,12 +923,20 @@ QMenu#RizumPopupMenu::separator {
             banner = ("blocked_title", "blocked_subtitle", "warn", "view")
             primary = "start"
 
-        self.status_banner.setStatus(
-            _text(banner[0]),
-            _text(banner[1]),
-            banner[2],
-            _text(banner[3]) if banner[3] else "",
-        )
+        if banner is None:
+            self.status_banner.setStatus(
+                _text("ready"),
+                _v2_ready_text(),
+                "good",
+                "",
+            )
+        else:
+            self.status_banner.setStatus(
+                _text(banner[0]),
+                _text(banner[1]),
+                banner[2],
+                _text(banner[3]) if banner[3] else "",
+            )
         self.status_banner.show()
         self.primary_button.setText(_v2_primary_text(primary))
         self.refreshMetrics()
