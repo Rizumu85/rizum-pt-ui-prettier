@@ -51,6 +51,8 @@ class LiquifyPreviewTests(unittest.TestCase):
         ]
         self.assertIn("CODEX", tags)
         self.assertIn("KIMI K3 V2", tags)
+        self.assertNotIn("complete", LiquifyPreviewPanel.STATES)
+        self.assertEqual(page._rizum_state_control.findData("complete"), -1)
 
     def test_state_and_width_controls_drive_both_panels(self):
         page = build_liquify_preview(QtWidgets)
@@ -75,7 +77,7 @@ class LiquifyPreviewTests(unittest.TestCase):
         self.assertEqual(page._rizum_panel.state(), "active")
         self.assertEqual(state_control.currentData(), "active")
 
-    def test_six_workflow_states_own_the_primary_and_apply_actions(self):
+    def test_five_workflow_states_own_the_primary_and_apply_actions(self):
         panel = self.make_panel()
         expectations = {
             "empty": ("Create Target", False, "neutral"),
@@ -83,7 +85,6 @@ class LiquifyPreviewTests(unittest.TestCase):
             "active": ("Return to Painting", True, "accent"),
             "repair": ("Repair and Start", False, "warn"),
             "blocked": ("Start Liquify", False, "warn"),
-            "complete": ("Create Target", False, "good"),
         }
         for state, (primary, can_apply, tone) in expectations.items():
             panel.setState(state)
@@ -92,6 +93,20 @@ class LiquifyPreviewTests(unittest.TestCase):
             self.assertEqual(panel.apply_button.isEnabled(), can_apply)
             self.assertEqual(panel.status_banner.tone(), tone)
             self.assertTrue(panel.new_target_button.isVisible())
+
+    def test_apply_uses_transient_confirmation_instead_of_applied_state(self):
+        panel = self.make_panel("ready")
+
+        panel._apply()
+        QtTest.QTest.qWait(260)
+        self.app.processEvents()
+
+        self.assertEqual(panel.state(), "empty")
+        self.assertTrue(panel._apply_confirmation.isVisible())
+        self.assertEqual(
+            panel._apply_confirmation.title(),
+            "Applied to 3 layers",
+        )
 
     def test_primary_action_and_fixed_plus_follow_the_recommended_flow(self):
         panel = self.make_panel("empty", "narrow")
@@ -199,7 +214,7 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
             "target row should hold combo + create + menu only",
         )
 
-    def test_six_states_drive_banner_visibility_primary_and_apply(self):
+    def test_five_states_drive_banner_visibility_primary_and_apply(self):
         panel = self.make_panel()
         expectations = {
             "empty": ("Create Target", False, True, "neutral", ""),
@@ -207,7 +222,6 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
             "active": ("Back to Paint", True, True, "accent", ""),
             "repair": ("Repair & Start", False, True, "warn", ""),
             "blocked": ("Start Liquify", False, True, "warn", "View"),
-            "complete": ("Create Target", False, True, "good", ""),
         }
         for state, (primary, can_apply, banner_on, tone, action) in expectations.items():
             panel.setState(state)
@@ -218,6 +232,20 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
             if banner_on:
                 self.assertEqual(panel.status_banner.tone(), tone, state)
                 self.assertEqual(panel.status_banner.actionText(), action, state)
+
+    def test_apply_uses_transient_confirmation_instead_of_applied_state(self):
+        panel = self.make_panel("ready")
+
+        panel._apply()
+        QtTest.QTest.qWait(260)
+        self.app.processEvents()
+
+        self.assertEqual(panel.state(), "empty")
+        self.assertTrue(panel._apply_confirmation.isVisible())
+        self.assertEqual(
+            panel._apply_confirmation.title(),
+            "Applied to 3 layers",
+        )
 
     def test_ready_state_is_shorter_than_codex_ready_state(self):
         v2 = self.make_panel("ready")

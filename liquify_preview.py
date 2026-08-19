@@ -226,10 +226,112 @@ def _make_primary_button(parent) -> SecondaryActionButton:
     return button
 
 
+class _ApplyConfirmationPopup(QtWidgets.QFrame):
+    """Non-modal apply result that leaves the dock in its real next state."""
+
+    def __init__(self, parent=None):
+        super().__init__(
+            parent,
+            QtCore.Qt.WindowType.ToolTip
+            | QtCore.Qt.WindowType.FramelessWindowHint
+            | QtCore.Qt.WindowType.NoDropShadowWindowHint,
+        )
+        self.setObjectName("RizumLiquifyApplyConfirmation")
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet(
+            """
+QFrame#RizumLiquifyApplyConfirmation {
+    background: #333333;
+    border: 0;
+    border-radius: 6px;
+}
+QLabel#RizumLiquifyApplyConfirmationTitle {
+    color: #f2f2f2;
+    font-weight: 600;
+    background: transparent;
+    border: 0;
+}
+QLabel#RizumLiquifyApplyConfirmationSubtitle {
+    color: #9a9a9a;
+    background: transparent;
+    border: 0;
+}
+"""
+        )
+        self._layout = QtWidgets.QVBoxLayout(self)
+        self._layout.setContentsMargins(12, 8, 12, 8)
+        self._layout.setSpacing(1)
+        self._title = QtWidgets.QLabel(parent=self)
+        self._title.setObjectName("RizumLiquifyApplyConfirmationTitle")
+        self._subtitle = QtWidgets.QLabel(parent=self)
+        self._subtitle.setObjectName("RizumLiquifyApplyConfirmationSubtitle")
+        self._subtitle.setWordWrap(True)
+        self._layout.addWidget(self._title)
+        self._layout.addWidget(self._subtitle)
+        self._hide_timer = QtCore.QTimer(self)
+        self._hide_timer.setSingleShot(True)
+        self._hide_timer.timeout.connect(self.hide)
+        self.hide()
+
+    def title(self) -> str:
+        return self._title.text()
+
+    def showMessage(self, title: str, subtitle: str, anchor) -> None:
+        self._hide_timer.stop()
+        self._title.setText(str(title))
+        self._subtitle.setText(str(subtitle))
+        self._subtitle.setVisible(bool(subtitle))
+
+        app = QtWidgets.QApplication.instance()
+        scale = float(app.property("rizumUiFontScale") or 1.0) if app else 1.0
+
+        def metric(value: int, minimum: int | None = None) -> int:
+            result = int(round(value * scale))
+            return max(minimum, result) if minimum is not None else result
+
+        self._layout.setContentsMargins(
+            metric(12, 9), metric(8, 6), metric(12, 9), metric(8, 6)
+        )
+        self._layout.setSpacing(metric(1, 1))
+        owner = self.parentWidget()
+        owner_width = owner.width() if owner is not None else metric(260, 195)
+        self.setFixedWidth(max(metric(180, 135), min(metric(260), owner_width - metric(16))))
+        self.adjustSize()
+
+        anchor_top = anchor.mapToGlobal(QtCore.QPoint(0, 0))
+        anchor_center = anchor.mapToGlobal(anchor.rect().center())
+        x = anchor_center.x() - self.width() // 2
+        y = anchor_top.y() - self.height() - metric(8, 6)
+        screen = anchor.screen()
+        if screen is not None:
+            bounds = screen.availableGeometry()
+            x = max(bounds.left(), min(x, bounds.right() - self.width() + 1))
+            if y < bounds.top():
+                y = anchor.mapToGlobal(anchor.rect().bottomLeft()).y() + metric(8, 6)
+        self.move(x, y)
+
+        effect = self.graphicsEffect()
+        if effect is None:
+            effect = QtWidgets.QGraphicsOpacityEffect(self)
+            self.setGraphicsEffect(effect)
+        effect.setOpacity(0.0)
+        self.show()
+        self.raise_()
+        animation = QtCore.QPropertyAnimation(effect, b"opacity", self)
+        animation.setDuration(140)
+        animation.setStartValue(0.0)
+        animation.setEndValue(1.0)
+        animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        self._fade_animation = animation
+        animation.start()
+        self._hide_timer.start(1600)
+
+
 class LiquifyPreviewPanel(QtWidgets.QWidget):
     stateChanged = QtCore.Signal(str)
 
-    STATES = ("empty", "ready", "active", "repair", "blocked", "complete")
+    STATES = ("empty", "ready", "active", "repair", "blocked")
     BASE_WIDTHS = {"narrow": 250, "standard": 360, "wide": 440}
 
     def __init__(self, state: str = "ready", width_mode: str = "standard", parent=None):
@@ -243,6 +345,11 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
         self._restore_timer.timeout.connect(
             lambda: self.setState(self._restore_state)
         )
+        self._apply_timer = QtCore.QTimer(self)
+        self._apply_timer.setSingleShot(True)
+        self._apply_timer.setInterval(180)
+        self._apply_timer.timeout.connect(self._finish_apply)
+        self._apply_confirmation = _ApplyConfirmationPopup(self)
 
         apply_compact_dock_surface(self)
         self.setSizePolicy(
@@ -350,8 +457,9 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
     def setState(self, state: str, *, emit: bool = True) -> None:
         state = state if state in self.STATES else "ready"
         self._restore_timer.stop()
+        self._apply_timer.stop()
         self._state = state
-        has_target = state not in {"empty", "complete"}
+        has_target = state != "empty"
         _set_combo_items(self.target_combo, has_target)
         self._blockers_expanded = False
         self.blocker_details.hide()
@@ -377,12 +485,9 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
         elif state == "repair":
             banner = ("repair_title", "repair_subtitle", "warn", "repair_action")
             primary = "repair_start"
-        elif state == "blocked":
+        else:
             banner = ("blocked_title", "blocked_subtitle", "warn", "view")
             primary = "start"
-        else:
-            banner = ("complete_title", "complete_subtitle", "good", "")
-            primary = "create"
 
         self.status_banner.setStatus(
             _text(banner[0]),
@@ -402,7 +507,6 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
             "active": "ready",
             "repair": "active",
             "blocked": "active",
-            "complete": "active",
         }
         self.setState(transitions[self._state])
 
@@ -425,8 +529,16 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
     def _apply(self) -> None:
         if not self.apply_button.isEnabled():
             return
-        self.apply_button.showSavedFeedback()
-        QtCore.QTimer.singleShot(520, lambda: self.setState("complete"))
+        self.apply_button.setDirty(False, animate=False)
+        self._apply_timer.start()
+
+    def _finish_apply(self) -> None:
+        self.setState("empty")
+        self._apply_confirmation.showMessage(
+            _text("complete_title"),
+            _text("complete_subtitle"),
+            self.apply_button,
+        )
 
     def _clear_flow(self) -> None:
         if not self.clear_button.isEnabled():
@@ -504,7 +616,7 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
     Decisions a refactor should not undo:
     - "ready" shows no banner; the combo, the enabled Apply button, and the
       Start Liquify action already carry that state. The banner only appears
-      when it adds information (empty/active/repair/blocked/complete, or a
+      when it adds information (empty/active/repair/blocked, or a
       transient clear-flow confirmation).
     - Refresh, repair, member maintenance, Clear Flow, and diagnostics live
       in one target menu; only target creation keeps a permanent icon.
@@ -528,6 +640,11 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
         self._restore_timer.timeout.connect(
             lambda: self.setState(self._restore_state)
         )
+        self._apply_timer = QtCore.QTimer(self)
+        self._apply_timer.setSingleShot(True)
+        self._apply_timer.setInterval(180)
+        self._apply_timer.timeout.connect(self._finish_apply)
+        self._apply_confirmation = _ApplyConfirmationPopup(self)
 
         apply_compact_dock_surface(self)
         self.setSizePolicy(
@@ -626,8 +743,9 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
     def setState(self, state: str, *, emit: bool = True) -> None:
         state = state if state in self.STATES else "ready"
         self._restore_timer.stop()
+        self._apply_timer.stop()
         self._state = state
-        has_target = state not in {"empty", "complete"}
+        has_target = state != "empty"
         _set_combo_items(self.target_combo, has_target)
         self._blockers_expanded = False
         self.blocker_details.hide()
@@ -647,12 +765,9 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
         elif state == "repair":
             banner = ("repair_title", "repair_subtitle", "warn", "")
             primary = "repair_start"
-        elif state == "blocked":
+        else:
             banner = ("blocked_title", "blocked_subtitle", "warn", "view")
             primary = "start"
-        else:
-            banner = ("complete_title", "complete_subtitle", "good", "")
-            primary = "create"
 
         if banner is None:
             self.status_banner.hide()
@@ -670,7 +785,7 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
             self.stateChanged.emit(state)
 
     def _sync_menu_actions(self) -> None:
-        has_target = self._state not in {"empty", "complete"}
+        has_target = self._state != "empty"
         # Member maintenance only exists for layer-set targets in the real
         # plugin; folder targets expose repair/clear but not membership.
         is_set = has_target and self.target_combo.currentData() == "set"
@@ -687,7 +802,6 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
             "active": "ready",
             "repair": "active",
             "blocked": "active",
-            "complete": "active",
         }
         self.setState(transitions[self._state])
 
@@ -707,8 +821,16 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
     def _apply(self) -> None:
         if not self.apply_button.isEnabled():
             return
-        self.apply_button.showSavedFeedback()
-        QtCore.QTimer.singleShot(520, lambda: self.setState("complete"))
+        self.apply_button.setDirty(False, animate=False)
+        self._apply_timer.start()
+
+    def _finish_apply(self) -> None:
+        self.setState("empty")
+        self._apply_confirmation.showMessage(
+            _text("complete_title"),
+            _text("complete_subtitle"),
+            self.apply_button,
+        )
 
     def _clear_flow(self) -> None:
         if not self._clear_action.isEnabled():
