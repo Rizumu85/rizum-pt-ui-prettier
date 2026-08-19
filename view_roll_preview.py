@@ -18,6 +18,7 @@ from rizum_ui import (
     PAINTER_WINDOW_CONTENT_RADIUS,
     PainterSettingsDialog,
     SecondaryActionButton,
+    SettingsToggle,
     ShortcutCaptureField as SharedShortcutCaptureField,
     TextActionButton as SharedTextActionButton,
     install_compact_tooltip,
@@ -45,6 +46,7 @@ DEFAULTS = {
     "mode": "step_15",
     "angle": 45,
     "speed": 90,
+    "free_rotation": True,
     "shortcuts": {
         "roll_left": "Alt+Left",
         "roll_right": "Alt+Right",
@@ -63,6 +65,7 @@ _VIEW_ROLL_TEXT = {
         "custom": "Benutzerdefiniert",
         "speed": "Geschwindigkeit",
         "angle": "Winkel",
+        "free_rotation": "Freie Rotation",
         "shortcuts": "Tastenkürzel",
         "roll_left": "3D-Ansicht nach links drehen",
         "roll_right": "3D-Ansicht nach rechts drehen",
@@ -84,6 +87,7 @@ _VIEW_ROLL_TEXT = {
         "custom": "Personalizado",
         "speed": "Velocidad",
         "angle": "Ángulo",
+        "free_rotation": "Rotación libre",
         "shortcuts": "Atajos",
         "roll_left": "Girar vista 3D a la izquierda",
         "roll_right": "Girar vista 3D a la derecha",
@@ -105,6 +109,7 @@ _VIEW_ROLL_TEXT = {
         "custom": "Personnalisé",
         "speed": "Vitesse",
         "angle": "Angle",
+        "free_rotation": "Rotation libre",
         "shortcuts": "Raccourcis",
         "roll_left": "Faire pivoter la vue 3D à gauche",
         "roll_right": "Faire pivoter la vue 3D à droite",
@@ -126,6 +131,7 @@ _VIEW_ROLL_TEXT = {
         "custom": "Personalizzato",
         "speed": "Velocità",
         "angle": "Angolo",
+        "free_rotation": "Rotazione libera",
         "shortcuts": "Scorciatoie",
         "roll_left": "Ruota vista 3D a sinistra",
         "roll_right": "Ruota vista 3D a destra",
@@ -147,6 +153,7 @@ _VIEW_ROLL_TEXT = {
         "custom": "사용자 지정",
         "speed": "속도",
         "angle": "각도",
+        "free_rotation": "자유 회전",
         "shortcuts": "단축키",
         "roll_left": "3D 뷰 왼쪽으로 회전",
         "roll_right": "3D 뷰 오른쪽으로 회전",
@@ -168,6 +175,7 @@ _VIEW_ROLL_TEXT = {
         "custom": "Personalizado",
         "speed": "Velocidade",
         "angle": "Ângulo",
+        "free_rotation": "Rotação livre",
         "shortcuts": "Atalhos",
         "roll_left": "Girar vista 3D para a esquerda",
         "roll_right": "Girar vista 3D para a direita",
@@ -189,6 +197,7 @@ _VIEW_ROLL_TEXT = {
         "custom": "自定义",
         "speed": "速度",
         "angle": "角度",
+        "free_rotation": "自由旋转",
         "shortcuts": "快捷键",
         "roll_left": "3D 视图左转",
         "roll_right": "3D 视图右转",
@@ -210,6 +219,7 @@ _VIEW_ROLL_TEXT = {
         "custom": "カスタム",
         "speed": "速度",
         "angle": "角度",
+        "free_rotation": "自由回転",
         "shortcuts": "ショートカット",
         "roll_left": "3Dビューを左に回転",
         "roll_right": "3Dビューを右に回転",
@@ -236,6 +246,7 @@ def _copy_state(state):
         "mode": state["mode"],
         "angle": state["angle"],
         "speed": state["speed"],
+        "free_rotation": state["free_rotation"],
         "shortcuts": dict(state["shortcuts"]),
     }
 
@@ -1323,6 +1334,19 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.parameter_slot.setGeometryCallback(self._sync_dialog_height)
         self._body_layout.addWidget(self.parameter_slot)
 
+        self.free_rotation_toggle = SettingsToggle(
+            checked=self._saved_state["free_rotation"],
+            visual_style=self._visual_style,
+        )
+        self.free_rotation_row, free_rotation_layout = self._make_row()
+        self.free_rotation_label = self._make_name(
+            _preview_text("free_rotation", "Free rotation")
+        )
+        free_rotation_layout.addWidget(self.free_rotation_label)
+        free_rotation_layout.addStretch(1)
+        free_rotation_layout.addWidget(self.free_rotation_toggle)
+        self._body_layout.addWidget(self.free_rotation_row)
+
         self._section_shortcuts = self._make_section(
             _preview_text("shortcuts", "Shortcuts")
         )
@@ -1427,6 +1451,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.mode_segment.currentDataChanged.connect(self._on_mode_changed)
         self.angle_stepper.valueChanged.connect(self._on_value_edited)
         self.speed_stepper.valueChanged.connect(self._on_value_edited)
+        self.free_rotation_toggle.toggled.connect(self._on_value_edited)
         self.restore_button.clicked.connect(self.restore_defaults)
         self.cancel_button.clicked.connect(self.cancel_changes)
         self.save_button.clicked.connect(self.save_changes)
@@ -1522,6 +1547,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             "mode": self.mode_segment.currentData(),
             "angle": self.angle_stepper.value(),
             "speed": self.speed_stepper.value(),
+            "free_rotation": self.free_rotation_toggle.isChecked(),
             "shortcuts": {
                 action_id: field.shortcut()
                 for action_id, field in self.shortcut_fields.items()
@@ -1537,6 +1563,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             self.mode_segment.setCurrentData(state["mode"], animate=False, emit=emit)
             self.angle_stepper.setValue(state["angle"], emit=emit)
             self.speed_stepper.setValue(state["speed"], emit=emit)
+            self.free_rotation_toggle.setChecked(state["free_rotation"])
             for action_id, field in self.shortcut_fields.items():
                 field.cancelCapture()
                 field.setShortcut(state["shortcuts"][action_id], emit=emit)
@@ -1725,6 +1752,9 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         self.angle_stepper.setCompactHeight(
             layout.stepper_height.resolve(self.dialog)
         )
+        self.free_rotation_toggle.setCompactHeight(
+            self._metric(SettingsToggle.BASE_HEIGHT, SettingsToggle.MIN_HEIGHT)
+        )
         for field in self.shortcut_fields.values():
             field.setCompactHeight(layout.control_height.resolve(self.dialog))
             if hasattr(field, "setCompactTooltipScale"):
@@ -1732,6 +1762,7 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
 
         mode_row = self.mode_segment.parentWidget()
         mode_row.setFixedHeight(row_height)
+        self.free_rotation_row.setFixedHeight(row_height)
         for stepper in (self.speed_stepper, self.angle_stepper):
             stepper.parentWidget().setFixedHeight(tall_height)
         self.parameter_slot.setExpandedHeight(tall_height)
@@ -1814,6 +1845,10 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
         mode_need = labeled_row_need(
             self.mode_label.width(), self.mode_segment.sizeHint().width()
         )
+        free_rotation_need = labeled_row_need(
+            self.free_rotation_label.width(),
+            self.free_rotation_toggle.width(),
+        )
         shortcut_need = max(
             labeled_row_need(
                 field._rizum_name_label.width(),
@@ -1822,7 +1857,13 @@ class ViewRollConceptPanel(QtWidgets.QWidget):
             for field in self.shortcut_fields.values()
         )
 
-        content_need = max(footer_need, mode_need, stepper_need, shortcut_need)
+        content_need = max(
+            footer_need,
+            mode_need,
+            free_rotation_need,
+            stepper_need,
+            shortcut_need,
+        )
         measured_width = max(
             base,
             content_need + 2 * self.dialog.settingsFrameWidth() + 2,

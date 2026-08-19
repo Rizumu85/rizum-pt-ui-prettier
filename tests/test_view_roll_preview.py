@@ -146,6 +146,17 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         self.assertFalse(panel.is_dirty())
         self.assertEqual(panel.angle_stepper.value(), 45)
 
+    def test_free_rotation_toggle_participates_in_saved_state(self):
+        panel = self.make_panel()
+
+        panel.free_rotation_toggle.click()
+        self.assertFalse(panel.free_rotation_toggle.isChecked())
+        self.assertTrue(panel.is_dirty())
+
+        panel.cancel_changes()
+        self.assertTrue(panel.free_rotation_toggle.isChecked())
+        self.assertFalse(panel.is_dirty())
+
     def test_save_then_restore_defaults_marks_dirty(self):
         panel = self.make_panel()
 
@@ -236,7 +247,12 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         collapsed_height = panel.dialog.height()
 
         self.assertEqual(
-            panel._section_shortcuts.y() - (mode_row.y() + mode_row.height()),
+            panel.free_rotation_row.y() - (mode_row.y() + mode_row.height()),
+            spacing,
+        )
+        self.assertEqual(
+            panel._section_shortcuts.y()
+            - (panel.free_rotation_row.y() + panel.free_rotation_row.height()),
             spacing,
         )
 
@@ -248,8 +264,13 @@ class ViewRollConceptPanelTests(unittest.TestCase):
             spacing,
         )
         self.assertEqual(
-            panel._section_shortcuts.y()
+            panel.free_rotation_row.y()
             - (panel.parameter_slot.y() + panel.parameter_slot.height()),
+            spacing,
+        )
+        self.assertEqual(
+            panel._section_shortcuts.y()
+            - (panel.free_rotation_row.y() + panel.free_rotation_row.height()),
             spacing,
         )
         self.assertEqual(

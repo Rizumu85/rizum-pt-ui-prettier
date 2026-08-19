@@ -11,6 +11,7 @@ from rizum_ui import (
     AnimatedSaveButton,
     ModeParameterSlot,
     SecondaryActionButton,
+    SettingsToggle,
     ShortcutCaptureField,
     TextActionButton,
 )
@@ -77,6 +78,19 @@ class SettingsControlTests(unittest.TestCase):
         button.leaveEvent(QtCore.QEvent(QtCore.QEvent.Type.Leave))
         QtTest.QTest.qWait(button.HOVER_DURATION + 30)
         self.assertLess(button.hoverProgress(), 0.02)
+
+    def test_settings_toggle_scales_and_tracks_its_state(self):
+        toggle = SettingsToggle(checked=True)
+        self.addCleanup(toggle.deleteLater)
+
+        self.assertTrue(toggle.isChecked())
+        self.assertEqual(toggle.size().toTuple(), (36, 20))
+
+        toggle.setCompactHeight(30)
+        self.assertEqual(toggle.size().toTuple(), (54, 30))
+
+        toggle.click()
+        self.assertFalse(toggle.isChecked())
 
     def test_active_save_animates_from_soft_white_to_white_on_hover(self):
         button = AnimatedSaveButton("Save")

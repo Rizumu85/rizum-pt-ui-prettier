@@ -28,6 +28,145 @@ PAINTER_DIALOG_STYLE = MappingProxyType(
 )
 
 
+class SettingsToggle(QtWidgets.QAbstractButton):
+    """Painter-style settings switch with runtime compact scaling."""
+
+    BASE_WIDTH = 36
+    BASE_HEIGHT = 20
+    MIN_HEIGHT = 15
+    ANIMATION_DURATION = 160
+
+    def __init__(
+        self,
+        checked: bool = False,
+        visual_style: Mapping[str, str] | None = None,
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self.setObjectName("RizumSettingsToggle")
+        self.setCheckable(True)
+        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        self.setAttribute(
+            QtCore.Qt.WidgetAttribute.WA_TranslucentBackground,
+            True,
+        )
+        self.setAutoFillBackground(False)
+        self.setStyleSheet("background: transparent; border: 0;")
+        self._visual_style = dict(PAINTER_DIALOG_STYLE)
+        if visual_style:
+            self._visual_style.update(visual_style)
+        self._compact_height = self.BASE_HEIGHT
+        self._knob_margin = 3.0
+        self._knob_size = 14.0
+        self._offset = 0.0
+        self._animation = QtCore.QPropertyAnimation(self, b"offset", self)
+        self._animation.setDuration(self.ANIMATION_DURATION)
+        self._animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        self.toggled.connect(self._animate_to_state)
+        self.blockSignals(True)
+        self.setChecked(bool(checked))
+        self.blockSignals(False)
+        self.setCompactHeight(self.BASE_HEIGHT)
+
+    def setVisualStyle(self, visual_style: Mapping[str, str]) -> None:
+        self._visual_style = dict(PAINTER_DIALOG_STYLE)
+        self._visual_style.update(visual_style)
+        self.update()
+
+    def compactHeight(self) -> int:
+        return self._compact_height
+
+    def setCompactHeight(self, height: int) -> None:
+        self._animation.stop()
+        self._compact_height = max(self.MIN_HEIGHT, int(round(height)))
+        scale = self._compact_height / float(self.BASE_HEIGHT)
+        self._knob_margin = 3.0 * scale
+        self._knob_size = 14.0 * scale
+        self.setFixedSize(
+            max(27, int(round(self.BASE_WIDTH * scale))),
+            self._compact_height,
+        )
+        self._offset = self._knob_travel() if self.isChecked() else 0.0
+        self.updateGeometry()
+        self.update()
+
+    def _knob_travel(self) -> float:
+        return max(
+            0.0,
+            float(self.width()) - self._knob_size - 2 * self._knob_margin,
+        )
+
+    def getOffset(self) -> float:
+        return self._offset
+
+    def setOffset(self, value: float) -> None:
+        self._offset = float(value)
+        self.update()
+
+    offset = QtCore.Property(float, getOffset, setOffset)
+
+    def _animate_to_state(self, checked: bool) -> None:
+        self._animation.stop()
+        self._animation.setStartValue(self._offset)
+        self._animation.setEndValue(
+            self._knob_travel() if checked else 0.0
+        )
+        self._animation.start()
+
+    def enterEvent(self, event) -> None:
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self.update()
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event) -> None:
+        super().mousePressEvent(event)
+        self.update()
+
+    def mouseReleaseEvent(self, event) -> None:
+        super().mouseReleaseEvent(event)
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        del event
+        style = self._visual_style
+        if self.isDown():
+            track_key = "accent_pressed" if self.isChecked() else "control_pressed"
+        elif self.underMouse():
+            track_key = "accent_hover" if self.isChecked() else "control_hover"
+        else:
+            track_key = "accent" if self.isChecked() else "control"
+
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        track = QtCore.QRectF(
+            0.5,
+            0.5,
+            self.width() - 1.0,
+            self.height() - 1.0,
+        )
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
+        painter.setBrush(QtGui.QColor(style[track_key]))
+        painter.drawRoundedRect(
+            track,
+            track.height() / 2.0,
+            track.height() / 2.0,
+        )
+        painter.setBrush(QtGui.QColor(style["muted"]))
+        painter.drawEllipse(
+            QtCore.QRectF(
+                self._knob_margin + self._offset,
+                self._knob_margin,
+                self._knob_size,
+                self._knob_size,
+            )
+        )
+        painter.end()
+
+
 class StatusBanner(QtWidgets.QFrame):
     """Compact dock status surface with an optional in-place action."""
 
@@ -1415,6 +1554,7 @@ __all__ = [
     "AnimatedSaveButton",
     "ModeParameterSlot",
     "PAINTER_DIALOG_STYLE",
+    "SettingsToggle",
     "StatusBanner",
     "SecondaryActionButton",
     "ShortcutCaptureField",
