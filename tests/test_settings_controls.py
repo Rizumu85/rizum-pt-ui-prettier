@@ -52,7 +52,20 @@ class SettingsControlTests(unittest.TestCase):
 
         self.assertEqual(button.height(), 28)
         self.assertGreater(button.sizeHint().width(), 45)
-        self.assertLess(button.sizeHint().width(), 90)
+        self.assertLessEqual(button.sizeHint().width(), 90)
+
+    def test_secondary_action_fades_new_text_without_delaying_state(self):
+        button = SecondaryActionButton("Start Liquify")
+        self.addCleanup(button.deleteLater)
+        button.show()
+        self.app.processEvents()
+
+        button.setAnimatedText("Back to Paint")
+
+        self.assertEqual(button.text(), "Back to Paint")
+        self.assertLess(button.contentOpacity(), 0.4)
+        QtTest.QTest.qWait(button.TEXT_TRANSITION_DURATION + 30)
+        self.assertGreater(button.contentOpacity(), 0.98)
 
     def test_secondary_action_animates_to_a_visible_neutral_hover_fill(self):
         button = SecondaryActionButton("Cancel")

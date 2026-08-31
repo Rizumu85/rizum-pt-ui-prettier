@@ -174,6 +174,7 @@ class StatusBanner(QtWidgets.QFrame):
 
     BASE_HEIGHT = 54
     MIN_HEIGHT = 41  # round(54 x 0.75)
+    STATUS_TRANSITION_DURATION = 140
     _TONES = {
         "neutral": "#666666",
         "accent": "#f2f2f2",
@@ -219,8 +220,12 @@ QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
         self._compact_height = self.BASE_HEIGHT
         self._tone = "neutral"
         self._tone_color = QtGui.QColor(self._TONES["neutral"])
+        self._tone_start_color = QtGui.QColor(self._tone_color)
+        self._tone_target_color = QtGui.QColor(self._tone_color)
+        self._tone_progress = 1.0
         self._accent_width = 3
         self._radius = float(default_theme.radius_small)
+        self._status_animation = None
 
         self._layout = QtWidgets.QHBoxLayout(self)
         self._layout.setContentsMargins(12, 7, 10, 7)
@@ -228,6 +233,10 @@ QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
 
         text_host = QtWidgets.QWidget(self)
         text_host.setObjectName("RizumTransparent")
+        self._text_host = text_host
+        self._text_opacity = QtWidgets.QGraphicsOpacityEffect(text_host)
+        self._text_opacity.setOpacity(1.0)
+        text_host.setGraphicsEffect(self._text_opacity)
         self._text_layout = QtWidgets.QVBoxLayout(text_host)
         self._text_layout.setContentsMargins(0, 0, 0, 0)
         self._text_layout.setSpacing(1)
@@ -249,6 +258,9 @@ QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
         self._layout.addWidget(text_host, 1)
 
         self._action = TextActionButton(action_text, parent=self)
+        self._action_opacity = QtWidgets.QGraphicsOpacityEffect(self._action)
+        self._action_opacity.setOpacity(1.0)
+        self._action.setGraphicsEffect(self._action_opacity)
         self._action.clicked.connect(self.actionTriggered)
         self._layout.addWidget(self._action)
         self.setStatus(title, subtitle, tone, action_text)
@@ -272,13 +284,25 @@ QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
         subtitle: str = "",
         tone: str = "neutral",
         action_text: str = "",
+        *,
+        animate: bool = False,
     ) -> None:
-        self._title.setText(str(title))
-        self._subtitle.setText(str(subtitle))
+        title = str(title)
+        subtitle = str(subtitle)
+        action_text = str(action_text)
+        next_tone = tone if tone in self._TONES else "neutral"
+        changed = (
+            title != self._title.text()
+            or subtitle != self._subtitle.text()
+            or action_text != self._action.text()
+            or next_tone != self._tone
+        )
+
+        self._title.setText(title)
+        self._subtitle.setText(subtitle)
         self._subtitle.setVisible(bool(subtitle))
-        self._tone = tone if tone in self._TONES else "neutral"
-        self._tone_color = QtGui.QColor(self._TONES[self._tone])
-        self._action.setText(str(action_text))
+        self._tone = next_tone
+        self._action.setText(action_text)
         self._action.setVisible(bool(action_text))
         self._action.setCompactHeight(
             max(
@@ -286,8 +310,84 @@ QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
                 int(round(26 * self._compact_height / self.BASE_HEIGHT)),
             )
         )
+        self._transition_status(
+            QtGui.QColor(self._TONES[self._tone]),
+            animate=animate and changed,
+        )
         self.updateGeometry()
         self.update()
+
+    def _stop_status_animation(self) -> None:
+        if self._status_animation is None:
+            return
+        self._status_animation.stop()
+        self._status_animation.deleteLater()
+        self._status_animation = None
+
+    def toneProgress(self) -> float:
+        return self._tone_progress
+
+    def setToneProgress(self, value: float) -> None:
+        self._tone_progress = max(0.0, min(1.0, float(value)))
+        progress = self._tone_progress
+        start = self._tone_start_color
+        target = self._tone_target_color
+        self._tone_color = QtGui.QColor(
+            round(start.red() + (target.red() - start.red()) * progress),
+            round(start.green() + (target.green() - start.green()) * progress),
+            round(start.blue() + (target.blue() - start.blue()) * progress),
+            round(start.alpha() + (target.alpha() - start.alpha()) * progress),
+        )
+        self.update()
+
+    animatedToneProgress = QtCore.Property(
+        float,
+        toneProgress,
+        setToneProgress,
+    )
+
+    def _transition_status(self, target_color: QtGui.QColor, *, animate: bool) -> None:
+        self._stop_status_animation()
+        self._tone_start_color = QtGui.QColor(self._tone_color)
+        self._tone_target_color = QtGui.QColor(target_color)
+        self.setToneProgress(0.0)
+        if not animate:
+            self._text_opacity.setOpacity(1.0)
+            self._action_opacity.setOpacity(1.0)
+            self.setToneProgress(1.0)
+            return
+
+        app = QtWidgets.QApplication.instance()
+        reduced_motion = bool(app and app.property("rizumReduceMotion"))
+        duration = 80 if reduced_motion else self.STATUS_TRANSITION_DURATION
+        group = QtCore.QParallelAnimationGroup(self)
+        for effect in (self._text_opacity, self._action_opacity):
+            effect.setOpacity(0.35)
+            fade = QtCore.QPropertyAnimation(effect, b"opacity", group)
+            fade.setDuration(duration)
+            fade.setStartValue(0.35)
+            fade.setEndValue(1.0)
+            fade.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+            group.addAnimation(fade)
+        tone_animation = QtCore.QPropertyAnimation(
+            self,
+            b"animatedToneProgress",
+            group,
+        )
+        tone_animation.setDuration(duration)
+        tone_animation.setStartValue(0.0)
+        tone_animation.setEndValue(1.0)
+        tone_animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        group.addAnimation(tone_animation)
+        self._status_animation = group
+
+        def finish() -> None:
+            if self._status_animation is group:
+                self._status_animation = None
+            group.deleteLater()
+
+        group.finished.connect(finish)
+        group.start()
 
     def setCompactHeight(self, height: int) -> None:
         self._compact_height = max(self.MIN_HEIGHT, int(round(height)))
@@ -489,6 +589,7 @@ class SecondaryActionButton(QtWidgets.QAbstractButton):
     BASE_HEIGHT = 28
     MIN_HEIGHT = 21
     HOVER_DURATION = 100
+    TEXT_TRANSITION_DURATION = 120
 
     def __init__(
         self,
@@ -518,6 +619,8 @@ class SecondaryActionButton(QtWidgets.QAbstractButton):
         self._compact_height = self.BASE_HEIGHT
         self._hover_progress = 0.0
         self._hover_animation = None
+        self._content_opacity = 1.0
+        self._text_animation = None
         self.setCompactHeight(self.BASE_HEIGHT)
 
     @staticmethod
@@ -568,6 +671,56 @@ class SecondaryActionButton(QtWidgets.QAbstractButton):
         hoverProgress,
         setHoverProgress,
     )
+
+    def contentOpacity(self) -> float:
+        return self._content_opacity
+
+    def setContentOpacity(self, value: float) -> None:
+        self._content_opacity = max(0.0, min(1.0, float(value)))
+        self.update()
+
+    animatedContentOpacity = QtCore.Property(
+        float,
+        contentOpacity,
+        setContentOpacity,
+    )
+
+    def setAnimatedText(self, text: str, *, animate: bool = True) -> None:
+        text = str(text)
+        if text == self.text():
+            return
+        if self._text_animation is not None:
+            self._text_animation.stop()
+            self._text_animation.deleteLater()
+            self._text_animation = None
+        self.setText(text)
+        self.updateGeometry()
+        if not animate:
+            self.setContentOpacity(1.0)
+            return
+
+        app = QtWidgets.QApplication.instance()
+        reduced_motion = bool(app and app.property("rizumReduceMotion"))
+        duration = 80 if reduced_motion else self.TEXT_TRANSITION_DURATION
+        self.setContentOpacity(0.35)
+        animation = QtCore.QPropertyAnimation(
+            self,
+            b"animatedContentOpacity",
+            self,
+        )
+        animation.setDuration(duration)
+        animation.setStartValue(0.35)
+        animation.setEndValue(1.0)
+        animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        self._text_animation = animation
+
+        def finish() -> None:
+            if self._text_animation is animation:
+                self._text_animation = None
+            animation.deleteLater()
+
+        animation.finished.connect(finish)
+        animation.start()
 
     def _animate_hover(self, target: float) -> None:
         if self._hover_animation is not None:
@@ -635,6 +788,7 @@ class SecondaryActionButton(QtWidgets.QAbstractButton):
         )
         painter.setFont(self._font())
         painter.setPen(self._text_color)
+        painter.setOpacity(self._content_opacity)
         painter.drawText(self.rect(), QtCore.Qt.AlignmentFlag.AlignCenter, self.text())
         painter.end()
 
@@ -726,6 +880,7 @@ class IconActionButton(SecondaryActionButton):
         )
         font = self._font()
         painter.setFont(font)
+        painter.setOpacity(self._content_opacity)
         icon_size = self._icon_size
         icon_gap = self._icon_gap()
         text_width = QtGui.QFontMetrics(font).horizontalAdvance(self.text())
@@ -919,7 +1074,13 @@ class AnimatedSaveButton(QtWidgets.QAbstractButton):
             setattr(self, attribute, None)
         animation.deleteLater()
 
-    def setDirty(self, dirty: bool, animate: bool = True) -> None:
+    def setDirty(
+        self,
+        dirty: bool,
+        animate: bool = True,
+        *,
+        pulse: bool = True,
+    ) -> None:
         dirty = bool(dirty)
         if self._feedback_active and not dirty:
             self._dirty = False
@@ -957,7 +1118,7 @@ class AnimatedSaveButton(QtWidgets.QAbstractButton):
         activation.setEndValue(target)
         activation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
         group.addAnimation(activation)
-        if dirty:
+        if dirty and pulse:
             pulse = QtCore.QPropertyAnimation(self, b"animatedPulseProgress", group)
             pulse.setDuration(190)
             pulse.setStartValue(0.0)

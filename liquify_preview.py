@@ -320,6 +320,145 @@ QLabel#RizumLiquifyBlockerPath {
     return frame, labels
 
 
+def _reduced_motion() -> bool:
+    app = QtWidgets.QApplication.instance()
+    return bool(app and app.property("rizumReduceMotion"))
+
+
+def _set_blocker_details_expanded(panel, expanded: bool, *, animate: bool) -> None:
+    frame = panel.blocker_details
+    previous = getattr(panel, "_blocker_animation", None)
+    if previous is not None:
+        previous.stop()
+        previous.deleteLater()
+        panel._blocker_animation = None
+
+    effect = frame.graphicsEffect()
+    if not isinstance(effect, QtWidgets.QGraphicsOpacityEffect):
+        effect = QtWidgets.QGraphicsOpacityEffect(frame)
+        effect.setOpacity(1.0)
+        frame.setGraphicsEffect(effect)
+
+    if not animate:
+        frame.setMaximumHeight(16777215)
+        frame.setVisible(expanded)
+        effect.setOpacity(1.0)
+        panel._resize_to_content()
+        return
+
+    if _reduced_motion():
+        frame.setMaximumHeight(16777215)
+        frame.show()
+        if expanded:
+            effect.setOpacity(0.35)
+            panel._resize_to_content()
+        animation = QtCore.QPropertyAnimation(effect, b"opacity", panel)
+        animation.setDuration(80)
+        animation.setStartValue(effect.opacity())
+        animation.setEndValue(1.0 if expanded else 0.0)
+        animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        panel._blocker_animation = animation
+
+        def finish_reduced_motion() -> None:
+            if panel._blocker_animation is not animation:
+                return
+            panel._blocker_animation = None
+            frame.setVisible(expanded)
+            effect.setOpacity(1.0)
+            panel._resize_to_content()
+            animation.deleteLater()
+
+        animation.finished.connect(finish_reduced_motion)
+        animation.start()
+        return
+
+    current_height = frame.height() if frame.isVisible() else 0
+    expanded_height = max(1, frame.layout().sizeHint().height())
+    target_height = expanded_height if expanded else 0
+    frame.setMaximumHeight(max(0, current_height))
+    frame.show()
+
+    group = QtCore.QParallelAnimationGroup(panel)
+    height_animation = QtCore.QPropertyAnimation(frame, b"maximumHeight", group)
+    height_animation.setDuration(180 if expanded else 150)
+    height_animation.setStartValue(current_height)
+    height_animation.setEndValue(target_height)
+    height_animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+    height_animation.valueChanged.connect(lambda _value: panel._resize_to_content())
+    group.addAnimation(height_animation)
+
+    opacity_animation = QtCore.QPropertyAnimation(effect, b"opacity", group)
+    opacity_animation.setDuration(110 if expanded else 90)
+    opacity_animation.setStartValue(effect.opacity() if current_height else 0.0)
+    opacity_animation.setEndValue(1.0 if expanded else 0.0)
+    opacity_animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+    group.addAnimation(opacity_animation)
+    panel._blocker_animation = group
+
+    def finish() -> None:
+        if panel._blocker_animation is not group:
+            return
+        panel._blocker_animation = None
+        frame.setMaximumHeight(16777215)
+        frame.setVisible(expanded)
+        effect.setOpacity(1.0)
+        panel._resize_to_content()
+        group.deleteLater()
+
+    group.finished.connect(finish)
+    group.start()
+
+
+def _popup_menu(menu, position: QtCore.QPoint) -> None:
+    previous = getattr(menu, "_rizum_open_animation", None)
+    if previous is not None:
+        previous.stop()
+        previous.deleteLater()
+        menu._rizum_open_animation = None
+    reduced_motion = _reduced_motion()
+    menu.ensurePolished()
+    menu.setWindowOpacity(0.0)
+    menu.popup(position)
+
+    def animate_open() -> None:
+        try:
+            if not menu.isVisible():
+                return
+            target = menu.pos()
+            start = QtCore.QPoint(
+                target.x(),
+                target.y() if reduced_motion else target.y() - 4,
+            )
+            menu.move(start)
+            group = QtCore.QParallelAnimationGroup(menu)
+            fade = QtCore.QPropertyAnimation(menu, b"windowOpacity", group)
+            fade.setDuration(80 if reduced_motion else 140)
+            fade.setStartValue(0.0)
+            fade.setEndValue(1.0)
+            fade.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+            group.addAnimation(fade)
+            if not reduced_motion:
+                slide = QtCore.QPropertyAnimation(menu, b"pos", group)
+                slide.setDuration(160)
+                slide.setStartValue(start)
+                slide.setEndValue(target)
+                slide.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+                group.addAnimation(slide)
+            menu._rizum_open_animation = group
+
+            def finish() -> None:
+                if menu._rizum_open_animation is group:
+                    menu._rizum_open_animation = None
+                group.deleteLater()
+
+            group.finished.connect(finish)
+            group.start()
+        except RuntimeError:
+            return
+
+    QtCore.QTimer.singleShot(0, animate_open)
+
+
 def _make_primary_button(parent) -> SecondaryActionButton:
     button = SecondaryActionButton(
         "",
@@ -397,7 +536,8 @@ QLabel#RizumLiquifyApplyConfirmationSubtitle {
         self._layout.addWidget(self._subtitle)
         self._hide_timer = QtCore.QTimer(self)
         self._hide_timer.setSingleShot(True)
-        self._hide_timer.timeout.connect(self.hide)
+        self._hide_timer.timeout.connect(self._start_hide)
+        self._motion_animation = None
         self.hide()
 
     def title(self) -> str:
@@ -405,6 +545,7 @@ QLabel#RizumLiquifyApplyConfirmationSubtitle {
 
     def showMessage(self, title: str, subtitle: str, anchor) -> None:
         self._hide_timer.stop()
+        self._stop_motion_animation()
         self._title.setText(str(title))
         self._subtitle.setText(str(subtitle))
         self._subtitle.setVisible(bool(subtitle))
@@ -435,23 +576,86 @@ QLabel#RizumLiquifyApplyConfirmationSubtitle {
             x = max(bounds.left(), min(x, bounds.right() - self.width() + 1))
             if y < bounds.top():
                 y = anchor.mapToGlobal(anchor.rect().bottomLeft()).y() + metric(8, 6)
-        self.move(x, y)
+        target_position = QtCore.QPoint(x, y)
 
         effect = self.graphicsEffect()
         if effect is None:
             effect = QtWidgets.QGraphicsOpacityEffect(self)
             self.setGraphicsEffect(effect)
         effect.setOpacity(0.0)
+        entrance_offset = 0 if _reduced_motion() else metric(4, 3)
+        start_position = target_position + QtCore.QPoint(0, entrance_offset)
+        self.move(start_position)
         self.show()
         self.raise_()
-        animation = QtCore.QPropertyAnimation(effect, b"opacity", self)
-        animation.setDuration(140)
-        animation.setStartValue(0.0)
-        animation.setEndValue(1.0)
-        animation.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
-        self._fade_animation = animation
-        animation.start()
+        duration = 80 if _reduced_motion() else 140
+        group = QtCore.QParallelAnimationGroup(self)
+        fade = QtCore.QPropertyAnimation(effect, b"opacity", group)
+        fade.setDuration(duration)
+        fade.setStartValue(0.0)
+        fade.setEndValue(1.0)
+        fade.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        group.addAnimation(fade)
+        if entrance_offset:
+            slide = QtCore.QPropertyAnimation(self, b"pos", group)
+            slide.setDuration(duration)
+            slide.setStartValue(start_position)
+            slide.setEndValue(target_position)
+            slide.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+            group.addAnimation(slide)
+        self._motion_animation = group
+        group.finished.connect(lambda: self._clear_motion_animation(group))
+        group.start()
         self._hide_timer.start(1600)
+
+    def _stop_motion_animation(self) -> None:
+        if self._motion_animation is None:
+            return
+        self._motion_animation.stop()
+        self._motion_animation.deleteLater()
+        self._motion_animation = None
+
+    def _clear_motion_animation(self, animation) -> None:
+        if self._motion_animation is animation:
+            self._motion_animation = None
+        animation.deleteLater()
+
+    def _start_hide(self) -> None:
+        if not self.isVisible():
+            return
+        self._stop_motion_animation()
+        effect = self.graphicsEffect()
+        if not isinstance(effect, QtWidgets.QGraphicsOpacityEffect):
+            self.hide()
+            return
+        duration = 80 if _reduced_motion() else 100
+        group = QtCore.QParallelAnimationGroup(self)
+        fade = QtCore.QPropertyAnimation(effect, b"opacity", group)
+        fade.setDuration(duration)
+        fade.setStartValue(effect.opacity())
+        fade.setEndValue(0.0)
+        fade.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+        group.addAnimation(fade)
+        if not _reduced_motion():
+            start_position = self.pos()
+            slide = QtCore.QPropertyAnimation(self, b"pos", group)
+            slide.setDuration(duration)
+            slide.setStartValue(start_position)
+            slide.setEndValue(start_position + QtCore.QPoint(0, -2))
+            slide.setEasingCurve(QtCore.QEasingCurve.Type.OutCubic)
+            group.addAnimation(slide)
+        self._motion_animation = group
+
+        def finish() -> None:
+            if self._motion_animation is not group:
+                return
+            self._motion_animation = None
+            self.hide()
+            effect.setOpacity(1.0)
+            group.deleteLater()
+
+        group.finished.connect(finish)
+        group.start()
 
 
 class LiquifyPreviewPanel(QtWidgets.QWidget):
@@ -463,8 +667,10 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
     def __init__(self, state: str = "ready", width_mode: str = "standard", parent=None):
         super().__init__(parent)
         self._state = "ready"
+        self._state_initialized = False
         self._width_mode = width_mode
         self._blockers_expanded = False
+        self._blocker_animation = None
         self._restore_state = "ready"
         self._restore_timer = QtCore.QTimer(self)
         self._restore_timer.setSingleShot(True)
@@ -567,7 +773,8 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
         self.clear_button.clicked.connect(self._clear_flow)
         self.more_button.clicked.connect(self._show_menu)
         self._delete_action.triggered.connect(lambda: self.setState("empty"))
-        self.setState(state, emit=False)
+        self.setState(state, emit=False, animate=False)
+        self._state_initialized = True
         self.refreshMetrics()
 
     def state(self) -> str:
@@ -580,15 +787,22 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
         self._width_mode = mode if mode in self.BASE_WIDTHS else "standard"
         self.refreshMetrics()
 
-    def setState(self, state: str, *, emit: bool = True) -> None:
+    def setState(
+        self,
+        state: str,
+        *,
+        emit: bool = True,
+        animate: bool = True,
+    ) -> None:
         state = state if state in self.STATES else "ready"
+        animate = bool(animate and self._state_initialized)
         self._restore_timer.stop()
         self._apply_timer.stop()
         self._state = state
         has_target = state != "empty"
         _set_combo_items(self.target_combo, has_target)
         self._blockers_expanded = False
-        self.blocker_details.hide()
+        _set_blocker_details_expanded(self, False, animate=False)
         self.repair_button.setEnabled(state == "repair")
         self.repair_button.setProperty("accent", state == "repair")
         self.clear_button.setEnabled(has_target)
@@ -597,7 +811,7 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
         self._remove_action.setEnabled(has_target)
         self._delete_action.setEnabled(has_target)
         can_apply = state in {"ready", "active"}
-        self.apply_button.setDirty(can_apply, animate=False)
+        self.apply_button.setDirty(can_apply, animate=animate, pulse=False)
 
         if state == "empty":
             banner = ("empty_title", "empty_subtitle", "neutral", "")
@@ -620,8 +834,9 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
             _text(banner[1]),
             banner[2],
             _text(banner[3]) if banner[3] else "",
+            animate=animate,
         )
-        self.primary_button.setText(_text(primary))
+        self.primary_button.setAnimatedText(_text(primary), animate=animate)
         self.refreshMetrics()
         if emit:
             self.stateChanged.emit(state)
@@ -643,14 +858,18 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
         if self._state != "blocked":
             return
         self._blockers_expanded = not self._blockers_expanded
-        self.blocker_details.setVisible(self._blockers_expanded)
+        _set_blocker_details_expanded(
+            self,
+            self._blockers_expanded,
+            animate=True,
+        )
         self.status_banner.setStatus(
             _text("blocked_title"),
             _text("blocked_subtitle"),
             "warn",
             _text("hide" if self._blockers_expanded else "view"),
+            animate=True,
         )
-        self._resize_to_content()
 
     def _apply(self) -> None:
         if not self.apply_button.isEnabled():
@@ -674,12 +893,13 @@ class LiquifyPreviewPanel(QtWidgets.QWidget):
             _text("cleared_title"),
             _text("cleared_subtitle"),
             "good",
+            animate=True,
         )
         self._restore_timer.start(900)
 
     def _show_menu(self) -> None:
         position = self.more_button.mapToGlobal(self.more_button.rect().bottomRight())
-        self._menu.popup(position)
+        _popup_menu(self._menu, position)
 
     def refreshMetrics(self) -> None:
         app = QtWidgets.QApplication.instance()
@@ -756,8 +976,10 @@ class LiquifyPreviewPanelV2(QtWidgets.QWidget):
     def __init__(self, state: str = "ready", width_mode: str = "standard", parent=None):
         super().__init__(parent)
         self._state = "ready"
+        self._state_initialized = False
         self._width_mode = width_mode
         self._blockers_expanded = False
+        self._blocker_animation = None
         self._restore_state = "ready"
         self._restore_timer = QtCore.QTimer(self)
         self._restore_timer.setSingleShot(True)
@@ -885,7 +1107,8 @@ QMenu#RizumPopupMenu::icon {
         self._delete_action.triggered.connect(lambda: self.setState("empty"))
         self._clear_action.triggered.connect(self._clear_flow)
         self._menu.aboutToShow.connect(self._sync_menu_actions)
-        self.setState(state, emit=False)
+        self.setState(state, emit=False, animate=False)
+        self._state_initialized = True
         self.refreshMetrics()
 
     def state(self) -> str:
@@ -898,18 +1121,25 @@ QMenu#RizumPopupMenu::icon {
         self._width_mode = mode if mode in self.BASE_WIDTHS else "standard"
         self.refreshMetrics()
 
-    def setState(self, state: str, *, emit: bool = True) -> None:
+    def setState(
+        self,
+        state: str,
+        *,
+        emit: bool = True,
+        animate: bool = True,
+    ) -> None:
         state = state if state in self.STATES else "ready"
+        animate = bool(animate and self._state_initialized)
         self._restore_timer.stop()
         self._apply_timer.stop()
         self._state = state
         has_target = state != "empty"
         _set_combo_items(self.target_combo, has_target)
         self._blockers_expanded = False
-        self.blocker_details.hide()
+        _set_blocker_details_expanded(self, False, animate=False)
         self._sync_menu_actions()
         can_apply = state in {"ready", "active"}
-        self.apply_button.setDirty(can_apply, animate=False)
+        self.apply_button.setDirty(can_apply, animate=animate, pulse=False)
 
         if state == "empty":
             banner = ("empty_title", "empty_subtitle", "neutral", "")
@@ -933,6 +1163,7 @@ QMenu#RizumPopupMenu::icon {
                 _v2_ready_text(),
                 "good",
                 "",
+                animate=animate,
             )
         else:
             self.status_banner.setStatus(
@@ -940,9 +1171,13 @@ QMenu#RizumPopupMenu::icon {
                 _text(banner[1]),
                 banner[2],
                 _text(banner[3]) if banner[3] else "",
+                animate=animate,
             )
         self.status_banner.show()
-        self.primary_button.setText(_v2_primary_text(primary))
+        self.primary_button.setAnimatedText(
+            _v2_primary_text(primary),
+            animate=animate,
+        )
         self.refreshMetrics()
         if emit:
             self.stateChanged.emit(state)
@@ -972,14 +1207,18 @@ QMenu#RizumPopupMenu::icon {
         if self._state != "blocked":
             return
         self._blockers_expanded = not self._blockers_expanded
-        self.blocker_details.setVisible(self._blockers_expanded)
+        _set_blocker_details_expanded(
+            self,
+            self._blockers_expanded,
+            animate=True,
+        )
         self.status_banner.setStatus(
             _text("blocked_title"),
             _text("blocked_subtitle"),
             "warn",
             _text("hide" if self._blockers_expanded else "view"),
+            animate=True,
         )
-        self._resize_to_content()
 
     def _apply(self) -> None:
         if not self.apply_button.isEnabled():
@@ -1003,6 +1242,7 @@ QMenu#RizumPopupMenu::icon {
             _text("cleared_title"),
             _text("cleared_subtitle"),
             "good",
+            animate=True,
         )
         self.status_banner.show()
         self._resize_to_content()
@@ -1010,7 +1250,7 @@ QMenu#RizumPopupMenu::icon {
 
     def _show_menu(self) -> None:
         position = self.more_button.mapToGlobal(self.more_button.rect().bottomRight())
-        self._menu.popup(position)
+        _popup_menu(self._menu, position)
 
     def refreshMetrics(self) -> None:
         app = QtWidgets.QApplication.instance()

@@ -5,7 +5,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtCore, QtTest, QtWidgets
+from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 
 from liquify_preview import (
     LiquifyPreviewPanel,
@@ -23,6 +23,7 @@ class LiquifyPreviewTests(unittest.TestCase):
     def setUp(self):
         self.app.setProperty("rizumUiFontScale", 1.0)
         self.app.setProperty("rizumPreviewLanguage", "en")
+        self.app.setProperty("rizumReduceMotion", False)
 
     def make_panel(self, state="ready", width_mode="standard"):
         panel = LiquifyPreviewPanel(state, width_mode)
@@ -135,6 +136,7 @@ class LiquifyPreviewTests(unittest.TestCase):
             panel.status_banner._action,
             QtCore.Qt.MouseButton.LeftButton,
         )
+        QtTest.QTest.qWait(200)
         self.app.processEvents()
 
         self.assertTrue(panel.blocker_details.isVisible())
@@ -178,6 +180,25 @@ class LiquifyPreviewTests(unittest.TestCase):
         self.assertEqual(banner.tone(), "good")
         self.assertFalse(banner._action.isVisible())
 
+    def test_status_banner_animates_semantics_without_delaying_state(self):
+        banner = StatusBanner("Ready", "3 layers", "good")
+        self.addCleanup(banner.deleteLater)
+        banner.show()
+        self.app.processEvents()
+
+        banner.setStatus("Liquify active", "Painter Assets remain active", "accent", animate=True)
+
+        self.assertEqual(banner.title(), "Liquify active")
+        self.assertEqual(banner.tone(), "accent")
+        self.assertIsNotNone(banner._status_animation)
+        self.assertLess(banner._text_opacity.opacity(), 0.4)
+        QtTest.QTest.qWait(banner.STATUS_TRANSITION_DURATION + 30)
+        self.assertGreater(banner._text_opacity.opacity(), 0.98)
+        self.assertEqual(
+            banner._tone_color.name(),
+            QtGui.QColor(banner._TONES["accent"]).name(),
+        )
+
     def test_all_preview_languages_build_at_narrow_width(self):
         for language in ("en", "de", "es", "fr", "it", "ja_JP", "ko", "pt", "zh_CN"):
             self.app.setProperty("rizumPreviewLanguage", language)
@@ -194,6 +215,7 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
     def setUp(self):
         self.app.setProperty("rizumUiFontScale", 1.0)
         self.app.setProperty("rizumPreviewLanguage", "en")
+        self.app.setProperty("rizumReduceMotion", False)
 
     def make_panel(self, state="ready", width_mode="standard"):
         panel = LiquifyPreviewPanelV2(state, width_mode)
@@ -251,6 +273,10 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
             panel._apply_confirmation.title(),
             "Applied to 3 layers",
         )
+
+        QtTest.QTest.qWait(1700)
+        self.app.processEvents()
+        self.assertFalse(panel._apply_confirmation.isVisible())
 
     def test_ready_state_matches_codex_status_rhythm(self):
         v2 = self.make_panel("ready")
@@ -331,6 +357,20 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
         self.assertFalse(panel._repair_action.isEnabled())
         self.assertFalse(panel._clear_action.isEnabled())
 
+    def test_target_menu_opens_from_its_trigger_without_blocking_input(self):
+        panel = self.make_panel("ready")
+
+        panel._show_menu()
+        QtTest.QTest.qWait(30)
+        self.app.processEvents()
+
+        self.assertTrue(panel._menu.isVisible())
+        self.assertIsNotNone(panel._menu._rizum_open_animation)
+        QtTest.QTest.qWait(160)
+        self.app.processEvents()
+        self.assertGreater(panel._menu.windowOpacity(), 0.98)
+        panel._menu.close()
+
     def test_clear_flow_flashes_confirmation_then_restores(self):
         panel = self.make_panel("active")
 
@@ -353,12 +393,38 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
             panel.status_banner._action,
             QtCore.Qt.MouseButton.LeftButton,
         )
+        QtTest.QTest.qWait(200)
         self.app.processEvents()
 
         self.assertTrue(panel.blocker_details.isVisible())
         self.assertGreater(panel.height(), base_height)
         self.assertEqual(panel.status_banner.actionText(), "Hide")
         self.assertFalse(panel.apply_button.isEnabled())
+
+    def test_apply_availability_uses_quiet_activation_without_pulse(self):
+        panel = self.make_panel("empty")
+
+        panel.setState("ready")
+
+        self.assertTrue(panel.apply_button.isEnabled())
+        self.assertIsNotNone(panel.apply_button._state_animation)
+        self.assertEqual(panel.apply_button.pulseProgress(), 0.0)
+        QtTest.QTest.qWait(panel.apply_button.ACTIVATION_DURATION + 30)
+        self.assertGreater(panel.apply_button.activationProgress(), 0.98)
+        self.assertEqual(panel.apply_button.pulseProgress(), 0.0)
+
+    def test_reduced_motion_keeps_blocker_feedback_without_height_animation(self):
+        self.app.setProperty("rizumReduceMotion", True)
+        panel = self.make_panel("blocked")
+        base_height = panel.height()
+
+        panel._banner_action()
+
+        self.assertGreater(panel.height(), base_height)
+        self.assertIsNotNone(panel._blocker_animation)
+        self.assertLess(panel.blocker_details.graphicsEffect().opacity(), 0.4)
+        QtTest.QTest.qWait(100)
+        self.assertGreater(panel.blocker_details.graphicsEffect().opacity(), 0.98)
 
     def test_compact_metrics_scale_from_one_baseline(self):
         panel = self.make_panel("blocked", "narrow")
