@@ -168,7 +168,7 @@ class SettingsToggle(QtWidgets.QAbstractButton):
 
 
 class StatusBanner(QtWidgets.QFrame):
-    """Compact dock status surface with an optional in-place action."""
+    """Flat compact status row with an optional in-place action."""
 
     actionTriggered = QtCore.Signal()
 
@@ -223,8 +223,8 @@ QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
         self._tone_start_color = QtGui.QColor(self._tone_color)
         self._tone_target_color = QtGui.QColor(self._tone_color)
         self._tone_progress = 1.0
-        self._accent_width = 3
-        self._radius = float(default_theme.radius_small)
+        self._indicator_diameter = 6
+        self._indicator_center_x = 5.0
         self._status_animation = None
 
         self._layout = QtWidgets.QHBoxLayout(self)
@@ -232,7 +232,10 @@ QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
         self._layout.setSpacing(8)
 
         text_host = QtWidgets.QWidget(self)
-        text_host.setObjectName("RizumTransparent")
+        text_host.setObjectName("RizumStatusTextHost")
+        text_host.setStyleSheet(
+            "QWidget#RizumStatusTextHost { background: transparent; border: 0; }"
+        )
         self._text_host = text_host
         self._text_opacity = QtWidgets.QGraphicsOpacityEffect(text_host)
         self._text_opacity.setOpacity(1.0)
@@ -393,12 +396,12 @@ QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
         self._compact_height = max(self.MIN_HEIGHT, int(round(height)))
         scale = self._compact_height / float(self.BASE_HEIGHT)
         self.setFixedHeight(self._compact_height)
-        self._accent_width = max(2, int(round(3 * scale)))
-        self._radius = max(4.5, default_theme.radius_small * scale)
+        self._indicator_diameter = max(4, int(round(6 * scale)))
+        self._indicator_center_x = max(4.0, 5.0 * scale)
         self._layout.setContentsMargins(
-            max(9, int(round(12 * scale))),
+            max(12, int(round(16 * scale))),
             max(5, int(round(7 * scale))),
-            max(8, int(round(10 * scale))),
+            0,
             max(5, int(round(7 * scale))),
         )
         self._layout.setSpacing(max(6, int(round(8 * scale))))
@@ -421,21 +424,17 @@ QFrame#RizumStatusBanner QLabel#RizumStatusBannerSubtitle {
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
         painter.setPen(QtCore.Qt.PenStyle.NoPen)
-        painter.setBrush(QtGui.QColor("#252525"))
-        frame = QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        painter.drawRoundedRect(frame, self._radius, self._radius)
         painter.setBrush(self._tone_color)
-        accent = QtCore.QRectF(
-            frame.left(),
-            frame.top() + self._radius,
-            self._accent_width,
-            max(1.0, frame.height() - self._radius * 2),
+        title_origin = self._text_host.mapTo(self, self._title.pos())
+        center_y = title_origin.y() + self._title.height() / 2.0
+        diameter = float(self._indicator_diameter)
+        indicator = QtCore.QRectF(
+            self._indicator_center_x - diameter / 2.0,
+            center_y - diameter / 2.0,
+            diameter,
+            diameter,
         )
-        painter.drawRoundedRect(
-            accent,
-            self._accent_width / 2.0,
-            self._accent_width / 2.0,
-        )
+        painter.drawEllipse(indicator)
         painter.end()
 
 
