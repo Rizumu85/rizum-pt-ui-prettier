@@ -462,10 +462,10 @@ def _popup_menu(menu, position: QtCore.QPoint) -> None:
 def _make_primary_button(parent) -> SecondaryActionButton:
     button = SecondaryActionButton(
         "",
-        background=PAINTER_DIALOG_STYLE["accent"],
-        hover_background=PAINTER_DIALOG_STYLE["accent_hover"],
-        pressed_background=PAINTER_DIALOG_STYLE["accent_pressed"],
-        text_color=PAINTER_DIALOG_STYLE["accent_text"],
+        background=PAINTER_DIALOG_STYLE["control"],
+        hover_background=PAINTER_DIALOG_STYLE["control_hover"],
+        pressed_background=PAINTER_DIALOG_STYLE["control_pressed"],
+        text_color=PAINTER_DIALOG_STYLE["text"],
         parent=parent,
     )
     button.setSizePolicy(

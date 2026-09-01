@@ -12,7 +12,12 @@ from liquify_preview import (
     LiquifyPreviewPanelV2,
     build_liquify_preview,
 )
-from rizum_ui import AnimatedSaveButton, SecondaryActionButton, StatusBanner
+from rizum_ui import (
+    AnimatedSaveButton,
+    PAINTER_DIALOG_STYLE,
+    SecondaryActionButton,
+    StatusBanner,
+)
 
 
 class LiquifyPreviewTests(unittest.TestCase):
@@ -239,6 +244,18 @@ class LiquifyPreviewPanelV2Tests(unittest.TestCase):
             panel._target_layout.count(),
             3,
             "target row should hold combo + create + menu only",
+        )
+
+    def test_apply_is_the_only_high_emphasis_action(self):
+        panel = self.make_panel("ready")
+
+        self.assertEqual(
+            panel.primary_button._background.name(),
+            PAINTER_DIALOG_STYLE["control"],
+        )
+        self.assertEqual(
+            panel.apply_button._active_background.name(),
+            PAINTER_DIALOG_STYLE["accent"],
         )
 
     def test_five_states_drive_banner_visibility_primary_and_apply(self):
