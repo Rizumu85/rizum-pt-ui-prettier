@@ -8,7 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6 import QtWidgets
 
 from preview import build_dock_toolbar_preview
-from rizum_ui import IconActionButton
+from rizum_ui import IconActionButton, apply_compact_dock_surface
 
 
 def make_host(width):
@@ -37,6 +37,20 @@ class DockToolbarPreviewTests(unittest.TestCase):
         margins = toolbar.layout().contentsMargins()
         self.assertEqual((margins.left(), margins.right()), (12, 12))
         self.assertEqual(toolbar.layout().spacing(), 6)
+
+    def test_dock_surface_style_does_not_replace_persistence_identity(self):
+        surface = QtWidgets.QWidget()
+        self.addCleanup(surface.deleteLater)
+        surface.setObjectName("PluginOwnedDockSurface")
+
+        apply_compact_dock_surface(surface)
+
+        self.assertEqual(surface.objectName(), "PluginOwnedDockSurface")
+        self.assertTrue(surface.property("rizumCompactDockSurface"))
+        self.assertIn(
+            'QWidget[rizumCompactDockSurface="true"]',
+            surface.styleSheet(),
+        )
 
     def test_export_is_the_single_expanding_action(self):
         toolbar = build_dock_toolbar_preview(QtWidgets)

@@ -1334,7 +1334,7 @@ def make_action_row(*buttons, parent=None):
 def build_compact_dock_stylesheet():
     """Return styles learned from live Painter dock panels."""
     return f"""
-QWidget#RizumCompactDockSurface {{
+QWidget[rizumCompactDockSurface="true"] {{
     background: {COMPACT_DOCK_PANEL_BG};
 }}
 QFrame#RizumCompactDockCard,
@@ -1355,7 +1355,8 @@ def apply_compact_dock_surface(widget):
     """Apply Painter-like dock surface palette and local styles."""
     from PySide6 import QtGui
 
-    widget.setObjectName("RizumCompactDockSurface")
+    # Painter persists dock layout by objectName, so visual roles use a property.
+    widget.setProperty("rizumCompactDockSurface", True)
     widget.setStyleSheet(widget.styleSheet() + build_compact_dock_stylesheet())
     palette = widget.palette()
     panel_color = QtGui.QColor(COMPACT_DOCK_PANEL_BG)
