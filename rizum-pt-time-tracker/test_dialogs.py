@@ -55,4 +55,9 @@ class DialogTests(unittest.TestCase):
             dialog = dialogs.HistoryDialog('Work', rows)
             self.assertEqual(dialog.table.rowCount(), len(rows))
             self.assertEqual(dialog.save_button.text(), 'Done')
+            dialog.show()
+            self.app.processEvents()
+            if rows:
+                self.assertEqual(dialog.table.palette().base().color().name(), '#202020')
+            dialog.close()
             dialog.deleteLater()

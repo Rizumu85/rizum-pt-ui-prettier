@@ -114,6 +114,7 @@ class AssignmentDialog(TrackerDialog):
             self.part.setCurrentIndex(self.part.findData(binding['part']))
         self.initial = self.selection()
         self.validate()
+        self.apply_metrics()
 
     def selection(self):
         return (self.work_name.text().strip() if self.work.currentData() is None else '',
@@ -150,7 +151,7 @@ class NumberDialog(TrackerDialog):
 class HistoryDialog(TrackerDialog):
     def __init__(self, title, rows, parent=None):
         super().__init__(title, parent, action='Done', cancel=False, wide=True)
-        self.table = QtWidgets.QTableWidget(0, 4)
+        self.table = QtWidgets.QTableWidget(0, 4, self.body)
         self.table.setHorizontalHeaderLabels(['Started', 'Part', 'Time', 'Source'])
         self.table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
@@ -178,6 +179,7 @@ class HistoryDialog(TrackerDialog):
             empty.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             self.body_layout.addWidget(empty, 1)
         self.body_layout.addWidget(make_inset_separator(0))
+        self.apply_metrics()
         self.resize(self.settingsMetric(600), self.settingsMetric(360))
 
 
@@ -188,3 +190,4 @@ class MessageDialog(TrackerDialog):
         label.setTextFormat(QtCore.Qt.TextFormat.PlainText)
         label.setWordWrap(True)
         self.body_layout.addWidget(label)
+        self.apply_metrics()
