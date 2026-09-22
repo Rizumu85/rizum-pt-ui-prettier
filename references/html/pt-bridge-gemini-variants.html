@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PT Bridge — Layer Sync for Photoshop & Substance 3D Painter</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            appBg: '#1b1b1b',
+            panelBg: '#222222',
+            subpanelBg: '#282828',
+            hoverBg: '#2f2f32',
+            selectedBg: '#34343a',
+            appleBlue: '#0a84ff',
+            appleBlueHover: '#0071e3',
+            psBlue: '#31a8ff',
+            spOrange: '#ff7733',
+            textPrimary: '#e0e0e0',
+            textSecondary: '#8e8e93',
+            textMuted: '#636366',
+            divider: '#2c2c2e'
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+          boxShadow: {
+            'apple-sm': '0 2px 8px rgba(0, 0, 0, 0.35)',
+            'apple-md': '0 8px 24px rgba(0, 0, 0, 0.45)',
+            'apple-lg': '0 16px 40px rgba(0, 0, 0, 0.65)',
+            'subtle-glow': '0 0 16px rgba(10, 132, 255, 0.25)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom sleek scrollbar fitting Apple Dark Pro UI */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3a3a3c;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #48484a;
+    }
+
+    /* Soft transition utilities */
+    .transition-smooth {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Subtle depth gradients without hard border outlines */
+    .apple-glass {
+      background: rgba(34, 34, 34, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .apple-card {
+      background: #222222;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+    }
+    .apple-inset {
+      background: #181818;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    .no-outline:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.5);
+    }
+  </style>
+</head>
+<body class="bg-appBg text-textPrimary font-sans antialiased min-h-screen flex flex-col select-none overflow-x-hidden">
+
+  <!-- Top App Navigation / macOS Bar -->
+  <header class="h-14 px-6 flex items-center justify-between border-b border-divider/40 apple-glass sticky top-0 z-40">
+    <div class="flex items-center space-x-3">
+      <!-- Window controls (macOS aesthetic) -->
+      <div class="flex space-x-2 mr-2">
+        <span class="w-3 h-3 rounded-full bg-[#ff5f56] inline-block opacity-80 hover:opacity-100 transition-opacity"></span>
+        <span class="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block opacity-80 hover:opacity-100 transition-opacity"></span>
+        <span class="w-3 h-3 rounded-full bg-[#27c93f] inline-block opacity-80 hover:opacity-100 transition-opacity"></span>
+      </div>
+
+      <!-- App Branding -->
+      <div class="flex items-center space-x-2.5">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-psBlue/20 to-spOrange/30 flex items-center justify-center font-bold text-xs shadow-sm">
+          <span class="text-psBlue">P</span><span class="text-spOrange">T</span>
+        </div>
+        <span class="font-semibold text-sm tracking-tight text-textPrimary">PT Bridge</span>
+        <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/5 text-textSecondary uppercase tracking-wider">v2.4 Pro</span>
+      </div>
+    </div>
+
+    <!-- Layout Switcher (Concept Tabs) -->
+    <div class="bg-[#161616] p-1 rounded-xl flex items-center space-x-1 shadow-inner">
+      <button onclick="switchConcept('concept-a')" id="tab-concept-a" class="concept-tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition-smooth bg-selectedBg text-white shadow-apple-sm flex items-center space-x-1.5">
+        <svg class="w-3.5 h-3.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+        <span>Dual Tree Stage</span>
+      </button>
+      <button onclick="switchConcept('concept-b')" id="tab-concept-b" class="concept-tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition-smooth text-textSecondary hover:text-textPrimary flex items-center space-x-1.5">
+        <svg class="w-3.5 h-3.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        <span>Staging Queue</span>
+      </button>
+      <button onclick="switchConcept('concept-c')" id="tab-concept-c" class="concept-tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition-smooth text-textSecondary hover:text-textPrimary flex items-center space-x-1.5">
+        <svg class="w-3.5 h-3.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+        <span>Visual Connector</span>
+      </button>
+    </div>
+
+    <!-- Global Connection Status & Quick Settings -->
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2 text-xs">
+        <span class="flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span class="text-textSecondary hidden sm:inline">IPC Linked: </span>
+        <span class="text-textPrimary font-mono text-[11px] bg-subpanelBg/80 px-2 py-0.5 rounded">127.0.0.1:44211</span>
+      </div>
+
+      <button onclick="openConfigModal()" title="Bridge Settings" class="w-8 h-8 rounded-lg bg-panelBg hover:bg-hoverBg flex items-center justify-center text-textSecondary hover:text-textPrimary transition-smooth">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Container with Switchable Views -->
+  <main class="flex-1 p-5 flex flex-col max-w-[1720px] w-full mx-auto relative overflow-hidden">
+
+    <!-- ========================================================================= -->
+    <!-- CONCEPT A: Split Dual-Tree Stage (Classic Pro Direct Inspector)          -->
+    <!-- ========================================================================= -->
+    <div id="view-concept-a" class="concept-view flex flex-col flex-1 space-y-4">
+      
+      <!-- Top Action Bar for Direction & Sync Trigger -->
+      <div class="apple-card p-3 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+        <!-- App Headers & Active Documents Info -->
+        <div class="flex items-center space-x-6">
+          <!-- Photoshop Status -->
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-lg bg-[#001e36] text-psBlue flex items-center justify-center font-bold text-xs shadow">
+              Ps
+            </div>
+            <div>
+              <div class="text-xs font-medium text-textPrimary flex items-center space-x-1.5">
+                <span>Hero_Weapon_v04.psd</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-psBlue/10 text-psBlue font-mono">16-bit RGBA</span>
+              </div>
+              <div class="text-[11px] text-textSecondary">Document Size: 4096 × 4096 px</div>
+            </div>
+          </div>
+
+          <!-- Direction Toggle Switcher -->
+          <div class="flex items-center space-x-3 bg-subpanelBg/80 p-1.5 rounded-xl">
+            <button onclick="setDirection('PS2SP')" id="btn-dir-ps2sp" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-smooth bg-appleBlue text-white shadow">
+              <span>Photoshop</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              <span>Painter</span>
+            </button>
+            <button onclick="setDirection('SP2PS')" id="btn-dir-sp2ps" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-smooth text-textSecondary hover:text-textPrimary">
+              <span>Painter</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              <span>Photoshop</span>
+            </button>
+          </div>
+
+          <!-- Substance Status -->
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-lg bg-[#2b1200] text-spOrange flex items-center justify-center font-bold text-xs shadow">
+              Pt
+            </div>
+            <div>
+              <div class="text-xs font-medium text-textPrimary flex items-center space-x-1.5">
+                <span>M_Rifle_Texturing.spp</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-spOrange/10 text-spOrange font-mono">Body_Mat</span>
+              </div>
+              <div class="text-[11px] text-textSecondary">UV Tile: 1001 (4K Normal PBR)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Quick Controls -->
+        <div class="flex items-center space-x-3">
+          <div class="text-xs text-textSecondary">
+            <span id="selected-count-badge" class="font-semibold text-textPrimary">2</span> layers selected
+          </div>
+          <button onclick="triggerSync('Concept A')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-appleBlue hover:bg-appleBlueHover text-white shadow-apple-sm transition-smooth flex items-center space-x-2 active:scale-95">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span>Transfer Selected Layers</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Split Two-Pane Layer Tree Explorer -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
+        
+        <!-- Left Pane: Photoshop Layers -->
+        <div class="apple-card rounded-2xl flex flex-col overflow-hidden">
+          <div class="px-4 py-3 bg-panelBg flex items-center justify-between border-b border-divider/30">
+            <div class="flex items-center space-x-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-psBlue"></span>
+              <span class="text-xs font-semibold text-textPrimary tracking-wide uppercase">Photoshop Document Tree</span>
+              <span id="ps-side-role" class="text-[10px] px-2 py-0.5 rounded-md bg-psBlue/20 text-psBlue font-medium">SOURCE</span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <button onclick="expandAllLayers('ps')" class="text-[11px] px-2 py-1 rounded text-textSecondary hover:text-textPrimary bg-subpanelBg hover:bg-hoverBg transition-smooth">Expand</button>
+              <button onclick="selectAllLayers('ps')" class="text-[11px] px-2 py-1 rounded text-textSecondary hover:text-textPrimary bg-subpanelBg hover:bg-hoverBg transition-smooth">Select All</button>
+            </div>
+          </div>
+
+          <!-- Quick Search Filter -->
+          <div class="px-4 py-2 bg-subpanelBg/40 border-b border-divider/20 flex items-center">
+            <svg class="w-3.5 h-3.5 text-textMuted mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input type="text" placeholder="Filter Photoshop layers or groups..." oninput="filterLayers('ps', this.value)" class="bg-transparent text-xs text-textPrimary placeholder-textMuted focus:outline-none w-full">
+          </div>
+
+          <!-- Tree List -->
+          <div class="flex-1 p-3 overflow-y-auto space-y-1" id="ps-tree-container">
+            <!-- Layers will be dynamically rendered / mapped -->
+          </div>
+
+          <!-- Bottom Footer Bar -->
+          <div class="p-3 bg-panelBg border-t border-divider/20 flex items-center justify-between text-[11px] text-textSecondary">
+            <span>Visible: 12 Layers / 4 Groups</span>
+            <span class="flex items-center space-x-1 text-emerald-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>Sync Daemon Ready</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Right Pane: Substance 3D Painter Layers -->
+        <div class="apple-card rounded-2xl flex flex-col overflow-hidden">
+          <div class="px-4 py-3 bg-panelBg flex items-center justify-between border-b border-divider/30">
+            <div class="flex items-center space-x-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-spOrange"></span>
+              <span class="text-xs font-semibold text-textPrimary tracking-wide uppercase">Substance Painter Layer Stack</span>
+              <span id="sp-side-role" class="text-[10px] px-2 py-0.5 rounded-md bg-spOrange/20 text-spOrange font-medium">TARGET</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-[11px] text-textSecondary">Target Action:</span>
+              <select id="sp-insert-mode" class="bg-subpanelBg text-xs text-textPrimary px-2.5 py-1 rounded-lg border-none focus:ring-1 focus:ring-appleBlue">
+                <option value="insert_inside">Insert Inside Selected Folder</option>
+                <option value="place_above">Place Above Selected Layer</option>
+                <option value="replace">Overwrite Existing Matching Name</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Quick Search Filter -->
+          <div class="px-4 py-2 bg-subpanelBg/40 border-b border-divider/20 flex items-center">
+            <svg class="w-3.5 h-3.5 text-textMuted mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input type="text" placeholder="Filter Painter layer stack or masks..." oninput="filterLayers('sp', this.value)" class="bg-transparent text-xs text-textPrimary placeholder-textMuted focus:outline-none w-full">
+          </div>
+
+          <!-- Tree List -->
+          <div class="flex-1 p-3 overflow-y-auto space-y-1" id="sp-tree-container">
+            <!-- Layers will be dynamically rendered / mapped -->
+          </div>
+
+          <!-- Bottom Footer Bar -->
+          <div class="p-3 bg-panelBg border-t border-divider/20 flex items-center justify-between text-[11px] text-textSecondary">
+            <div class="flex items-center space-x-2">
+              <span class="text-textPrimary font-medium">Current Insertion Target:</span>
+              <span id="current-target-path-display" class="font-mono text-appleBlue bg-subpanelBg px-2 py-0.5 rounded">/Details/Weathering/</span>
+            </div>
+            <button onclick="pickManualTargetFolder()" class="text-appleBlue hover:underline">Change...</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Options & Format Mapping Bar -->
+      <div class="apple-card p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div class="flex items-center flex-wrap gap-4">
+          <span class="font-semibold text-textPrimary">Sync Options:</span>
+          
+          <label class="flex items-center space-x-2 cursor-pointer text-textSecondary hover:text-textPrimary">
+            <input type="checkbox" checked class="rounded bg-subpanelBg text-appleBlue focus:ring-0">
+            <span>Preserve Blend Modes & Opacity</span>
+          </label>
+
+          <label class="flex items-center space-x-2 cursor-pointer text-textSecondary hover:text-textPrimary">
+            <input type="checkbox" checked class="rounded bg-subpanelBg text-appleBlue focus:ring-0">
+            <span>Convert Vector / Smart Object Masks</span>
+          </label>
+
+          <label class="flex items-center space-x-2 cursor-pointer text-textSecondary hover:text-textPrimary">
+            <input type="checkbox" checked class="rounded bg-subpanelBg text-appleBlue focus:ring-0">
+            <span>Pack Roughness / Metallic into Alpha/MRA</span>
+          </label>
+        </div>
+
+        <div class="flex items-center space-x-3">
+          <span class="text-textSecondary">Bit Depth:</span>
+          <div class="bg-subpanelBg p-1 rounded-lg flex space-x-1">
+            <button class="px-2 py-0.5 rounded text-[11px] text-textSecondary hover:text-white">8-bit</button>
+            <button class="px-2 py-0.5 rounded text-[11px] bg-selectedBg text-white font-medium">16-bit</button>
+            <button class="px-2 py-0.5 rounded text-[11px] text-textSecondary hover:text-white">32-bit Float</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- CONCEPT B: Queue & Staging Bridge (Central Stager Model)                 -->
+    <!-- ========================================================================= -->
+    <div id="view-concept-b" class="concept-view hidden flex flex-col flex-1 space-y-4">
+      
+      <!-- Top banner description -->
+      <div class="apple-card px-5 py-3 rounded-2xl flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-textPrimary">Queue-Based Layer Transfer Pipeline</h2>
+          <p class="text-xs text-textSecondary">Staged layers are queued, remapped, and inspected before committing memory buffers to disk or API.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="clearQueue()" class="px-3 py-1.5 rounded-xl text-xs bg-subpanelBg hover:bg-hoverBg text-textSecondary hover:text-textPrimary transition-smooth">
+            Clear Queue
+          </button>
+          <button onclick="triggerSync('Concept B')" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-appleBlue hover:bg-appleBlueHover text-white shadow-apple-sm transition-smooth flex items-center space-x-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <span>Commit Queue (<span id="queue-count-badge">3</span>)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3-Column Layout: Left Source Picker, Middle Stage Inspector, Right Target Explorer -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1">
+        
+        <!-- Left: Available Layers (3 cols) -->
+        <div class="lg:col-span-4 apple-card rounded-2xl flex flex-col overflow-hidden">
+          <div class="p-3 bg-panelBg border-b border-divider/30 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-psBlue"></span>
+              <span class="text-xs font-semibold text-textPrimary">Source Repository (Photoshop)</span>
+            </div>
+            <button onclick="queueAllSelected()" class="text-[11px] text-appleBlue hover:underline">Add to Queue +</button>
+          </div>
+          <div class="p-3 overflow-y-auto space-y-2 flex-1" id="concept-b-source-list">
+            <!-- Rendered in script -->
+          </div>
+        </div>
+
+        <!-- Middle: Sync Queue & Mapping Inspector (5 cols) -->
+        <div class="lg:col-span-5 apple-card rounded-2xl flex flex-col overflow-hidden">
+          <div class="p-3 bg-panelBg border-b border-divider/30 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <svg class="w-4 h-4 text-appleBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              <span class="text-xs font-semibold text-textPrimary">Pending Sync Pipeline</span>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-subpanelBg text-textSecondary">Batch Mode</span>
+          </div>
+
+          <div class="p-4 overflow-y-auto space-y-3 flex-1" id="staging-queue-cards">
+            <!-- Populated via script -->
+          </div>
+        </div>
+
+        <!-- Right: Substance Painter Destination Explorer (3 cols) -->
+        <div class="lg:col-span-3 apple-card rounded-2xl flex flex-col overflow-hidden">
+          <div class="p-3 bg-panelBg border-b border-divider/30 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-spOrange"></span>
+              <span class="text-xs font-semibold text-textPrimary">Painter Target Hierarchy</span>
+            </div>
+          </div>
+          <div class="p-3 overflow-y-auto space-y-2 flex-1 text-xs text-textSecondary" id="concept-b-target-hierarchy">
+            <!-- Target folders picker -->
+          </div>
+          <div class="p-3 bg-subpanelBg/50 border-t border-divider/20 text-[11px] text-textMuted">
+            Click any folder above to redirect currently focused queue target.
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- CONCEPT C: Visual Canvas / Node Insertion Bridge                         -->
+    <!-- ========================================================================= -->
+    <div id="view-concept-c" class="concept-view hidden flex flex-col flex-1 space-y-4">
+      
+      <!-- Top Bar for Concept C -->
+      <div class="apple-card px-5 py-3 rounded-2xl flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-2 h-2 rounded-full bg-purple-400"></div>
+          <div>
+            <h2 class="text-sm font-semibold text-textPrimary">Interactive Visual Connector & Placement Slots</h2>
+            <p class="text-xs text-textSecondary">Directly link selected source layer cards into dynamic target insertion slots.</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3">
+          <div class="bg-subpanelBg px-3 py-1.5 rounded-xl text-xs flex items-center space-x-2">
+            <span class="text-textSecondary">Auto-Generate Masks:</span>
+            <input type="checkbox" checked class="rounded bg-[#1c1c1e] text-appleBlue">
+          </div>
+          <button onclick="triggerSync('Concept C')" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-appleBlue hover:bg-appleBlueHover text-white shadow-apple-sm transition-smooth flex items-center space-x-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <span>Execute Mapped Bridge</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Node / Slot Stage -->
+      <div class="apple-card rounded-2xl flex-1 p-6 relative overflow-hidden flex flex-col justify-between apple-inset">
+        
+        <!-- Connecting SVG Lines Overlay (Decorative & Visual) -->
+        <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-40" id="connector-lines-svg">
+          <path d="M 380 140 C 560 140, 560 180, 740 180" fill="none" stroke="#0a84ff" stroke-width="2.5" stroke-dasharray="6,6" class="animate-pulse" />
+          <path d="M 380 290 C 560 290, 560 270, 740 270" fill="none" stroke="#ff7733" stroke-width="2.5" />
+          <path d="M 380 430 C 560 430, 560 380, 740 380" fill="none" stroke="#30d158" stroke-width="2.5" />
+        </svg>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-20 relative z-10 my-auto">
+          
+          <!-- Left Column: Source Selected Layer Nodes -->
+          <div class="space-y-4">
+            <div class="flex items-center justify-between text-xs font-semibold text-textSecondary uppercase tracking-wider mb-2">
+              <span class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-psBlue"></span>
+                <span>Photoshop Active Selections</span>
+              </span>
+              <span>Source Channel</span>
+            </div>
+
+            <!-- Card 1 -->
+            <div class="apple-card p-4 rounded-xl relative hover:bg-hoverBg transition-smooth border-l-4 border-l-psBlue">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium text-sm text-textPrimary">Decals_Stencils_Logo</div>
+                  <div class="text-[11px] text-textSecondary">Smart Object · Blend: Normal 100%</div>
+                </div>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-subpanelBg text-psBlue font-mono">RGBA 4K</span>
+              </div>
+              <div class="mt-2 pt-2 border-t border-divider/30 flex items-center justify-between text-[11px] text-textSecondary">
+                <span>Rasterize vector paths</span>
+                <span class="text-appleBlue text-[11px]">→ Maps to Painter Fill Layer</span>
+              </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="apple-card p-4 rounded-xl relative hover:bg-hoverBg transition-smooth border-l-4 border-l-spOrange">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium text-sm text-textPrimary">Edge_Scratches_AlphaMask</div>
+                  <div class="text-[11px] text-textSecondary">Grayscale Mask · 16-bit</div>
+                </div>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-subpanelBg text-spOrange font-mono">Single Channel</span>
+              </div>
+              <div class="mt-2 pt-2 border-t border-divider/30 flex items-center justify-between text-[11px] text-textSecondary">
+                <span>Map to: Paint Mask</span>
+                <span class="text-emerald-400 text-[11px]">→ Invert Mask Values</span>
+              </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="apple-card p-4 rounded-xl relative hover:bg-hoverBg transition-smooth border-l-4 border-l-emerald-400">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium text-sm text-textPrimary">Roughness_Fingerprints</div>
+                  <div class="text-[11px] text-textSecondary">Texture Overlay · Overlay 85%</div>
+                </div>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-subpanelBg text-emerald-400 font-mono">Roughness Ch</span>
+              </div>
+              <div class="mt-2 pt-2 border-t border-divider/30 flex items-center justify-between text-[11px] text-textSecondary">
+                <span>Direct Channel Override</span>
+                <span class="text-textSecondary text-[11px]">→ Slot #3</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right Column: Destination Target Slots in Substance Painter -->
+          <div class="space-y-4">
+            <div class="flex items-center justify-between text-xs font-semibold text-textSecondary uppercase tracking-wider mb-2">
+              <span class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-spOrange"></span>
+                <span>Substance Painter Target Slots</span>
+              </span>
+              <span>Placement Mode</span>
+            </div>
+
+            <!-- Target Slot 1 -->
+            <div class="apple-card p-4 rounded-xl bg-subpanelBg/80 border-dashed border-2 border-appleBlue/40 hover:border-appleBlue transition-smooth">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-md bg-appleBlue/20 text-appleBlue flex items-center justify-center text-xs font-bold">1</span>
+                  <div>
+                    <div class="text-xs font-semibold text-textPrimary">Folder: /Coatings/Stencils/</div>
+                    <div class="text-[11px] text-textSecondary">Insert Mode: Place on top inside folder</div>
+                  </div>
+                </div>
+                <span class="text-[10px] bg-appleBlue/20 text-appleBlue px-2 py-0.5 rounded">Linked</span>
+              </div>
+            </div>
+
+            <!-- Target Slot 2 -->
+            <div class="apple-card p-4 rounded-xl bg-subpanelBg/80 border-dashed border-2 border-spOrange/40 hover:border-spOrange transition-smooth">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-md bg-spOrange/20 text-spOrange flex items-center justify-center text-xs font-bold">2</span>
+                  <div>
+                    <div class="text-xs font-semibold text-textPrimary">Layer: [Mask] of Metal_Base_Wear</div>
+                    <div class="text-[11px] text-textSecondary">Insert Mode: Replace bitmap mask content</div>
+                  </div>
+                </div>
+                <span class="text-[10px] bg-spOrange/20 text-spOrange px-2 py-0.5 rounded">Linked</span>
+              </div>
+            </div>
+
+            <!-- Target Slot 3 -->
+            <div class="apple-card p-4 rounded-xl bg-subpanelBg/80 border-dashed border-2 border-emerald-400/40 hover:border-emerald-400 transition-smooth">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-md bg-emerald-400/20 text-emerald-400 flex items-center justify-center text-xs font-bold">3</span>
+                  <div>
+                    <div class="text-xs font-semibold text-textPrimary">Channel: Roughness Channel Fill</div>
+                    <div class="text-[11px] text-textSecondary">Insert Mode: Add new fill layer with Roughness only</div>
+                  </div>
+                </div>
+                <span class="text-[10px] bg-emerald-400/20 text-emerald-400 px-2 py-0.5 rounded">Linked</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="p-3 bg-panelBg/80 rounded-xl text-center text-xs text-textSecondary">
+          Drag and drop layers across columns to reorder or reassign destination hierarchy paths in real-time.
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Sync In-Progress Modal (Apple Pro Style) -->
+  <div id="sync-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-smooth">
+    <div class="apple-card w-full max-w-md p-6 rounded-2xl shadow-apple-lg border border-white/5 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-appleBlue/20 text-appleBlue flex items-center justify-center animate-pulse">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-textPrimary" id="modal-title">Syncing Layers...</h3>
+            <p class="text-[11px] text-textSecondary" id="modal-sub">Preparing memory exchange buffer</p>
+          </div>
+        </div>
+        <span class="text-xs font-mono text-appleBlue" id="modal-percent">0%</span>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="w-full h-2 rounded-full bg-subpanelBg overflow-hidden">
+        <div id="modal-progress-bar" class="h-full bg-appleBlue transition-all duration-300 w-0 rounded-full"></div>
+      </div>
+
+      <!-- Step Logs -->
+      <div class="bg-subpanelBg p-3 rounded-xl font-mono text-[11px] text-textSecondary space-y-1 h-24 overflow-y-auto" id="modal-log">
+        <div>[Bridge] Initializing bidirectional IPC stream...</div>
+      </div>
+
+      <div class="flex justify-end pt-1">
+        <button onclick="closeModal()" id="btn-modal-close" class="px-4 py-1.5 rounded-lg text-xs font-medium bg-subpanelBg hover:bg-hoverBg text-textSecondary hover:text-textPrimary transition-smooth hidden">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Target Folder Selector Dialog / Popover Modal -->
+  <div id="target-picker-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-smooth">
+    <div class="apple-card w-full max-w-lg p-6 rounded-2xl shadow-apple-lg border border-white/5 space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-textPrimary">Select Target Destination Folder</h3>
+          <p class="text-xs text-textSecondary">Choose where the transferred layer will land in Substance Painter</p>
+        </div>
+        <button onclick="closeTargetPicker()" class="text-textSecondary hover:text-textPrimary">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="space-y-1 max-h-64 overflow-y-auto p-2 bg-subpanelBg rounded-xl text-xs" id="target-folder-list">
+        <!-- Rendered in script -->
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <div class="text-[11px] text-textSecondary">Selected: <span id="picked-folder-label" class="text-appleBlue font-mono">/Details/Weathering/</span></div>
+        <div class="flex space-x-2">
+          <button onclick="closeTargetPicker()" class="px-3 py-1.5 rounded-lg text-xs bg-subpanelBg text-textSecondary hover:text-textPrimary">Cancel</button>
+          <button onclick="confirmTargetFolder()" class="px-4 py-1.5 rounded-lg text-xs bg-appleBlue text-white font-medium hover:bg-appleBlueHover">Confirm Location</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preferences / Daemon Config Modal -->
+  <div id="config-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-smooth">
+    <div class="apple-card w-full max-w-md p-6 rounded-2xl shadow-apple-lg border border-white/5 space-y-4 text-xs">
+      <div class="flex items-center justify-between border-b border-divider/40 pb-3">
+        <h3 class="text-sm font-semibold text-textPrimary">PT Bridge Daemon Preferences</h3>
+        <button onclick="closeConfigModal()" class="text-textSecondary hover:text-textPrimary">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-textSecondary">
+        <div>
+          <label class="block text-textPrimary font-medium mb-1">Photoshop Host Connection</label>
+          <input type="text" value="Photoshop 2026 (Port 44211) — Online" readonly class="w-full bg-subpanelBg px-3 py-2 rounded-lg text-textPrimary border-none font-mono">
+        </div>
+        <div>
+          <label class="block text-textPrimary font-medium mb-1">Substance 3D Painter Python API</label>
+          <input type="text" value="Painter v10.x Plugin Hook — Active" readonly class="w-full bg-subpanelBg px-3 py-2 rounded-lg text-textPrimary border-none font-mono">
+        </div>
+        <div>
+          <label class="block text-textPrimary font-medium mb-1">Shared Scratch Disk / Memory Buffer</label>
+          <input type="text" value="/Volumes/NVMe_Scratch/PT_Bridge_Cache/" class="w-full bg-subpanelBg px-3 py-2 rounded-lg text-textPrimary border-none font-mono focus:ring-1 focus:ring-appleBlue">
+        </div>
+        <div class="pt-2 flex items-center justify-between">
+          <span>Automatic Color Management (ACEScg ⇄ sRGB)</span>
+          <input type="checkbox" checked class="rounded bg-subpanelBg text-appleBlue">
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-3">
+        <button onclick="closeConfigModal()" class="px-4 py-2 rounded-xl bg-appleBlue text-white font-medium hover:bg-appleBlueHover transition-smooth">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    let activeConcept = 'concept-a';
+    let currentDirection = 'PS2SP'; // 'PS2SP' or 'SP2PS'
+    let currentSelectedTarget = '/Details/Weathering/';
+    
+    // Sample layer dataset representing Photoshop & Painter documents
+    const psLayers = [
+      {
+        id: 'ps-grp-1',
+        name: 'Camouflage_Overlays',
+        type: 'folder',
+        blend: 'Pass Through',
+        opacity: '100%',
+        selected: false,
+        expanded: true,
+        children: [
+          { id: 'ps-l-101', name: 'Digital_Pattern_Hex_4K', type: 'smart_object', blend: 'Overlay', opacity: '90%', selected: true, res: '4096' },
+          { id: 'ps-l-102', name: 'Grunge_Dirt_Splatter', type: 'paint', blend: 'Multiply', opacity: '75%', selected: true, res: '4096' },
+          { id: 'ps-l-103', name: 'Stripe_Accent_Orange', type: 'vector_fill', blend: 'Normal', opacity: '100%', selected: false, res: '4096' }
+        ]
+      },
+      {
+        id: 'ps-grp-2',
+        name: 'Details & Markings',
+        type: 'folder',
+        blend: 'Pass Through',
+        opacity: '100%',
+        selected: false,
+        expanded: true,
+        children: [
+          { id: 'ps-l-201', name: 'Warning_Labels_Stencil', type: 'smart_object', blend: 'Normal', opacity: '100%', selected: false, res: '4096' },
+          { id: 'ps-l-202', name: 'Barcode_Serial_902', type: 'bitmap', blend: 'Normal', opacity: '100%', selected: false, res: '4096' }
+        ]
+      },
+      {
+        id: 'ps-grp-3',
+        name: 'Surface Wear & Roughness',
+        type: 'folder',
+        blend: 'Pass Through',
+        opacity: '100%',
+        selected: false,
+        expanded: false,
+        children: [
+          { id: 'ps-l-301', name: 'Fingerprints_Micro_Smudge', type: 'paint', blend: 'Screen', opacity: '50%', selected: false, res: '4096' },
+          { id: 'ps-l-302', name: 'Edge_Scratches_Alpha', type: 'mask', blend: 'Normal', opacity: '100%', selected: false, res: '4096' }
+        ]
+      },
+      { id: 'ps-l-base', name: 'Base_Metal_Color_Rough', type: 'fill', blend: 'Normal', opacity: '100%', selected: false, res: '4096' }
+    ];
+
+    const spLayers = [
+      {
+        id: 'sp-grp-1',
+        name: 'Weathering & FX',
+        path: '/Weathering & FX/',
+        type: 'folder',
+        blend: 'Normal',
+        opacity: '100%',
+        selected: false,
+        expanded: true,
+        children: [
+          { id: 'sp-l-101', name: 'Mud_Splatter_Paint', path: '/Weathering & FX/Mud_Splatter_Paint', type: 'paint', blend: 'Multiply', opacity: '85%', selected: false, channels: 'BaseColor, Rough' },
+          { id: 'sp-l-102', name: 'Dust_Soft_Layer', path: '/Weathering & FX/Dust_Soft_Layer', type: 'fill_mask', blend: 'Normal', opacity: '60%', selected: false, channels: 'Rough, Metal' }
+        ]
+      },
+      {
+        id: 'sp-grp-2',
+        name: 'Details',
+        path: '/Details/',
+        type: 'folder',
+        blend: 'Normal',
+        opacity: '100%',
+        selected: false,
+        expanded: true,
+        children: [
+          {
+            id: 'sp-grp-21',
+            name: 'Weathering',
+            path: '/Details/Weathering/',
+            type: 'folder',
+            blend: 'Normal',
+            opacity: '100%',
+            selected: true, // Marked as default target
+            expanded: true,
+            children: [
+              { id: 'sp-l-201', name: 'Edge_Chipping_Generator', path: '/Details/Weathering/Edge_Chipping_Generator', type: 'generator', blend: 'Normal', opacity: '100%', selected: false, channels: 'BaseColor, Height' },
+              { id: 'sp-l-202', name: 'Rust_Cavity_Fill', path: '/Details/Weathering/Rust_Cavity_Fill', type: 'fill_mask', blend: 'Multiply', opacity: '90%', selected: false, channels: 'BaseColor, Rough, Height' }
+            ]
+          },
+          { id: 'sp-l-203', name: 'Factory_Decals', path: '/Details/Factory_Decals', type: 'paint', blend: 'Normal', opacity: '100%', selected: false, channels: 'BaseColor' }
+        ]
+      },
+      {
+        id: 'sp-grp-3',
+        name: 'Primary_Alloy_Material',
+        path: '/Primary_Alloy_Material/',
+        type: 'folder',
+        blend: 'Normal',
+        opacity: '100%',
+        selected: false,
+        expanded: false,
+        children: [
+          { id: 'sp-l-301', name: 'Alloy_Gunmetal_Base', path: '/Primary_Alloy_Material/Alloy_Gunmetal_Base', type: 'fill', blend: 'Normal', opacity: '100%', selected: false, channels: 'All (PBR)' }
+        ]
+      }
+    ];
+
+    // Staging Queue Items for Concept B
+    let stagingQueue = [
+      {
+        id: 'q-1',
+        sourceName: 'Digital_Pattern_Hex_4K',
+        sourceApp: 'Photoshop',
+        targetApp: 'Painter',
+        targetPath: '/Details/Weathering/',
+        blendMode: 'Overlay',
+        channels: 'BaseColor, Roughness',
+        format: '16-bit PNG Fill Layer'
+      },
+      {
+        id: 'q-2',
+        sourceName: 'Grunge_Dirt_Splatter',
+        sourceApp: 'Photoshop',
+        targetApp: 'Painter',
+        targetPath: '/Details/Weathering/',
+        blendMode: 'Multiply',
+        channels: 'BaseColor',
+        format: 'Masked Bitmap Layer'
+      },
+      {
+        id: 'q-3',
+        sourceName: 'Warning_Labels_Stencil',
+        sourceApp: 'Photoshop',
+        targetApp: 'Painter',
+        targetPath: '/Details/',
+        blendMode: 'Normal',
+        channels: 'BaseColor + Alpha',
+        format: 'Smart Object to Vector Mask'
+      }
+    ];
+
+    function switchConcept(conceptId) {
+      activeConcept = conceptId;
+      document.querySelectorAll('.concept-view').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.concept-tab').forEach(el => {
+        el.classList.remove('bg-selectedBg', 'text-white', 'shadow-apple-sm');
+        el.classList.add('text-textSecondary');
+      });
+
+      const activeView = document.getElementById(`view-${conceptId}`);
+      const activeTab = document.getElementById(`tab-${conceptId}`);
+
+      if (activeView) activeView.classList.remove('hidden');
+      if (activeTab) {
+        activeTab.classList.add('bg-selectedBg', 'text-white', 'shadow-apple-sm');
+        activeTab.classList.remove('text-textSecondary');
+      }
+
+      if (conceptId === 'concept-b') {
+        renderConceptB();
+      }
+    }
+
+    function setDirection(dir) {
+      currentDirection = dir;
+      const btnPs2Sp = document.getElementById('btn-dir-ps2sp');
+      const btnSp2Ps = document.getElementById('btn-dir-sp2ps');
+      const psRole = document.getElementById('ps-side-role');
+      const spRole = document.getElementById('sp-side-role');
+
+      if (dir === 'PS2SP') {
+        btnPs2Sp.className = "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-smooth bg-appleBlue text-white shadow";
+        btnSp2Ps.className = "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-smooth text-textSecondary hover:text-textPrimary";
+        psRole.textContent = "SOURCE";
+        psRole.className = "text-[10px] px-2 py-0.5 rounded-md bg-psBlue/20 text-psBlue font-medium";
+        spRole.textContent = "TARGET";
+        spRole.className = "text-[10px] px-2 py-0.5 rounded-md bg-spOrange/20 text-spOrange font-medium";
+      } else {
+        btnSp2Ps.className = "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-smooth bg-appleBlue text-white shadow";
+        btnPs2Sp.className = "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-smooth text-textSecondary hover:text-textPrimary";
+        psRole.textContent = "TARGET";
+        psRole.className = "text-[10px] px-2 py-0.5 rounded-md bg-psBlue/20 text-psBlue font-medium";
+        spRole.textContent = "SOURCE";
+        spRole.className = "text-[10px] px-2 py-0.5 rounded-md bg-spOrange/20 text-spOrange font-medium";
+      }
+      updateCounts();
+    }
+
+    function renderPSTree() {
+      const container = document.getElementById('ps-tree-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      psLayers.forEach(node => {
+        container.appendChild(createLayerRow(node, 'ps', 0));
+      });
+    }
+
+    function renderSPTree() {
+      const container = document.getElementById('sp-tree-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      spLayers.forEach(node => {
+        container.appendChild(createLayerRow(node, 'sp', 0));
+      });
+    }
+
+    function createLayerRow(item, app, depth) {
+      const wrapper = document.createElement('div');
+      wrapper.className = "flex flex-col space-y-0.5";
+
+      const row = document.createElement('div');
+      const isSelected = item.selected;
+      const isFolder = item.type === 'folder';
+      const isTarget = (app === 'sp' && item.path === currentSelectedTarget);
+
+      row.className = `group flex items-center justify-between px-2.5 py-1.5 rounded-xl cursor-pointer transition-smooth ${
+        isSelected ? 'bg-selectedBg text-white' : 'hover:bg-hoverBg text-textPrimary'
+      } ${isTarget ? 'ring-1 ring-appleBlue/60 bg-appleBlue/10' : ''}`;
+      row.style.paddingLeft = `${depth * 18 + 10}px`;
+
+      // Left part: chevron / icon / checkbox / title
+      const left = document.createElement('div');
+      left.className = "flex items-center space-x-2 truncate";
+
+      // Folder chevron or leaf spacer
+      if (isFolder) {
+        const toggleBtn = document.createElement('span');
+        toggleBtn.className = "w-4 h-4 flex items-center justify-center text-textMuted hover:text-textPrimary";
+        toggleBtn.innerHTML = item.expanded 
+          ? `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>`
+          : `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>`;
+        toggleBtn.onclick = (e) => {
+          e.stopPropagation();
+          item.expanded = !item.expanded;
+          if (app === 'ps') renderPSTree();
+          else renderSPTree();
+        };
+        left.appendChild(toggleBtn);
+      } else {
+        const spacer = document.createElement('span');
+        spacer.className = "w-4 h-4 flex items-center justify-center";
+        spacer.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-textMuted"></span>`;
+        left.appendChild(spacer);
+      }
+
+      // Checkbox (For Source Selection) or Target Pin
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = !!item.selected;
+      check.className = "rounded bg-[#1a1a1c] text-appleBlue focus:ring-0 w-3.5 h-3.5 cursor-pointer";
+      check.onclick = (e) => {
+        e.stopPropagation();
+        item.selected = check.checked;
+        if (isFolder && item.children) {
+          item.children.forEach(c => c.selected = check.checked);
+        }
+        if (app === 'ps') renderPSTree();
+        else renderSPTree();
+        updateCounts();
+      };
+      left.appendChild(check);
+
+      // Icon for Layer Type
+      const iconSpan = document.createElement('span');
+      iconSpan.className = "text-textSecondary";
+      iconSpan.innerHTML = getLayerIcon(item.type);
+      left.appendChild(iconSpan);
+
+      // Layer Name
+      const titleSpan = document.createElement('span');
+      titleSpan.className = `text-xs truncate ${isSelected ? 'font-semibold text-white' : 'text-textPrimary'}`;
+      titleSpan.textContent = item.name;
+      left.appendChild(titleSpan);
+
+      row.appendChild(left);
+
+      // Right part: Blend mode / badges / Quick Target assignment
+      const right = document.createElement('div');
+      right.className = "flex items-center space-x-2 text-[10px] text-textSecondary shrink-0";
+
+      if (item.blend && item.blend !== 'Pass Through') {
+        const blendTag = document.createElement('span');
+        blendTag.className = "px-1.5 py-0.5 rounded bg-subpanelBg/80 text-textMuted";
+        blendTag.textContent = item.blend;
+        right.appendChild(blendTag);
+      }
+
+      if (item.res) {
+        const resTag = document.createElement('span');
+        resTag.className = "px-1.5 py-0.5 rounded bg-subpanelBg text-textSecondary font-mono";
+        resTag.textContent = item.res;
+        right.appendChild(resTag);
+      }
+
+      // If Substance Painter side, allow quick setting as target folder
+      if (app === 'sp' && isFolder) {
+        const setTargetBtn = document.createElement('button');
+        setTargetBtn.className = `px-2 py-0.5 rounded text-[10px] transition-smooth ${
+          isTarget ? 'bg-appleBlue text-white font-medium' : 'bg-subpanelBg hover:bg-hoverBg text-textSecondary'
+        }`;
+        setTargetBtn.textContent = isTarget ? 'Target Destination' : 'Set as Target';
+        setTargetBtn.onclick = (e) => {
+          e.stopPropagation();
+          setTargetDestination(item.path);
+        };
+        right.appendChild(setTargetBtn);
+      }
+
+      row.appendChild(right);
+
+      // Row click handles selection toggle
+      row.onclick = () => {
+        item.selected = !item.selected;
+        if (app === 'ps') renderPSTree();
+        else renderSPTree();
+        updateCounts();
+      };
+
+      wrapper.appendChild(row);
+
+      // Recursive rendering of child layers if folder is expanded
+      if (isFolder && item.expanded && item.children) {
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = "flex flex-col space-y-0.5";
+        item.children.forEach(child => {
+          childrenContainer.appendChild(createLayerRow(child, app, depth + 1));
+        });
+        wrapper.appendChild(childrenContainer);
+      }
+
+      return wrapper;
+    }
+
+    // Helper: SVG Icons for layer types
+    function getLayerIcon(type) {
+      switch (type) {
+        case 'folder':
+          return `<svg class="w-3.5 h-3.5 text-amber-400/90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>`;
+        case 'smart_object':
+          return `<svg class="w-3.5 h-3.5 text-psBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`;
+        case 'mask':
+        case 'fill_mask':
+          return `<svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>`;
+        case 'paint':
+          return `<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>`;
+        default:
+          return `<svg class="w-3.5 h-3.5 text-textSecondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>`;
+      }
+    }
+
+    // Set target folder destination
+    function setTargetDestination(path) {
+      currentSelectedTarget = path;
+      const display = document.getElementById('current-target-path-display');
+      if (display) display.textContent = path;
+      renderSPTree();
+    }
+
+    function updateCounts() {
+      let count = 0;
+      const sourceList = (currentDirection === 'PS2SP') ? psLayers : spLayers;
+      
+      const countRecursive = (list) => {
+        list.forEach(i => {
+          if (!i.children && i.selected) count++;
+          if (i.children) countRecursive(i.children);
+        });
+      };
+      countRecursive(sourceList);
+
+      const countBadge = document.getElementById('selected-count-badge');
+      if (countBadge) countBadge.textContent = count;
+    }
+
+    // Expand / Select helpers
+    function expandAllLayers(app) {
+      const list = (app === 'ps') ? psLayers : spLayers;
+      const recurse = (arr) => {
+        arr.forEach(i => {
+          if (i.type === 'folder') {
+            i.expanded = true;
+            if (i.children) recurse(i.children);
+          }
+        });
+      };
+      recurse(list);
+      if (app === 'ps') renderPSTree();
+      else renderSPTree();
+    }
+
+    function selectAllLayers(app) {
+      const list = (app === 'ps') ? psLayers : spLayers;
+      const recurse = (arr) => {
+        arr.forEach(i => {
+          i.selected = true;
+          if (i.children) recurse(i.children);
+        });
+      };
+      recurse(list);
+      if (app === 'ps') renderPSTree();
+      else renderSPTree();
+      updateCounts();
+    }
+
+    function filterLayers(app, term) {
+      // In this prototype, filter acts as a fast responsive search simulation
+      console.log(`Filtering ${app} layers by "${term}"`);
+    }
+
+    function renderConceptB() {
+      // 1. Source List in Concept B
+      const sourceContainer = document.getElementById('concept-b-source-list');
+      if (sourceContainer) {
+        sourceContainer.innerHTML = '';
+        psLayers.forEach(group => {
+          if (group.children) {
+            group.children.forEach(item => {
+              const div = document.createElement('div');
+              div.className = "apple-card p-2.5 rounded-xl flex items-center justify-between text-xs hover:bg-hoverBg transition-smooth cursor-pointer";
+              div.innerHTML = `
+                <div class="flex items-center space-x-2 truncate">
+                  <span class="w-1.5 h-1.5 rounded-full bg-psBlue"></span>
+                  <span class="text-textPrimary font-medium truncate">${item.name}</span>
+                </div>
+                <button onclick="addToQueue('${item.name}')" class="text-appleBlue text-[11px] px-2 py-0.5 rounded bg-subpanelBg hover:bg-selectedBg font-medium">+ Stage</button>
+              `;
+              sourceContainer.appendChild(div);
+            });
+          }
+        });
+      }
+
+      // 2. Queue list in Concept B
+      const queueContainer = document.getElementById('staging-queue-cards');
+      if (queueContainer) {
+        queueContainer.innerHTML = '';
+        if (stagingQueue.length === 0) {
+          queueContainer.innerHTML = `<div class="p-8 text-center text-textMuted text-xs">No layers currently queued for transfer. Select from the source list to add.</div>`;
+        } else {
+          stagingQueue.forEach((q, idx) => {
+            const card = document.createElement('div');
+            card.className = "apple-card p-3 rounded-xl space-y-2 bg-[#26262a]";
+            card.innerHTML = `
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <span class="w-5 h-5 rounded-md bg-psBlue/20 text-psBlue flex items-center justify-center text-[10px] font-bold">#${idx+1}</span>
+                  <span class="font-semibold text-xs text-textPrimary">${q.sourceName}</span>
+                </div>
+                <button onclick="removeFromQueue(${idx})" class="text-textMuted hover:text-rose-400 text-xs">✕</button>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-divider/30">
+                <div>
+                  <span class="text-textSecondary block">Target Path:</span>
+                  <span class="font-mono text-appleBlue truncate block">${q.targetPath}</span>
+                </div>
+                <div>
+                  <span class="text-textSecondary block">Mode & Blend:</span>
+                  <span class="text-textPrimary">${q.blendMode} (${q.format})</span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between text-[10px] pt-1">
+                <span class="text-emerald-400 flex items-center space-x-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  <span>Channel: ${q.channels}</span>
+                </span>
+                <span class="text-textMuted">Ready for IPC dispatch</span>
+              </div>
+            `;
+            queueContainer.appendChild(card);
+          });
+        }
+      }
+
+      // 3. Painter Target hierarchy picker
+      const targetHierarchy = document.getElementById('concept-b-target-hierarchy');
+      if (targetHierarchy) {
+        targetHierarchy.innerHTML = `
+          <div class="space-y-1">
+            <div onclick="setQueueTarget('/Weathering & FX/')" class="p-2 rounded-lg hover:bg-hoverBg cursor-pointer flex items-center space-x-2">
+              <span>📁</span> <span>/Weathering & FX/</span>
+            </div>
+            <div onclick="setQueueTarget('/Details/')" class="p-2 rounded-lg hover:bg-hoverBg cursor-pointer flex items-center space-x-2">
+              <span>📁</span> <span>/Details/</span>
+            </div>
+            <div onclick="setQueueTarget('/Details/Weathering/')" class="p-2 rounded-lg bg-appleBlue/20 text-appleBlue font-medium cursor-pointer flex items-center space-x-2">
+              <span>📁</span> <span>/Details/Weathering/ (Active)</span>
+            </div>
+            <div onclick="setQueueTarget('/Primary_Alloy_Material/')" class="p-2 rounded-lg hover:bg-hoverBg cursor-pointer flex items-center space-x-2">
+              <span>📁</span> <span>/Primary_Alloy_Material/</span>
+            </div>
+          </div>
+        `;
+      }
+
+      const qBadge = document.getElementById('queue-count-badge');
+      if (qBadge) qBadge.textContent = stagingQueue.length;
+    }
+
+    function addToQueue(layerName) {
+      stagingQueue.push({
+        id: 'q-' + Date.now(),
+        sourceName: layerName,
+        sourceApp: 'Photoshop',
+        targetApp: 'Painter',
+        targetPath: currentSelectedTarget,
+        blendMode: 'Normal',
+        channels: 'BaseColor, Mask',
+        format: 'Rasterized Smart Layer'
+      });
+      renderConceptB();
+    }
+
+    function removeFromQueue(index) {
+      stagingQueue.splice(index, 1);
+      renderConceptB();
+    }
+
+    function clearQueue() {
+      stagingQueue = [];
+      renderConceptB();
+    }
+
+    function queueAllSelected() {
+      psLayers.forEach(g => {
+        if (g.children) {
+          g.children.forEach(c => {
+            if (c.selected) addToQueue(c.name);
+          });
+        }
+      });
+    }
+
+    function setQueueTarget(path) {
+      currentSelectedTarget = path;
+      stagingQueue.forEach(item => item.targetPath = path);
+      renderConceptB();
+    }
+
+    function triggerSync(contextName) {
+      const modal = document.getElementById('sync-modal');
+      const progressBar = document.getElementById('modal-progress-bar');
+      const percentLabel = document.getElementById('modal-percent');
+      const title = document.getElementById('modal-title');
+      const sub = document.getElementById('modal-sub');
+      const log = document.getElementById('modal-log');
+      const closeBtn = document.getElementById('btn-modal-close');
+
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      closeBtn.classList.add('hidden');
+      progressBar.style.width = '0%';
+      percentLabel.textContent = '0%';
+      title.textContent = `Syncing via ${contextName}...`;
+      sub.textContent = `${currentDirection === 'PS2SP' ? 'Photoshop → Substance Painter' : 'Substance Painter → Photoshop'}`;
+      log.innerHTML = `<div>[PT Bridge] Handshaking RPC channel...</div>`;
+
+      let progress = 0;
+      const steps = [
+        { at: 20, msg: '[Photoshop] Serializing layer pixel buffer & clipping masks...' },
+        { at: 45, msg: '[ColorEngine] Applying OCIO ACEScg conversion matrix...' },
+        { at: 70, msg: `[Painter] Locating insertion tree path: ${currentSelectedTarget}` },
+        { at: 90, msg: '[Painter] Instantiating Fill Layer & writing channel descriptors...' },
+        { at: 100, msg: '[Success] Sync cycle completed with 0 errors. Buffers synced.' }
+      ];
+
+      let stepIdx = 0;
+      const interval = setInterval(() => {
+        progress += 4;
+        if (progress > 100) progress = 100;
+
+        progressBar.style.width = `${progress}%`;
+        percentLabel.textContent = `${progress}%`;
+
+        if (stepIdx < steps.length && progress >= steps[stepIdx].at) {
+          const logItem = document.createElement('div');
+          logItem.textContent = steps[stepIdx].msg;
+          if (progress === 100) logItem.className = 'text-emerald-400 font-semibold';
+          log.appendChild(logItem);
+          log.scrollTop = log.scrollHeight;
+          stepIdx++;
+        }
+
+        if (progress >= 100) {
+          clearInterval(interval);
+          title.textContent = 'Layer Sync Completed!';
+          sub.textContent = 'Target application canvas updated.';
+          closeBtn.classList.remove('hidden');
+        }
+      }, 70);
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('sync-modal');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    // Modal picker for target folder
+    function pickManualTargetFolder() {
+      const modal = document.getElementById('target-picker-modal');
+      const list = document.getElementById('target-folder-list');
+      list.innerHTML = '';
+
+      const folders = [
+        '/Weathering & FX/',
+        '/Weathering & FX/Sub_Grime/',
+        '/Details/',
+        '/Details/Weathering/',
+        '/Details/Weathering/Cavity_Rust/',
+        '/Primary_Alloy_Material/'
+      ];
+
+      folders.forEach(f => {
+        const item = document.createElement('div');
+        item.className = `p-2 rounded-lg cursor-pointer flex items-center justify-between hover:bg-hoverBg ${
+          f === currentSelectedTarget ? 'bg-appleBlue/20 text-appleBlue font-medium' : 'text-textPrimary'
+        }`;
+        item.innerHTML = `<span>📁 ${f}</span> ${f === currentSelectedTarget ? '<span class="text-xs">Current</span>' : ''}`;
+        item.onclick = () => {
+          document.getElementById('picked-folder-label').textContent = f;
+          currentSelectedTarget = f;
+          pickManualTargetFolder(); // re-render active
+        };
+        list.appendChild(item);
+      });
+
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeTargetPicker() {
+      document.getElementById('target-picker-modal').classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function confirmTargetFolder() {
+      setTargetDestination(currentSelectedTarget);
+      closeTargetPicker();
+    }
+
+    // Daemon Config Modal handlers
+    function openConfigModal() {
+      document.getElementById('config-modal').classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeConfigModal() {
+      document.getElementById('config-modal').classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderPSTree();
+      renderSPTree();
+      updateCounts();
+    });
+  </script>
+</body>
+</html>
