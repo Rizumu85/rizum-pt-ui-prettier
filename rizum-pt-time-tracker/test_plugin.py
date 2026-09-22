@@ -25,13 +25,16 @@ class HostTests(unittest.TestCase):
         self.path = str(Path(self.tmp.name) / 'Penglai_Wedding.Body.spp')
         self.callbacks = {}
         self.window = QtWidgets.QMainWindow()
+        self.viewer = QtWidgets.QWidget(self.window)
+        self.viewer.setObjectName('Viewer3D')
         dispatcher = types.SimpleNamespace(
             connect=lambda event, callback: self.callbacks.update({event: callback}),
             disconnect=lambda event, callback: self.callbacks.pop(event))
         self.host = types.SimpleNamespace(
-            project=types.SimpleNamespace(is_open=lambda: bool(self.path), file_path=lambda: self.path),
+            project=types.SimpleNamespace(is_open=lambda: bool(self.path), file_path=lambda: self.path, is_busy=lambda: False),
             event=types.SimpleNamespace(ProjectSaved='saved', ProjectEditionEntered='opened',
-                                        ProjectAboutToClose='closing', DISPATCHER=dispatcher),
+                                        ProjectAboutToClose='closing', LayerStacksModelDataChanged='changed',
+                                        BusyStatusChanged='busy', DISPATCHER=dispatcher),
             ui=types.SimpleNamespace(get_main_window=lambda: self.window,
                                      add_menu=lambda menu: self.window.menuBar().addMenu(menu),
                                      delete_ui_element=lambda menu: menu.deleteLater()),
@@ -70,13 +73,15 @@ class HostTests(unittest.TestCase):
     def test_inputs_pause_and_deactivation(self):
         self.bind()
         event = QtGui.QKeyEvent(QtCore.QEvent.Type.KeyPress, QtCore.Qt.Key.Key_A, QtCore.Qt.KeyboardModifier.NoModifier)
-        self.assertFalse(self.plugin.eventFilter(self.window, event))
+        self.assertFalse(self.plugin.eventFilter(self.viewer, event))
+        self.callbacks['changed'](None)
         self.assertIsNotNone(self.plugin.clock.last)
         self.plugin.pause()
-        self.plugin.eventFilter(self.window, event)
+        self.plugin.eventFilter(self.viewer, event)
         self.assertIsNone(self.plugin.clock.last)
         self.plugin.pause()
-        self.plugin.eventFilter(self.window, event)
+        self.plugin.eventFilter(self.viewer, event)
+        self.callbacks['changed'](None)
         self.plugin.eventFilter(self.window, QtCore.QEvent(QtCore.QEvent.Type.ApplicationDeactivate))
         self.assertIsNone(self.plugin.clock.last)
 
@@ -118,6 +123,26 @@ class HostTests(unittest.TestCase):
         self.assertFalse(self.window.findChildren(QtWidgets.QDockWidget))
         self.assertIn(self.plugin.menu.menuAction(), self.window.menuBar().actions())
         self.assertEqual(self.plugin.title_action.text(), 'Penglai_Wedding')
+
+    def test_other_menu_clears_pending_confirmation(self):
+        self.plugin.activity.offer('candidate', 0, 1000)
+        menu = QtWidgets.QMenu(self.window)
+        self.plugin.eventFilter(menu, QtCore.QEvent(QtCore.QEvent.Type.Show))
+        self.callbacks['changed'](None)
+        self.assertIsNone(self.plugin.clock.last)
+        self.assertIsNone(self.plugin.activity.pending)
+
+    def test_busy_period_interrupts_session(self):
+        self.plugin.clock.input(0, 1000)
+        self.plugin.clock.input(10, 1010)
+        self.callbacks['busy'](types.SimpleNamespace(busy=True))
+        self.assertIsNone(self.plugin.clock.last)
+        event = QtGui.QKeyEvent(QtCore.QEvent.Type.KeyPress, QtCore.Qt.Key.Key_A, QtCore.Qt.KeyboardModifier.NoModifier)
+        self.plugin.eventFilter(self.viewer, event)
+        self.callbacks['changed'](None)
+        self.assertIsNone(self.plugin.activity.pending)
+        self.callbacks['busy'](types.SimpleNamespace(busy=False))
+        self.assertIsNone(self.plugin.clock.last)
 
 
 if __name__ == '__main__':

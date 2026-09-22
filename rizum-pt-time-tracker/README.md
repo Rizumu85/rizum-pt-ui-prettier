@@ -14,11 +14,19 @@ Matching names across folders share the same work. Save As uses the destination
 name immediately, without copying time. Existing file assignments are preserved,
 including manual corrections made through **Manage > Change work / part**.
 
-Clicks, keys, wheel input, mouse drags and pen contact count as activity. Passive
-pointer movement does not. Only intervals between inputs shorter than the idle
-timeout count. Waiting after the final input is excluded. Other applications,
-manual pause and inactive Painter windows stop the session. Unsaved projects are
-not tracked. Time is an approximation of active editing, not a measure of effort.
+Counting uses positive evidence. Pointer/pen contact, dragging and wheel input in
+Painter's `Viewer3D`/`Viewer2D` count directly. Other native UI inputs, including
+keyboard shortcuts, need a layer-stack change within 750 ms. Each input can be
+confirmed once; autonomous background changes cannot extend time. Native controls
+that do not emit this signal may be undercounted. Viewer names are host-specific.
+
+Menus, dialogs, identifiable Python plugin widgets, unknown unconfirmed inputs,
+busy periods, switching applications and manual pause break the session. Returning
+to work never fills these excluded gaps. Passive mouse movement is ignored. Only
+intervals between confirmed inputs shorter than the idle timeout count; the final
+idle tail is excluded. Unsaved projects are not tracked. Testing a brush directly
+on the canvas is indistinguishable from production painting; pause tracking for
+that case. These signals estimate active editing rather than infer user intent.
 
 Records are stored in `%LOCALAPPDATA%/Rizum/TimeTracker/time.sqlite3` using SQLite
 WAL transactions, independently of SPP saves. Sessions checkpoint every second;

@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from .core import Ledger, ActivityClock, filename_group
+from .activity import ActivityPolicy, input_context
 
 
 def duration(seconds):
@@ -25,6 +26,8 @@ class Plugin(QtCore.QObject):
         self.ledger = Ledger(root / 'time.sqlite3')
         self.settings = QtCore.QSettings('Rizum', 'TimeTracker')
         self.clock = ActivityClock(self.ledger, max(30, int(self.settings.value('idle_seconds', 120))))
+        self.activity = ActivityPolicy(self.clock)
+        self.busy = bool(sp.project.is_busy()) if sp.project.is_open() else False
         self.path = None
         self.paused = False
         self.failed = False
@@ -61,6 +64,8 @@ class Plugin(QtCore.QObject):
         self.events = []
         for name, callback in [('ProjectEditionEntered', self.project_entered),
                                ('ProjectSaved', self.project_changed),
+                               ('LayerStacksModelDataChanged', self.model_changed),
+                               ('BusyStatusChanged', self.busy_changed),
                                ('ProjectAboutToClose', self.project_closed)]:
             event = getattr(sp.event, name)
             sp.event.DISPATCHER.connect(event, callback)
@@ -76,6 +81,22 @@ class Plugin(QtCore.QObject):
         self.closing = False
         self.project_changed()
 
+    def busy_changed(self, event):
+        self.busy = event.busy
+        if self.busy:
+            self.activity.stop()
+
+    def model_changed(self, _event=None):
+        if self.closed or self.failed:
+            return
+        try:
+            if self.path and not self.paused and not self.busy and not self.in_tools and self.dialog is None and self.foreground():
+                self.activity.confirm(time.monotonic())
+            else:
+                self.activity.stop()
+        except Exception as error:
+            self.fail(error)
+
     def foreground(self):
         return self.app.applicationState() == QtCore.Qt.ApplicationState.ApplicationActive
 
@@ -87,6 +108,7 @@ class Plugin(QtCore.QObject):
             path = os.path.normcase(os.path.abspath(raw_path)) if raw_path else None
             if path == self.path:
                 return
+            self.activity.stop()
             self.clock.switch(None)
             self.path = path
             if path:
@@ -99,6 +121,7 @@ class Plugin(QtCore.QObject):
     def project_closed(self, _event=None):
         try:
             self.closing = True
+            self.activity.stop()
             self.clock.switch(None)
             self.path = None
             self.refresh()
@@ -116,16 +139,17 @@ class Plugin(QtCore.QObject):
             return False
         kind = event.type()
         try:
+            if kind == QtCore.QEvent.Type.Show and isinstance(watched, (QtWidgets.QMenu, QtWidgets.QDialog)):
+                self.activity.stop()
+                return False
             if kind == QtCore.QEvent.Type.ApplicationDeactivate:
-                self.clock.stop()
-            elif self.path and not self.paused and self.dialog is None and not self.in_tools and self.foreground():
-                if self.menu.isVisible() or self.manage_menu.isVisible():
-                    return False
-                if self.app.activeModalWidget() is not None:
-                    self.clock.stop()
+                self.activity.stop()
+            elif self.path and not self.paused and not self.busy and self.dialog is None and not self.in_tools and self.foreground():
+                if self.app.activePopupWidget() is not None or self.app.activeModalWidget() is not None:
+                    self.activity.stop()
                     return False
                 if time.monotonic() - self.last_tick > 5:
-                    self.clock.stop()
+                    self.activity.stop()
                 active = kind in (QtCore.QEvent.Type.MouseButtonPress, QtCore.QEvent.Type.MouseButtonRelease,
                                   QtCore.QEvent.Type.KeyPress, QtCore.QEvent.Type.Wheel,
                                   QtCore.QEvent.Type.TabletPress, QtCore.QEvent.Type.TabletRelease)
@@ -134,7 +158,26 @@ class Plugin(QtCore.QObject):
                 elif kind == QtCore.QEvent.Type.TabletMove:
                     active = event.pressure() > 0 or bool(event.buttons())
                 if active:
-                    self.clock.input()
+                    target = watched
+                    if kind == QtCore.QEvent.Type.KeyPress:
+                        target = self.app.focusWidget() or watched
+                    elif hasattr(event, 'globalPosition'):
+                        target = self.app.widgetAt(event.globalPosition().toPoint()) or watched
+                    if not isinstance(target, QtWidgets.QWidget):
+                        return False
+                    # Qt can deliver the same native input to a parent after its child.
+                    stamp = (kind, event.timestamp())
+                    if event.timestamp() and getattr(self, '_last_input_stamp', None) == stamp:
+                        return False
+                    self._last_input_stamp = stamp
+                    context = input_context(target, self.window)
+                    if kind == QtCore.QEvent.Type.KeyPress and context == 'viewport':
+                        if event.key() in (QtCore.Qt.Key.Key_Control, QtCore.Qt.Key.Key_Shift,
+                                           QtCore.Qt.Key.Key_Alt, QtCore.Qt.Key.Key_Meta):
+                            return False
+                        # Shortcuts need a document-change signal; arbitrary typing is not work.
+                        context = 'candidate'
+                    self.activity.offer(context, time.monotonic(), time.time())
         except Exception as error:
             self.fail(error)
         return False
@@ -145,11 +188,12 @@ class Plugin(QtCore.QObject):
         try:
             self.project_changed()
             now = time.monotonic()
+            self.activity.expire(now)
             if now - self.last_tick > 5:
-                self.clock.stop()
+                self.activity.stop()
             self.last_tick = now
             if not self.foreground() or (self.clock.last is not None and now-self.clock.last >= self.clock.idle):
-                self.clock.stop()
+                self.activity.stop()
             self.clock.flush()
             if self.menu.isVisible():
                 self.refresh()
@@ -181,7 +225,7 @@ class Plugin(QtCore.QObject):
         self.state_action.setText('Paused' if self.paused else ('Recording' if self.clock.last is not None else 'Idle'))
 
     def pause(self):
-        self.clock.stop()
+        self.activity.stop()
         self.paused = not self.paused
         self.refresh()
 
@@ -190,7 +234,7 @@ class Plugin(QtCore.QObject):
             return
         path = self.path
         binding = self.ledger.binding(path)
-        self.clock.stop()
+        self.activity.stop()
         dialog = QtWidgets.QDialog(self.window)
         self.dialog = dialog
         dialog.setWindowTitle('Work and part')
@@ -254,13 +298,13 @@ class Plugin(QtCore.QObject):
 
     def menu_opened(self):
         try:
-            self.clock.flush()
+            self.activity.stop()
             self.refresh()
         except Exception as error:
             self.fail(error)
 
     def run_tool(self, command):
-        self.clock.stop()
+        self.activity.stop()
         self.in_tools = True
         try:
             self.open_tool(command)
@@ -276,7 +320,7 @@ class Plugin(QtCore.QObject):
         elif command == 'idle':
             value, ok = QtWidgets.QInputDialog.getInt(self.window, 'Idle timeout', 'Seconds without input', self.clock.idle, 30, 1800, 30)
             if ok:
-                self.clock.stop()
+                self.activity.stop()
                 self.clock.idle = value
                 self.settings.setValue('idle_seconds', value)
         elif command == 'manual' and binding:
@@ -337,7 +381,7 @@ class Plugin(QtCore.QObject):
         for event, callback in self.events:
             self.sp.event.DISPATCHER.disconnect(event, callback)
         try:
-            self.clock.stop()
+            self.activity.stop()
         finally:
             self.ledger.close()
             self.sp.ui.delete_ui_element(self.menu)
