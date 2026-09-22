@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from core import Ledger, ActivityClock
+from core import Ledger, ActivityClock, filename_group
 
 
 class TrackingTests(unittest.TestCase):
@@ -30,7 +30,7 @@ class TrackingTests(unittest.TestCase):
         self.clock.input(0, 1000)
         self.clock.input(60, 1060)
         hair = str(Path(self.tmp.name) / 'Hair.spp')
-        self.db.inherit(hair, self.path)
+        self.db.auto_bind(hair)
         self.clock.switch(hair)
         self.clock.input(70, 1070)
         self.clock.input(90, 1090)
@@ -66,7 +66,29 @@ class TrackingTests(unittest.TestCase):
     def test_existing_destination_keeps_its_assignment(self):
         target = str(Path(self.tmp.name) / 'Other.spp')
         other = self.db.bind(target, 'Other', 'Head')
-        self.assertEqual(self.db.inherit(target, self.path)['work'], other['work'])
+        self.assertEqual(self.db.auto_bind(target)['work'], other['work'])
+
+    def test_filename_rules(self):
+        for name, expected in [
+            ('Penglai_Wedding.Basecolors.spp', ('Penglai_Wedding', 'Basecolors')),
+            ('Penglai_Wedding.Hair_v02.spp', ('Penglai_Wedding', 'Hair')),
+            ('Penglai_Wedding.spp', ('Penglai_Wedding', 'Main')),
+            ('Robot_02.Arm2.spp', ('Robot_02', 'Arm2')),
+        ]:
+            self.assertEqual(filename_group(name), expected)
+
+    def test_automatic_grouping_and_versions(self):
+        base = self.db.auto_bind(str(Path(self.tmp.name) / 'Penglai_Wedding.Basecolors.spp'))
+        hair = self.db.auto_bind(str(Path(self.tmp.name) / 'Penglai_Wedding.Hair.spp'))
+        version = self.db.auto_bind(str(Path(self.tmp.name) / 'Penglai_Wedding.Hair_v02.spp'))
+        self.assertEqual(base['work_name'], 'Penglai_Wedding')
+        self.assertEqual(base['work'], hair['work'])
+        self.assertNotEqual(base['part'], hair['part'])
+        self.assertEqual(hair['part'], version['part'])
+        self.assertEqual(self.db.auto_bind(version['path'])['part'], hair['part'])
+
+    def test_manual_binding_survives_auto_discovery(self):
+        self.assertEqual(self.db.auto_bind(self.path)['work'], self.binding['work'])
 
     def test_reopen_recovers_checkpoint(self):
         self.clock.input(0, 1000)

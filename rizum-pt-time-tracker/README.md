@@ -1,14 +1,18 @@
 # Rizum Time Tracker
 
-Painter dock plugin for local, activity-based work tracking. Requires PySide6
-and the sibling `rizum-pt-ui-prettier` UI library.
+Painter menu plugin for local, activity-based work tracking. Requires PySide6.
 
-Enable `rizum-pt-time-tracker` in Painter's Python plugins menu. Save the project
-and assign it to a work and part once. Unknown files stay untracked until assigned.
-Save As keeps the work and part; choose **New part** in the grouping dialog when
-splitting another body part. Existing time is never copied. Opening an unrelated
-file requires its own explicit assignment. Renamed/moved files can be assigned to
-the same work and part; historical records retain the original path.
+Enable `rizum-pt-time-tracker` in Painter's Python plugins menu. Saved projects
+are tracked automatically, without a dock or assignment prompt. The **Time Tracker**
+menu shows the current work, total, today, current part, and tracking state.
+
+Names before the first dot identify a work; the remaining filename identifies a
+part. `Penglai_Wedding.Basecolors.spp` and `Penglai_Wedding.Hair.spp` share the
+`Penglai_Wedding` work. `Penglai_Wedding.spp` uses its `Main` part. Explicit trailing
+version suffixes such as `_v02` are ignored; other digits and underscores remain.
+Matching names across folders share the same work. Save As uses the destination
+name immediately, without copying time. Existing file assignments are preserved,
+including manual corrections made through **Manage > Change work / part**.
 
 Clicks, keys, wheel input, mouse drags and pen contact count as activity. Passive
 pointer movement does not. Only intervals between inputs shorter than the idle
@@ -24,6 +28,6 @@ the day it is entered. Back up the database through SQLite's backup API while
 Painter is running, or copy the records folder after all Painter instances close.
 
 The plugin never modifies Painter installation files or SPP metadata. Local path
-associations are machine-specific. Save As inherits only during an open project;
-external copies are linked explicitly. Changing a file's grouping also moves that
+associations are machine-specific. Save As and external copies are grouped by
+filename. Changing a file's grouping also moves that
 file's historical records; it never moves records belonging to its source file.

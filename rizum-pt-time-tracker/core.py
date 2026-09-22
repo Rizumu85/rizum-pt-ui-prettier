@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -10,6 +11,14 @@ from uuid import uuid4
 
 def key(path):
     return os.path.normcase(os.path.abspath(path))
+
+
+def filename_group(path):
+    stem = Path(path).stem.strip()
+    # Only explicit version suffixes are stripped; digits in asset names matter.
+    stem = re.sub(r'[._ -]+v(?:ersion)?[._ -]*\d+$', '', stem, flags=re.IGNORECASE)
+    work, separator, part = stem.partition('.')
+    return work.strip() or stem, (part.strip() if separator else '') or 'Main'
 
 
 class Ledger:
@@ -58,11 +67,17 @@ class Ledger:
                             (path, part_id))
         return self.binding(path)
 
-    def inherit(self, path, source):
-        old = self.binding(source)
-        if not self.binding(path) and old:
-            self.bind(path, old['work_name'], old['part_name'], old['work'], old['part'])
-        return self.binding(path)
+    def auto_bind(self, path):
+        work_name, part_name = filename_group(path)
+        # Serialize discovery and insertion across multiple Painter processes.
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            existing = self.binding(path)
+            if existing:
+                return existing
+            work = next((row for row in self.works() if row['name'].casefold() == work_name.casefold()), None)
+            part = next((row for row in self.parts(work['id']) if row['name'].casefold() == part_name.casefold()), None) if work else None
+            return self.bind(path, work_name, part_name, work['id'] if work else None, part['id'] if part else None)
 
     def save_session(self, ident, path, start, end, seconds, manual=False):
         with self.db:

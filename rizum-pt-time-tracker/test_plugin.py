@@ -22,13 +22,9 @@ class HostTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.old_data = os.environ.get('LOCALAPPDATA')
         os.environ['LOCALAPPDATA'] = self.tmp.name
-        self.path = str(Path(self.tmp.name) / 'Body.spp')
+        self.path = str(Path(self.tmp.name) / 'Penglai_Wedding.Body.spp')
         self.callbacks = {}
-        self.dock = None
-        def add(widget):
-            self.dock = QtWidgets.QDockWidget()
-            self.dock.setWidget(widget)
-            return self.dock
+        self.window = QtWidgets.QMainWindow()
         dispatcher = types.SimpleNamespace(
             connect=lambda event, callback: self.callbacks.update({event: callback}),
             disconnect=lambda event, callback: self.callbacks.pop(event))
@@ -36,7 +32,9 @@ class HostTests(unittest.TestCase):
             project=types.SimpleNamespace(is_open=lambda: bool(self.path), file_path=lambda: self.path),
             event=types.SimpleNamespace(ProjectSaved='saved', ProjectEditionEntered='opened',
                                         ProjectAboutToClose='closing', DISPATCHER=dispatcher),
-            ui=types.SimpleNamespace(add_dock_widget=add, delete_ui_element=lambda dock: dock.deleteLater()),
+            ui=types.SimpleNamespace(get_main_window=lambda: self.window,
+                                     add_menu=lambda menu: self.window.menuBar().addMenu(menu),
+                                     delete_ui_element=lambda menu: menu.deleteLater()),
             logging=types.SimpleNamespace(error=lambda message: self.fail(message)))
         sys.modules['substance_painter'] = self.host
         self.plugin = module.Plugin()
@@ -45,6 +43,7 @@ class HostTests(unittest.TestCase):
     def tearDown(self):
         self.plugin.close()
         self.assertFalse(self.callbacks)
+        self.window.deleteLater()
         if self.old_data is None:
             os.environ.pop('LOCALAPPDATA', None)
         else:
@@ -53,33 +52,32 @@ class HostTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def bind(self):
-        self.plugin.ledger.bind(self.path, 'Wedding', 'Body')
-        self.plugin.clock.switch(self.path)
+        self.assertIsNotNone(self.plugin.ledger.binding(self.path))
 
     def test_save_as_and_close_open_are_distinct(self):
         self.bind()
         original = self.plugin.ledger.binding(self.path)
-        self.path = str(Path(self.tmp.name) / 'Hair.spp')
+        self.path = str(Path(self.tmp.name) / 'Penglai_Wedding.Hair.spp')
         self.callbacks['saved'](None)
         self.assertEqual(self.plugin.ledger.binding(self.path)['work'], original['work'])
-        self.assertTrue(self.plugin.branch)
+        self.assertEqual(self.plugin.ledger.binding(self.path)['part_name'], 'Hair')
         self.callbacks['closing'](None)
         self.path = str(Path(self.tmp.name) / 'Other.spp')
         self.callbacks['opened'](None)
-        self.assertIsNone(self.plugin.ledger.binding(self.path))
-        self.assertIsNone(self.plugin.clock.path)
+        self.assertNotEqual(self.plugin.ledger.binding(self.path)['work'], original['work'])
+        self.assertIsNotNone(self.plugin.clock.path)
 
     def test_inputs_pause_and_deactivation(self):
         self.bind()
         event = QtGui.QKeyEvent(QtCore.QEvent.Type.KeyPress, QtCore.Qt.Key.Key_A, QtCore.Qt.KeyboardModifier.NoModifier)
-        self.assertFalse(self.plugin.eventFilter(self.dock, event))
+        self.assertFalse(self.plugin.eventFilter(self.window, event))
         self.assertIsNotNone(self.plugin.clock.last)
         self.plugin.pause()
-        self.plugin.eventFilter(self.dock, event)
+        self.plugin.eventFilter(self.window, event)
         self.assertIsNone(self.plugin.clock.last)
         self.plugin.pause()
-        self.plugin.eventFilter(self.dock, event)
-        self.plugin.eventFilter(self.plugin.panel, QtCore.QEvent(QtCore.QEvent.Type.ApplicationDeactivate))
+        self.plugin.eventFilter(self.window, event)
+        self.plugin.eventFilter(self.window, QtCore.QEvent(QtCore.QEvent.Type.ApplicationDeactivate))
         self.assertIsNone(self.plugin.clock.last)
 
     def test_timer_flush_and_ui(self):
@@ -87,7 +85,8 @@ class HostTests(unittest.TestCase):
         self.plugin.clock.input(0, 1000)
         self.plugin.clock.input(60, 1060)
         self.plugin.tick()
-        self.assertEqual(self.plugin.panel.total.text(), '00:01:00')
+        self.plugin.menu_opened()
+        self.assertEqual(self.plugin.total_action.text(), 'Total\t00:01:00')
         self.assertFalse(self.plugin.failed)
 
     def test_closing_does_not_reacquire_old_project(self):
@@ -104,21 +103,21 @@ class HostTests(unittest.TestCase):
         self.plugin.last_tick -= 20
         self.plugin.tick()
         self.assertIsNone(self.plugin.clock.last)
-        self.assertEqual(self.plugin.panel.total.text(), '00:00:10')
+        self.plugin.menu_opened()
+        self.assertEqual(self.plugin.total_action.text(), 'Total\t00:00:10')
 
-    def test_record_panel_does_not_extend_activity(self):
+    def test_record_menu_does_not_extend_activity(self):
         self.bind()
         event = QtGui.QKeyEvent(QtCore.QEvent.Type.KeyPress, QtCore.Qt.Key.Key_A, QtCore.Qt.KeyboardModifier.NoModifier)
-        self.plugin.eventFilter(self.plugin.panel, event)
+        self.plugin.menu.popup(QtCore.QPoint(0, 0))
+        self.plugin.eventFilter(self.plugin.menu, event)
         self.assertIsNone(self.plugin.clock.last)
+        self.plugin.menu.hide()
 
-    def test_scale_resizes_painted_controls(self):
-        panel = self.plugin.panel
-        before = panel.pause.height()
-        font = panel.font()
-        font.setPixelSize(28)
-        panel.setFont(font)
-        self.assertGreater(panel.pause.height(), before)
+    def test_native_menu_without_dock(self):
+        self.assertFalse(self.window.findChildren(QtWidgets.QDockWidget))
+        self.assertIn(self.plugin.menu.menuAction(), self.window.menuBar().actions())
+        self.assertEqual(self.plugin.title_action.text(), 'Penglai_Wedding')
 
 
 if __name__ == '__main__':
