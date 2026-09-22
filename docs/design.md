@@ -13,6 +13,9 @@ Create a modern, fluid, beautiful PySide6 component library that Rizum Painter p
 
 ## Interaction Principles
 
+Settings-dialog geometry and typography follow [Settings Proportions](settings-proportions.md),
+derived from the approved live PT-PS Bridge and Drag Distance dialogs.
+
 - Use compact controls for repeated production workflows.
 - Make primary actions visually clear without turning every button into a large CTA.
 - Keep previews close to real plugin layouts so visual decisions transfer into Painter.

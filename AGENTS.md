@@ -16,4 +16,9 @@
 
 ## Required reading
 
+- **`docs/settings-proportions.md`** — Before designing or changing a settings
+  panel, follow the content-fitted proportions and typography of the approved
+  PT-PS Bridge and Drag Distance references. Do not impose one aspect ratio on
+  dialogs with different amounts of content.
+
 - **`docs/font-scale-adaptation.md`** — Before adding or modifying any shared compact component (painted icon button, stepper, chevron, field control, footer button), read this standard. Every component with painted internals or a fixed pixel size must expose a runtime size setter (`setPaintedIconSize` / `setButtonSize` / `setSize` / `setCompactHeight`) so `rizum-pt-ui-font` can scale it at runtime. The doc contains the API contract, the caller pattern, and a checklist. Skipping it produces controls that clip or refuse to scale when the UI font grows.
