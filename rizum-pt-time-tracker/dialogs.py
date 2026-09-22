@@ -45,6 +45,7 @@ class TrackerDialog(PainterSettingsDialog):
         layout = QtWidgets.QHBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
         label = QtWidgets.QLabel(text)
+        label.setObjectName('RizumSettingsItemName')
         layout.addWidget(label)
         layout.addWidget(control, 1)
         self.body_layout.addWidget(row)
@@ -57,7 +58,7 @@ class TrackerDialog(PainterSettingsDialog):
         theme = replace(default_theme, bg=COLORS['surface'], surface=COLORS['surface'],
                         surface_control=COLORS['control'], text=COLORS['text'],
                         text_muted=COLORS['muted'], radius_button=default_theme.radius_small,
-                        font_size=self.settingsMetric(12))
+                        font_size=self.settingsMetric(13))
         self.setStyleSheet(build_stylesheet(theme, mode='full') + f'''
             QLabel {{ color: {theme.text}; background: transparent; font-size: {theme.font_size}px; }}
             QLineEdit {{ min-height: 0; padding: 0 {self.settingsMetric(8)}px; }}
@@ -75,7 +76,7 @@ class TrackerDialog(PainterSettingsDialog):
                                              m(METRICS.footer_margin_x), m(METRICS.footer_bottom))
         self.footer_layout.setSpacing(self.settingsMetric(METRICS.footer_button_spacing))
         for row, label, control in self.controls:
-            row.setMinimumHeight(m(METRICS.row_height))
+            row.setFixedHeight(m(METRICS.row_height))
             row.layout().setSpacing(self.settingsMetric(METRICS.row_spacing))
             label.setMinimumWidth(self.settingsMetric(80))
             if hasattr(control, 'setCompactHeight'):
@@ -85,7 +86,21 @@ class TrackerDialog(PainterSettingsDialog):
         for button in (self.cancel_button, self.save_button):
             button.setCompactHeight(m(METRICS.footer_button_height))
             button.setFixedWidth(max(self.settingsMetric(68), button.sizeHint().width()))
-        self.setMinimumWidth(self.settingsMetric(600 if self.wide else 360))
+        if self.wide:
+            self.setMinimumWidth(self.settingsMetric(600))
+        else:
+            self.setMinimumWidth(0)
+            self.setMaximumWidth(16777215)
+            self.setFixedWidth(max(self.settingsMetric(338), self.minimumSizeHint().width()))
+
+    def fit_content(self):
+        if not self.wide:
+            self.layout().activate()
+            self.resize(self.width(), self.sizeHint().height())
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.fit_content()
 
 
 class SettingsDialog(TrackerDialog):
@@ -144,8 +159,11 @@ class SettingsDialog(TrackerDialog):
 
     def section(self, text):
         label = QtWidgets.QLabel(text)
+        label.setObjectName('RizumSettingsSection')
         label.setProperty('muted', True)
-        label.setMinimumHeight(METRICS.section_height.resolve(self))
+        label.setProperty('firstSection', self.body_layout.count() == 0)
+        metric = METRICS.first_section_height if label.property('firstSection') else METRICS.section_height
+        label.setFixedHeight(metric.resolve(self))
         self.body_layout.addWidget(label)
 
     def apply_metrics(self, _scale=None):
@@ -156,7 +174,11 @@ class SettingsDialog(TrackerDialog):
                 button.setCompactHeight(METRICS.footer_button_height.resolve(self))
         for label in self.body.findChildren(QtWidgets.QLabel):
             if label.property('muted'):
-                label.setMinimumHeight(METRICS.section_height.resolve(self))
+                metric = METRICS.first_section_height if label.property('firstSection') else METRICS.section_height
+                label.setFixedHeight(metric.resolve(self))
+        surface = self.settingsSurface()
+        surface.setStyleSheet(surface.styleSheet() + 'QLabel#RizumSettingsSection { letter-spacing: 0; }')
+        self.fit_content()
 
     def selection(self):
         return (self.work_name.text().strip() if self.work.currentData() is None else '',
@@ -180,6 +202,8 @@ class SettingsDialog(TrackerDialog):
         if hasattr(self, 'idle'):
             changed = changed or self.idle.value() != self.initial_idle or self.minutes.value() > 0
         self.save_button.setDirty(valid and changed, animate=False)
+        if self.isVisible():
+            self.fit_content()
 
 
 class HistoryDialog(TrackerDialog):
