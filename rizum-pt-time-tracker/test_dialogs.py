@@ -23,7 +23,7 @@ class DialogTests(unittest.TestCase):
             try:
                 path = str(Path(directory) / 'Work.Hair.spp')
                 binding = db.auto_bind(path)
-                dialog = dialogs.AssignmentDialog(db, path)
+                dialog = dialogs.SettingsDialog(db, path, 120)
                 self.assertFalse(dialog.save_button.isDirty())
                 self.assertEqual(dialog.selection()[2:], (binding['work'], binding['part']))
                 dialog.part.setCurrentIndex(0)
@@ -36,19 +36,23 @@ class DialogTests(unittest.TestCase):
             finally:
                 db.close()
 
-    def test_number_dialog_and_scale(self):
-        dialog = dialogs.NumberDialog('Idle timeout', 'Seconds', 120, 30, 1800, step=30)
+    def test_settings_without_project_and_scale(self):
+        db = core.Ledger(':memory:')
+        dialog = dialogs.SettingsDialog(db, None, 120)
         self.assertFalse(dialog.save_button.isDirty())
-        dialog.number.setValue(150)
+        self.assertFalse(dialog.minutes.isEnabled())
+        self.assertFalse(dialog.export_button.isEnabled())
+        dialog.idle.setValue(150)
         self.assertTrue(dialog.save_button.isDirty())
         for scale in (0.75, 1.1, 2.0, 1.0):
             dialog.setSettingsUiScale(scale)
             dialog.show()
             self.app.processEvents()
             self.assertGreaterEqual(dialog.save_button.width(), dialog.save_button.sizeHint().width())
-            self.assertEqual(dialog.number.value(), 150)
+            self.assertEqual(dialog.idle.value(), 150)
         dialog.close()
         dialog.deleteLater()
+        db.close()
 
     def test_history_empty_and_populated(self):
         for rows in ([], [{'start': 1000, 'seconds': 90, 'part_name': 'Hair', 'manual': False}]):

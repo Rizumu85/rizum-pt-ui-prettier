@@ -10,7 +10,7 @@ from uuid import uuid4
 from PySide6 import QtCore, QtGui, QtWidgets
 from .core import Ledger, ActivityClock
 from .activity import ActivityPolicy, input_context
-from .dialogs import AssignmentDialog, NumberDialog, HistoryDialog, MessageDialog
+from .dialogs import SettingsDialog, HistoryDialog, MessageDialog
 
 
 def duration(seconds):
@@ -51,13 +51,7 @@ class Plugin(QtCore.QObject):
         self.pause_action = self.menu.addAction('Pause tracking', self.pause)
         self.history_action = self.menu.addAction('Work history...', lambda: self.run_tool('history'))
         self.menu.addSeparator()
-        self.manage_menu = self.menu.addMenu('Manage')
-        self.group_action = self.manage_menu.addAction('Change work / part...', self.assign)
-        self.manual_action = self.manage_menu.addAction('Add time...', lambda: self.run_tool('manual'))
-        self.export_action = self.manage_menu.addAction('Export records...', lambda: self.run_tool('export'))
-        self.manage_menu.addSeparator()
-        self.manage_menu.addAction('Idle timeout...', lambda: self.run_tool('idle'))
-        self.manage_menu.addAction('Open records folder', lambda: self.run_tool('folder'))
+        self.settings_action = self.menu.addAction('Settings...', self.show_settings)
         self.menu.aboutToShow.connect(self.menu_opened)
         sp.ui.add_menu(self.menu)
         self.app = QtWidgets.QApplication.instance()
@@ -205,7 +199,7 @@ class Plugin(QtCore.QObject):
         if self.failed or self.closed:
             return
         binding = self.ledger.binding(self.path) if self.path else None
-        for action in (self.pause_action, self.history_action, self.group_action, self.manual_action, self.export_action):
+        for action in (self.pause_action, self.history_action):
             action.setEnabled(bool(binding))
         self.pause_action.setText('Resume tracking' if self.paused else 'Pause tracking')
         for action in (self.total_action, self.today_action, self.part_action):
@@ -230,18 +224,25 @@ class Plugin(QtCore.QObject):
         self.paused = not self.paused
         self.refresh()
 
-    def assign(self):
-        if not self.path or self.dialog is not None:
+    def show_settings(self):
+        if self.dialog is not None:
             return
         path = self.path
         self.activity.stop()
-        dialog = AssignmentDialog(self.ledger, path, self.window)
+        dialog = SettingsDialog(self.ledger, path, self.clock.idle, self.window)
+        binding = self.ledger.binding(path) if path else None
+        dialog.export_button.clicked.connect(lambda: self.export(binding))
+        dialog.folder_button.clicked.connect(lambda: self.open_tool('folder'))
         self.dialog = dialog
         try:
             if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-                self.ledger.bind(path, *dialog.selection())
-                if self.path == path:
-                    self.clock.switch(path)
+                if path and dialog.selection() != dialog.initial:
+                    self.ledger.bind(path, *dialog.selection())
+                if path and dialog.minutes.value() > 0:
+                    now = time.time()
+                    self.ledger.save_session(uuid4().hex, path, now, now, int(dialog.minutes.value()) * 60, True)
+                self.clock.idle = int(dialog.idle.value())
+                self.settings.setValue('idle_seconds', self.clock.idle)
         except Exception as error:
             self.fail(error)
         finally:
@@ -270,19 +271,6 @@ class Plugin(QtCore.QObject):
         binding = self.ledger.binding(self.path) if self.path else None
         if command == 'folder':
             QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(Path(self.ledger.db.execute('PRAGMA database_list').fetchone()[2]).parent)))
-        elif command == 'idle':
-            value, ok = self.number_input('Idle timeout', 'Seconds', self.clock.idle, 30, 1800, step=30)
-            if ok:
-                self.activity.stop()
-                self.clock.idle = value
-                self.settings.setValue('idle_seconds', value)
-        elif command == 'manual' and binding:
-            path = self.path
-            value, ok = self.number_input('Add time', 'Minutes', 10, 1, 1440)
-            if ok:
-                now = time.time()
-                self.ledger.save_session(uuid4().hex, path, now, now, value*60, True)
-                self.refresh()
         elif command == 'history' and binding:
             self.show_history(binding)
         elif command == 'export' and binding:
@@ -292,25 +280,16 @@ class Plugin(QtCore.QObject):
         self.exec_dialog(HistoryDialog(binding['work_name'], self.ledger.history(binding['work']), self.window))
 
     def exec_dialog(self, dialog):
+        previous = self.dialog
         self.dialog = dialog
         try:
             return dialog.exec()
         finally:
-            self.dialog = None
+            self.dialog = previous
             dialog.deleteLater()
 
     def show_message(self, title, text):
         self.exec_dialog(MessageDialog(title, text, self.window))
-
-    def number_input(self, title, label, value, minimum, maximum, *, step=1):
-        dialog = NumberDialog(title, label, value, minimum, maximum, self.window, step=step)
-        self.dialog = dialog
-        try:
-            accepted = dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted
-            return int(dialog.number.value()), accepted
-        finally:
-            self.dialog = None
-            dialog.deleteLater()
 
     def export(self, binding):
         path, _ = QtWidgets.QFileDialog.getSaveFileName(self.window, 'Export records', 'time-records.csv', 'CSV (*.csv)')

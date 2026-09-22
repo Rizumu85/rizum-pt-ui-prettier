@@ -13,7 +13,9 @@ part. `Penglai_Wedding.Basecolors.spp` and `Penglai_Wedding.Hair.spp` share the
 version suffixes such as `_v02` are ignored; other digits and underscores remain.
 Matching names across folders share the same work. Save As uses the destination
 name immediately, without copying time. Existing file assignments are preserved,
-including manual corrections made through **Manage > Change work / part**.
+including manual corrections made through **Settings**. Settings combines the
+current file's work/part, idle timeout and optional time addition under one Save /
+Cancel boundary. CSV export and the records folder are secondary actions there.
 
 Counting uses positive evidence. Pointer/pen contact, dragging and wheel input in
 Painter's `Viewer3D`/`Viewer2D` count directly. Other native UI inputs, including

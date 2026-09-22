@@ -123,6 +123,29 @@ class HostTests(unittest.TestCase):
         self.assertFalse(self.window.findChildren(QtWidgets.QDockWidget))
         self.assertIn(self.plugin.menu.menuAction(), self.window.menuBar().actions())
         self.assertEqual(self.plugin.title_action.text(), 'Penglai_Wedding')
+        self.assertFalse(any(action.menu() for action in self.plugin.menu.actions()))
+        self.assertEqual(self.plugin.settings_action.text(), 'Settings...')
+
+    def test_settings_cancel_does_not_add_time(self):
+        def edit():
+            self.plugin.dialog.minutes.setValue(15)
+            self.plugin.dialog.reject()
+        QtCore.QTimer.singleShot(0, edit)
+        self.plugin.show_settings()
+        binding = self.plugin.ledger.binding(self.path)
+        self.assertFalse(self.plugin.ledger.history(binding['work']))
+
+    def test_settings_save_adds_time_and_updates_timeout(self):
+        self.plugin.settings = QtCore.QSettings(str(Path(self.tmp.name) / 'settings.ini'), QtCore.QSettings.Format.IniFormat)
+        def edit():
+            self.plugin.dialog.minutes.setValue(15)
+            self.plugin.dialog.idle.setValue(300)
+            self.plugin.dialog.accept()
+        QtCore.QTimer.singleShot(0, edit)
+        self.plugin.show_settings()
+        binding = self.plugin.ledger.binding(self.path)
+        self.assertEqual(self.plugin.ledger.history(binding['work'])[0]['seconds'], 900)
+        self.assertEqual(self.plugin.clock.idle, 300)
 
     def test_other_menu_clears_pending_confirmation(self):
         self.plugin.activity.offer('candidate', 0, 1000)
