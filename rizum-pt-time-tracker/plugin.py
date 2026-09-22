@@ -8,8 +8,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from .core import Ledger, ActivityClock, filename_group
+from .core import Ledger, ActivityClock
 from .activity import ActivityPolicy, input_context
+from .dialogs import AssignmentDialog, NumberDialog, HistoryDialog, MessageDialog
 
 
 def duration(seconds):
@@ -233,60 +234,12 @@ class Plugin(QtCore.QObject):
         if not self.path or self.dialog is not None:
             return
         path = self.path
-        binding = self.ledger.binding(path)
         self.activity.stop()
-        dialog = QtWidgets.QDialog(self.window)
+        dialog = AssignmentDialog(self.ledger, path, self.window)
         self.dialog = dialog
-        dialog.setWindowTitle('Work and part')
-        layout = QtWidgets.QFormLayout(dialog)
-        work = QtWidgets.QComboBox()
-        work.addItem('New work', None)
-        for row in self.ledger.works():
-            work.addItem(row['name'], row['id'])
-        suggested_work, suggested_part = filename_group(path)
-        work_name = QtWidgets.QLineEdit(suggested_work)
-        part = QtWidgets.QComboBox()
-        part_name = QtWidgets.QLineEdit(suggested_part)
-        layout.addRow('Work', work)
-        layout.addRow('New work name', work_name)
-        layout.addRow('Part', part)
-        layout.addRow('New part name', part_name)
-        note = QtWidgets.QLabel('Changes the grouping of this file and its recorded time.')
-        note.setWordWrap(True)
-        layout.addRow(note)
-        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Save |
-                                            QtWidgets.QDialogButtonBox.StandardButton.Cancel)
-        layout.addRow(buttons)
-
-        def update_parts():
-            work_name.setEnabled(work.currentData() is None)
-            part.clear()
-            part.addItem('New part', None)
-            if work.currentData():
-                for row in self.ledger.parts(work.currentData()):
-                    part.addItem(row['name'], row['id'])
-
-        def validate():
-            part_name.setEnabled(part.currentData() is None)
-            valid = (work.currentData() is not None or bool(work_name.text().strip())) and (
-                part.currentData() is not None or bool(part_name.text().strip()))
-            buttons.button(QtWidgets.QDialogButtonBox.StandardButton.Save).setEnabled(valid)
-
-        work.currentIndexChanged.connect(update_parts)
-        work.currentIndexChanged.connect(validate)
-        part.currentIndexChanged.connect(validate)
-        work_name.textChanged.connect(validate)
-        part_name.textChanged.connect(validate)
-        update_parts()
-        if binding:
-            work.setCurrentIndex(work.findData(binding['work']))
-            part.setCurrentIndex(part.findData(binding['part']))
-        validate()
-        buttons.accepted.connect(dialog.accept)
-        buttons.rejected.connect(dialog.reject)
         try:
             if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-                self.ledger.bind(path, work_name.text(), part_name.text(), work.currentData(), part.currentData())
+                self.ledger.bind(path, *dialog.selection())
                 if self.path == path:
                     self.clock.switch(path)
         except Exception as error:
@@ -309,7 +262,7 @@ class Plugin(QtCore.QObject):
         try:
             self.open_tool(command)
         except Exception as error:
-            QtWidgets.QMessageBox.warning(self.window, 'Time Tracker', str(error))
+            self.show_message('Time Tracker', str(error))
         finally:
             self.in_tools = False
 
@@ -318,14 +271,14 @@ class Plugin(QtCore.QObject):
         if command == 'folder':
             QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(Path(self.ledger.db.execute('PRAGMA database_list').fetchone()[2]).parent)))
         elif command == 'idle':
-            value, ok = QtWidgets.QInputDialog.getInt(self.window, 'Idle timeout', 'Seconds without input', self.clock.idle, 30, 1800, 30)
+            value, ok = self.number_input('Idle timeout', 'Seconds', self.clock.idle, 30, 1800, step=30)
             if ok:
                 self.activity.stop()
                 self.clock.idle = value
                 self.settings.setValue('idle_seconds', value)
         elif command == 'manual' and binding:
             path = self.path
-            value, ok = QtWidgets.QInputDialog.getInt(self.window, 'Add time', 'Minutes for the current part', 10, 1, 1440)
+            value, ok = self.number_input('Add time', 'Minutes', 10, 1, 1440)
             if ok:
                 now = time.time()
                 self.ledger.save_session(uuid4().hex, path, now, now, value*60, True)
@@ -336,25 +289,28 @@ class Plugin(QtCore.QObject):
             self.export(binding)
 
     def show_history(self, binding):
-        dialog = QtWidgets.QDialog(self.window)
-        dialog.setWindowTitle(binding['work_name'])
-        layout = QtWidgets.QVBoxLayout(dialog)
-        table = QtWidgets.QTableWidget(0, 4)
-        table.setHorizontalHeaderLabels(['Started', 'Part', 'Time', 'Source'])
-        table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
-        for row in self.ledger.history(binding['work']):
-            if row['seconds'] < 1:
-                continue
-            index = table.rowCount()
-            table.insertRow(index)
-            for column, value in enumerate([datetime.fromtimestamp(row['start']).strftime('%Y-%m-%d %H:%M'),
-                                            row['part_name'], duration(row['seconds']), 'Manual' if row['manual'] else 'Activity']):
-                table.setItem(index, column, QtWidgets.QTableWidgetItem(value))
-        table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-        layout.addWidget(table)
-        dialog.resize(600, 380)
-        dialog.exec()
-        dialog.deleteLater()
+        self.exec_dialog(HistoryDialog(binding['work_name'], self.ledger.history(binding['work']), self.window))
+
+    def exec_dialog(self, dialog):
+        self.dialog = dialog
+        try:
+            return dialog.exec()
+        finally:
+            self.dialog = None
+            dialog.deleteLater()
+
+    def show_message(self, title, text):
+        self.exec_dialog(MessageDialog(title, text, self.window))
+
+    def number_input(self, title, label, value, minimum, maximum, *, step=1):
+        dialog = NumberDialog(title, label, value, minimum, maximum, self.window, step=step)
+        self.dialog = dialog
+        try:
+            accepted = dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted
+            return int(dialog.number.value()), accepted
+        finally:
+            self.dialog = None
+            dialog.deleteLater()
 
     def export(self, binding):
         path, _ = QtWidgets.QFileDialog.getSaveFileName(self.window, 'Export records', 'time-records.csv', 'CSV (*.csv)')
@@ -368,7 +324,7 @@ class Plugin(QtCore.QObject):
                                   datetime.fromtimestamp(row['start']).isoformat(), round(row['seconds'], 2), row['manual']]
                         writer.writerow(["'" + value if isinstance(value, str) and value.startswith(('=', '+', '-', '@')) else value for value in values])
             except OSError as error:
-                QtWidgets.QMessageBox.warning(self.window, 'Export records', str(error))
+                self.show_message('Export records', str(error))
 
     def close(self):
         if self.closed:

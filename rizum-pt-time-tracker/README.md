@@ -1,6 +1,7 @@
 # Rizum Time Tracker
 
-Painter menu plugin for local, activity-based work tracking. Requires PySide6.
+Painter menu plugin for local, activity-based work tracking. Requires PySide6 and
+the sibling `rizum-pt-ui-prettier` library for its settings and history dialogs.
 
 Enable `rizum-pt-time-tracker` in Painter's Python plugins menu. Saved projects
 are tracked automatically, without a dock or assignment prompt. The **Time Tracker**
