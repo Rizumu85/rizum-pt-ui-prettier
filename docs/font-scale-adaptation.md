@@ -37,6 +37,33 @@ Every shared compact component that paints its own glyphs or has a fixed pixel s
 6. **Popup metrics use design tokens, not owner-font normalization.** A tooltip keeps the owner's family and weight, but its font uses a fixed pixel baseline and scales only through `setCompactTooltipScale`. Deriving popup size from `QFontMetrics(owner.font())` makes the same scale value render differently across Painter, the standalone preview, DPI modes, and font families.
 7. **Top-level popups must defend against host QSS.** Painter applies generic rules such as `QLabel { font-size: ... }` after a popup is polished. Calling `setFont()` alone is therefore insufficient; the popup's local stylesheet must declare its resolved family, pixel size, weight, and style so the host cannot silently shrink it.
 
+## What `rizum-pt-ui-font` does to every widget
+
+Plugins share the Qt application with Painter, so they receive the same
+treatment as Painter's own widgets:
+
+- `QApplication.property("rizumUiFontScale")` holds the user's UI Scale. It is
+  the only value plugins read to scale geometry, rows, glyphs and their own
+  typography roles. Do not derive a scale from `font().pointSizeF()`; widget
+  sizes are no longer proportional to it.
+- `QApplication.setFont` alone does not reach widgets whose font Painter set,
+  so UI Font also calls `setFont` on every existing widget. Each widget gets
+  the chosen family (monospace families are kept) and a size of
+  `app font × scale × (own size / app font) ^ 0.5`, clamped to a 0.6–1.8 ratio,
+  so Painter's tiny captions grow while headers stay larger. Weight, italic,
+  decoration, capitalization and spacing come from the widget's original font.
+- The original font is stored on the widget in the reserved
+  `rizumUiFontBaseline` property and restored on revert. Do not write to it.
+
+Consequences for shared components and plugins:
+
+- Shared typography roles keep scaling linearly (`role px × scale`); their
+  ratios are designed, unlike Painter's host sizes. A role size that must hold
+  belongs in QSS or a painter-local `QFont`, or is re-applied on `FontChange`.
+  A plain `widget.setFont` can be overwritten by the next preview.
+- Inherit the family from the widget font; do not hard-code one, or the UI
+  Font family choice will not reach the control.
+
 ## Caller side — `rizum-pt-ui-font` pattern
 
 The font plugin drives scaling from a single `_apply_compact_heights(scale)` method. New shared components just need their setter called there:
