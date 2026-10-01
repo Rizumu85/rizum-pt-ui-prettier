@@ -45,7 +45,7 @@ SHORTCUT_ACTIONS = [
 DEFAULTS = {
     "mode": "step_15",
     "angle": 45,
-    "speed": 90,
+    "speed": 180,
     "free_rotation": True,
     "shortcuts": {
         "roll_left": "Alt+Left",
