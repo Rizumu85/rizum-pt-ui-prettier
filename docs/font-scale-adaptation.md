@@ -49,9 +49,12 @@ treatment as Painter's own widgets:
 - `QApplication.setFont` alone does not reach widgets whose font Painter set,
   so UI Font also calls `setFont` on every existing widget. Each widget gets
   the chosen family (monospace families are kept) and a size of
-  `app font × scale × (own size / app font) ^ 0.5`, clamped to a 0.6–1.8 ratio,
-  so Painter's tiny captions grow while headers stay larger. Weight, italic,
-  decoration, capitalization and spacing come from the widget's original font.
+  `app font × scale × (own size / app font) ^ k`. At scale 1.0, `k = 1`, so
+  Painter's own sizes are kept exactly and only the family changes. `k` ramps
+  to 0.5 once the scale is 0.25 away from 1.0, and the ratio is then clamped
+  to 0.6–1.8, so Painter's tiny captions grow while headers stay larger.
+  Weight, italic, decoration, capitalization and spacing come from the
+  widget's original font.
 - The original font is stored on the widget in the reserved
   `rizumUiFontBaseline` property and restored on revert. Do not write to it.
 
