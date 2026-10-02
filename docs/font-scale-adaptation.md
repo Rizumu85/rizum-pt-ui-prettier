@@ -20,6 +20,7 @@ Every shared compact component that paints its own glyphs or has a fixed pixel s
 | Single chevron / arrow glyph (`_ChevronDown`) | `setSize(px)` | Fixed widget size + painted point coords |
 | Mock checkbox (`_Checkbox`) | `setSize(px)` | Fixed widget size + painted box/checkmark coords |
 | Compact tooltip / hover popup (`install_compact_tooltip`) | `setCompactTooltipScale(scale)` | Tooltip font, padding, corner radius, and popup offset |
+| Popup menu (`make_popup_menu`) | Built per open; kept menus call `refreshMetrics()` | Menu font, padding, item padding, separator margins |
 | Dialog actions (`TextActionButton`, `SecondaryActionButton`, `AnimatedSaveButton`) | `setCompactHeight(px)` | Fixed height, measured width, text metrics, radius, and painted feedback glyph |
 | Shortcut capture (`ShortcutCaptureField`) | `setCompactHeight(px)` | Field height and width, text metrics, clear glyph, conflict marker, and radius |
 | Mode parameter slot (`ModeParameterSlot`) | `setExpandedHeight(px)` | Active row height and collapsed/expanded slot geometry |

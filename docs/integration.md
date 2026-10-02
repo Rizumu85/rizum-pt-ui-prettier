@@ -150,6 +150,25 @@ class _Surface(QtWidgets.QWidget):
         painter.end()
 ```
 
+### Popup Menus
+
+Create every context or dropdown menu with `make_popup_menu(parent)`. It sets
+the shared `RizumPopupMenu` identity, masks the rounded corners (translucent
+popups are not composited on every Windows setup), shows disabled items as
+muted text instead of Painter's grey boxes, and restates the font and spacing
+at the current UI Font scale.
+
+Build menus when they open so they read the current scale. A menu kept alive
+across scale changes must call `menu.refreshMetrics()` from the plugin's
+metrics refresh. Plugin-specific rules go in `extra_stylesheet` so they are
+re-applied with the scaled shared rules:
+
+```python
+menu = make_popup_menu(self.widget)
+menu.addAction("Fit to panel", self.fit)
+menu.exec(global_pos)
+```
+
 For compact one-click dock actions, use `make_dock_actions_panel()` and connect the returned buttons:
 
 ```python
