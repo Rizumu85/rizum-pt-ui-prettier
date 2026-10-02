@@ -60,6 +60,10 @@ treatment as Painter's own widgets:
   such as the close-time save prompt) get the same treatment from an
   application event filter on Show, before their first paint, and again on
   FontChange when Painter repolishes a widget back to its stylesheet size.
+  Widgets inside a root whose object name starts with `Rizum` (every
+  plugin panel, settings dialog and kit component) are skipped by that
+  filter, because they scale themselves; keep the prefix on new roots. The
+  `QDockWidget` itself is not counted, so dock title bars follow Painter.
   Shared components therefore need no re-apply hook of their own.
 - The original font is stored on the widget in the reserved
   `rizumUiFontBaseline` property and the applied one in `rizumUiFontTarget`;
