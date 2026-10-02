@@ -70,6 +70,10 @@ Consequences for shared components and plugins:
   renders every dock title bold and upper-case from a natural-case
   `setWindowTitle` ("PT Bridge"); styling the dock replaces that look. Apply
   panel fonts to the panel content widget only.
+- The same holds for menus added with `sp.ui.add_menu` and their actions:
+  Painter's menu font already follows UI Font. Forcing `QApplication.font()`
+  onto a menu or `QAction` skips the menu hierarchy and renders those items
+  larger than every other menu.
 
 ## Caller side — `rizum-pt-ui-font` pattern
 
