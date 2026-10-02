@@ -56,8 +56,14 @@ treatment as Painter's own widgets:
   to 0.6–1.8, so Painter's tiny captions grow while headers stay larger.
   Weight, italic, decoration, capitalization and spacing come from the
   widget's original font.
+- Widgets Painter shows later (panels built after a project opens, dialogs
+  such as the close-time save prompt) get the same treatment from an
+  application event filter on Show, before their first paint, and again on
+  FontChange when Painter repolishes a widget back to its stylesheet size.
+  Shared components therefore need no re-apply hook of their own.
 - The original font is stored on the widget in the reserved
-  `rizumUiFontBaseline` property and restored on revert. Do not write to it.
+  `rizumUiFontBaseline` property and the applied one in `rizumUiFontTarget`;
+  both are restored or cleared on revert. Do not write to them.
 
 Consequences for shared components and plugins:
 
