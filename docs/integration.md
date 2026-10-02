@@ -125,6 +125,31 @@ source_group = make_drag_collapsible_group(
 
 The drag group uses the filled folder icon as its disclosure marker, and drag/drop tree folders use the same filled folder treatment for visual consistency. Click the header to collapse/expand; drag the same header to move the folder as a folder payload. After adding or removing rows, call `source_group.refreshLayout()` so localized text and UI font scale changes keep the clipped animation height accurate.
 
+### Compact Dock Surface
+
+The dock surface around the card must meet Painter's dock header without a
+seam, and that header changes with the dock state (measured in Painter 12.1):
+
+| Dock state | Header Painter draws | Surface color |
+|---|---|---|
+| Floating, or docked alone | Title bar `#2b2b2b` | `COMPACT_DOCK_PANEL_BG` |
+| Docked in a tab group | Selected tab `#333333` | `COMPACT_DOCK_TABBED_PANEL_BG` |
+
+`apply_compact_dock_surface(widget)` tracks this automatically: it re-checks
+the state when the dock floats, re-docks, is tabbed or resized, and updates the
+palette and the `rizumDockTabbed` style property. A plugin that paints its own
+surface (for example to cover Painter's `#333333` repaint of unused dock
+space) must paint `compact_dock_surface_color(self)`, never a fixed constant:
+
+```python
+class _Surface(QtWidgets.QWidget):
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QtGui.QPainter(self)
+        painter.fillRect(event.rect(), QtGui.QColor(compact_dock_surface_color(self)))
+        painter.end()
+```
+
 For compact one-click dock actions, use `make_dock_actions_panel()` and connect the returned buttons:
 
 ```python
