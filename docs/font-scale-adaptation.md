@@ -66,6 +66,10 @@ Consequences for shared components and plugins:
   A plain `widget.setFont` can be overwritten by the next preview.
 - Inherit the family from the widget font; do not hard-code one, or the UI
   Font family choice will not reach the control.
+- Never set a font or stylesheet on a `QDockWidget` or its title bar. Painter
+  renders every dock title bold and upper-case from a natural-case
+  `setWindowTitle` ("PT Bridge"); styling the dock replaces that look. Apply
+  panel fonts to the panel content widget only.
 
 ## Caller side — `rizum-pt-ui-font` pattern
 
