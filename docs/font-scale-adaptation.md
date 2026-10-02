@@ -50,10 +50,11 @@ treatment as Painter's own widgets:
 - `QApplication.setFont` alone does not reach widgets whose font Painter set,
   so UI Font also calls `setFont` on every existing widget. Each widget gets
   the chosen family (monospace families are kept) and a size of
-  `app font × scale × (own size / app font) ^ k`. At scale 1.0, `k = 1`, so
-  Painter's own sizes are kept exactly and only the family changes. `k` ramps
-  to 0.5 once the scale is 0.25 away from 1.0, and the ratio is then clamped
-  to 0.6–1.8, so Painter's tiny captions grow while headers stay larger.
+  `app font × scale × (own size / app font) ^ k` with `k = 1`: every piece
+  of text scales by exactly the chosen factor and Painter's own size ratios
+  are kept, so a dock needs about `scale` times its 1.0 width before Painter
+  clips its content. (A softening of `k` below 1 for small captions exists
+  behind `_HIERARCHY_STRENGTH` but is off; the user prefers narrow panels.)
   Weight, italic, decoration, capitalization and spacing come from the
   widget's original font.
 - Widgets Painter shows later (panels built after a project opens, dialogs
