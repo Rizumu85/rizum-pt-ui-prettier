@@ -52,12 +52,14 @@ treatment as Painter's own widgets:
   the chosen family (monospace families are kept) and a size of
   `app font × scale × (own size / app font) ^ k` with `k = 1`: every piece
   of text scales by exactly the chosen factor and Painter's own size ratios
-  are kept. Painter's parameter panels are the exception: the Properties
-  (`Tool`) and Texture Set Settings (`textureSetSettings`) docks fit their
-  narrowest width only at the default size, and Painter clips content that
-  outgrows a dock, so text inside them keeps Painter's size (family still
-  changes; `_FIT_DOCK_NAMES`). Their title bars, menus, tabs, the shelf, the
-  console, the layer stack and dialogs scale fully. (A softening of `k`
+  are kept. Painter's parameter panels are the exception: label + control
+  forms fit their docks' narrowest width only at the default size, and
+  Painter clips content that outgrows a dock, so text inside them keeps
+  Painter's size (family still changes). The set is `_FIT_DOCK_NAMES` in
+  ui-font: Properties, Texture Set Settings, Display Settings, Shader
+  settings, Renderer Settings, the baking settings panels and Export.
+  Lists, grids and consoles (Layers, History, shelf, Log, Python Console),
+  dock title bars, menus, tabs and dialogs scale fully. (A softening of `k`
   below 1 for small captions exists behind `_HIERARCHY_STRENGTH` but is off.)
   Weight, italic, decoration, capitalization and spacing come from the
   widget's original font.
