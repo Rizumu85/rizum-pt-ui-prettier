@@ -1,0 +1,10 @@
+{
+  "menu_title": "拖动距离",
+  "current": "当前：{distance} 像素",
+  "menu_settings": "拖动距离设置...",
+  "dialog_title": "拖动距离设置",
+  "drag_distance": "拖动距离",
+  "pixels": "像素",
+  "cancel": "取消",
+  "ok": "确定"
+}

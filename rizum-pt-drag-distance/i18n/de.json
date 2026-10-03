@@ -1,0 +1,10 @@
+{
+  "menu_title": "Ziehdistanz",
+  "current": "Aktuell: {distance} Pixel",
+  "menu_settings": "Einstellungen für Ziehdistanz...",
+  "dialog_title": "Einstellungen für Ziehdistanz",
+  "drag_distance": "Ziehdistanz",
+  "pixels": "Pixel",
+  "cancel": "Abbrechen",
+  "ok": "OK"
+}

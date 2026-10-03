@@ -1,0 +1,10 @@
+{
+  "menu_title": "Distância de arrasto",
+  "current": "Atual: {distance} pixels",
+  "menu_settings": "Configurações de distância de arrasto...",
+  "dialog_title": "Configurações de distância de arrasto",
+  "drag_distance": "Distância de arrasto",
+  "pixels": "pixels",
+  "cancel": "Cancelar",
+  "ok": "OK"
+}

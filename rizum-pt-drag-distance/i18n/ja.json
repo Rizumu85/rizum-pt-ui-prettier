@@ -1,0 +1,10 @@
+{
+  "menu_title": "ドラッグ距離",
+  "current": "現在: {distance} ピクセル",
+  "menu_settings": "ドラッグ距離の設定...",
+  "dialog_title": "ドラッグ距離の設定",
+  "drag_distance": "ドラッグ距離",
+  "pixels": "ピクセル",
+  "cancel": "キャンセル",
+  "ok": "OK"
+}
