@@ -52,9 +52,12 @@ treatment as Painter's own widgets:
   the chosen family (monospace families are kept) and a size of
   `app font × scale × (own size / app font) ^ k` with `k = 1`: every piece
   of text scales by exactly the chosen factor and Painter's own size ratios
-  are kept, so a dock needs about `scale` times its 1.0 width before Painter
-  clips its content. (A softening of `k` below 1 for small captions exists
-  behind `_HIERARCHY_STRENGTH` but is off; the user prefers narrow panels.)
+  are kept. Buttons and combo boxes are the exception: their captions set a
+  dock's minimum width and Painter clips content that outgrows a dock, so
+  they keep Painter's size (family still changes; `_SECONDARY_SCALE_GAIN`,
+  0 by default) and panels stay as narrow as at 1.0. Labels, field names,
+  item views, tabs, edits and menus scale fully. (A softening of `k` below 1
+  for small captions exists behind `_HIERARCHY_STRENGTH` but is off.)
   Weight, italic, decoration, capitalization and spacing come from the
   widget's original font.
 - Widgets Painter shows later (panels built after a project opens, dialogs
