@@ -10,6 +10,10 @@ import types
 import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# The dialog fits its text, and the offscreen platform's stand-in font is
+# far wider than a real one, so the size assertions need real fonts.
+if os.path.isdir(r"C:\Windows\Fonts"):
+    os.environ.setdefault("QT_QPA_FONTDIR", r"C:\Windows\Fonts")
 
 from PySide6 import QtCore, QtWidgets
 
