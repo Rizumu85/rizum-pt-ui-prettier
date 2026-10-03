@@ -9,6 +9,66 @@ Do not patch Substance 3D Painter installation files. Use the UI kit in one of t
 
 Plugin scope is the default. App scope is useful for experiments, but it can affect Painter-owned widgets and other plugins.
 
+## Painter Languages
+
+Painter ships nine UI languages: `de`, `en`, `es`, `fr`, `it`, `ja`, `ko`,
+`pt`, `zh`. A plugin must work in every one of them and show its own text in
+that language. A plugin tested only in an English Painter is untested.
+
+### Which Language To Show
+
+- First candidate: Painter's Language preference, `General/UI_LANGUAGE` in
+  `QSettings("Adobe", "Adobe Substance 3D Painter")`. It holds the code of
+  the chosen language (`zh`, `ja`, ...).
+- Second candidate: `QLocale.system().name()`. The preference starts as
+  "Default (System Language)", which names none of the shipped languages and
+  makes Painter follow the system locale. A fresh install is in that state.
+- Resolve each candidate against the plugin's catalogs by its exact code,
+  then by its root (`zh_CN` to `zh`, `pt_BR` to `pt`); a candidate that
+  matches nothing is skipped. English is the last resort.
+- Do not read Painter's `log.txt`. Its `Using locale:` line is written after
+  the plugins have started, so every plugin stayed English on a freshly
+  started Painter. Do not use `QLocale()`: Painter leaves Qt's default locale
+  alone.
+- No language selector, override file or plugin-owned language setting.
+
+`rizum-pt-color-wheel/localization.py` is the reference implementation.
+
+### Catalogs
+
+- Every user-facing string goes through the plugin's `text(key)`. No literal
+  user-facing text in code, in any language.
+- Ship `i18n/<language>.json` for all nine languages with identical keys
+  (`zh-CN.json` also registers `zh`), and keep a test that asserts the
+  language set and key parity.
+- For Painter's own concepts use Painter's wording in that language. Look it
+  up with `tools/painter_translations.py --find "<English text>"` instead of
+  translating it afresh.
+
+### Finding Painter's Widgets
+
+Painter passes some of its Qt object names through its translator, so the
+same widget can have a different name per language. Known in Painter 12.1:
+
+| Object name | Translated in |
+| --- | --- |
+| `ActionEditor` (Properties panel) | Chinese, Italian |
+| `LayerPropertiesEditor` | Chinese |
+| `GeometryMaskView` | Japanese |
+| `Symmetry` (toolbar menu) | every language |
+
+`ActionEditor` left Color Wheel and Reference without a tool color in a
+Chinese or Italian Painter.
+
+- Find Painter's widgets by class name (`metaObject().className()`) or by an
+  object name checked as below. Never match on visible text, window titles
+  or tooltips.
+- Before relying on an object name, run
+  `tools/painter_translations.py <name>`. A message whose source is the name
+  and whose context is the widget's parent class means the name is
+  translated in the languages listed.
+- Then run the plugin once in a non-English Painter.
+
 ## `rizum-pt-to-ps-bridge`
 
 Add this near the top of the UI module before constructing widgets:
