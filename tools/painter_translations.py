@@ -96,9 +96,14 @@ def main() -> int:
 
     found = lookup(directory, arguments.texts)
     if arguments.find:
+        # One block per distinct wording; Painter repeats common words in
+        # dozens of contexts with the same translation.
+        wordings = {}
         for (source, context), translations in sorted(found.items()):
-            print(f"{source}  [{context}]")
-            for language, translation in translations.items():
+            wordings.setdefault((source, tuple(sorted(translations.items()))), []).append(context)
+        for (source, translations), contexts in wordings.items():
+            print(f"{source}  [{', '.join(contexts[:3])}{', ...' if len(contexts) > 3 else ''}]")
+            for language, translation in translations:
                 print(f"    {language}: {translation}")
         return 0
 
