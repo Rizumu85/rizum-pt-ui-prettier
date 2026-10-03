@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 from pathlib import Path
 import sys
@@ -62,6 +63,7 @@ class DragDistanceTests(unittest.TestCase):
 
         plugin_module = load_plugin()
         ui_module = sys.modules[f"{plugin_module.__name__}.ui"]
+        cls.localization = sys.modules[f"{plugin_module.__name__}.localization"]
 
         cls.DEFAULT_DRAG_DISTANCE = ui_module.DEFAULT_DRAG_DISTANCE
         cls.RizumDragDistanceSettings = (
@@ -83,6 +85,9 @@ class DragDistanceTests(unittest.TestCase):
         )
         settings.clear()
         settings.sync()
+        # The texts asserted below are the English ones, whatever language
+        # this machine's Painter is set to.
+        self.localization.CURRENT_LANGUAGE = "en"
 
     def test_menu_title_and_unsaved_default_are_updated(self):
         plugin = self.RizumDragDistanceSettings()
@@ -134,6 +139,43 @@ class DragDistanceTests(unittest.TestCase):
         self.assertEqual((dialog.width(), dialog.height()), (275, 106))
         self.assertEqual(dialog.spin_box.height(), 35)
         self.assertEqual(dialog.cancel_button.height(), 31)
+
+    def test_catalogs_cover_painters_languages_with_the_english_keys(self):
+        self.assertEqual(
+            set(self.localization.supported_languages()),
+            {"de", "en", "es", "fr", "it", "ja", "ko", "pt", "zh"},
+        )
+        english = set(self.localization.FALLBACK_TEXT)
+        for path in sorted((ROOT / "i18n").glob("*.json")):
+            with self.subTest(language=path.stem):
+                catalog = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(set(catalog), english)
+                self.assertIn("{distance}", catalog["current"])
+
+    def test_painter_preference_wins_then_the_system_language(self):
+        resolve = self.localization.resolve_language
+        self.assertEqual(resolve("zh", "en_US"), "zh")
+        self.assertEqual(resolve("", "ja_JP"), "ja")
+        self.assertEqual(resolve("custom", "de_DE"), "de")
+        self.assertEqual(resolve("", ""), "en")
+
+    def test_dialog_widens_for_longer_languages_instead_of_clipping(self):
+        for language in self.localization.supported_languages():
+            with self.subTest(language=language):
+                self.localization.CURRENT_LANGUAGE = language
+                dialog = self.SettingsDialog(self.main_window)
+                self.addCleanup(dialog.deleteLater)
+                dialog.show()
+                self.app.processEvents()
+                self.assertEqual(
+                    dialog.windowTitle(),
+                    self.localization.text("dialog_title"),
+                )
+                self.assertGreaterEqual(dialog.width(), 250)
+                self.assertGreaterEqual(
+                    dialog._name_label.width(),
+                    dialog._name_label.sizeHint().width(),
+                )
 
 
 if __name__ == "__main__":

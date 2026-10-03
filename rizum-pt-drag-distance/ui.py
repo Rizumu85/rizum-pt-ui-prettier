@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6 import QtCore, QtWidgets
 
+from .localization import text
 from .rizum_ui import (
     PAINTER_DIALOG_STYLE,
     PainterSettingsDialog,
@@ -33,7 +34,7 @@ class SettingsDialog(PainterSettingsDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("RizumDragDistanceDialog")
-        self.setWindowTitle("Drag Distance Settings")
+        self.setWindowTitle(text("dialog_title"))
         self.setModal(True)
 
         body = QtWidgets.QWidget()
@@ -54,9 +55,9 @@ class SettingsDialog(PainterSettingsDialog):
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(1)
 
-        self._name_label = QtWidgets.QLabel("Drag distance")
+        self._name_label = QtWidgets.QLabel(text("drag_distance"))
         self._name_label.setObjectName("RizumSettingsItemName")
-        self._unit_label = QtWidgets.QLabel("pixels")
+        self._unit_label = QtWidgets.QLabel(text("pixels"))
         self._unit_label.setObjectName("RizumSettingsItemMeta")
         text_layout.addWidget(self._name_label)
         text_layout.addWidget(self._unit_label)
@@ -88,14 +89,14 @@ class SettingsDialog(PainterSettingsDialog):
         self._button_layout.setSpacing(8)
 
         self.cancel_button = SecondaryActionButton(
-            "Cancel",
+            text("cancel"),
             background=_CONTROL_BACKGROUND,
             hover_background=_CONTROL_HOVER,
             pressed_background=_CONTROL_PRESSED,
             text_color=_TEXT,
         )
         self.ok_button = SecondaryActionButton(
-            "OK",
+            text("ok"),
             background=_PRIMARY,
             hover_background=PAINTER_DIALOG_STYLE["accent_hover"],
             pressed_background=PAINTER_DIALOG_STYLE["accent_pressed"],
@@ -153,8 +154,11 @@ QWidget#RizumDragDistanceFooter {{
         self.ok_button.setCompactHeight(button_height)
 
         ui_scale = self.settingsUiScale()
+        # The base width fits the English row. Languages with a longer name
+        # for the setting widen the dialog instead of clipping the label.
+        self.layout().activate()
         self.setFixedSize(
-            int(round(self.BASE_WIDTH * ui_scale)),
+            max(int(round(self.BASE_WIDTH * ui_scale)), self.minimumSizeHint().width()),
             int(round(self.BASE_HEIGHT * ui_scale)),
         )
 

@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QDialog
 import substance_painter.logging as logging
 import substance_painter.ui as sp_ui
 
+from .localization import text
 from .ui import (
     DEFAULT_DRAG_DISTANCE,
     SETTINGS_APPLICATION,
@@ -27,17 +28,17 @@ class RizumDragDistanceSettings:
 
     def setup_menu(self) -> None:
         main_window = sp_ui.get_main_window()
-        self.menu = QtWidgets.QMenu("Drag Distance", main_window)
+        self.menu = QtWidgets.QMenu(text("menu_title"), main_window)
         self.menu.setObjectName("rizum_pt_drag_distance_menu")
 
         self.current_action = QAction(
-            f"Current: {DEFAULT_DRAG_DISTANCE} pixels",
+            text("current", distance=DEFAULT_DRAG_DISTANCE),
             self.menu,
         )
         self.current_action.setEnabled(False)
         self.menu.addAction(self.current_action)
 
-        self.settings_action = QAction("Drag Distance Settings...", self.menu)
+        self.settings_action = QAction(text("menu_settings"), self.menu)
         self.settings_action.triggered.connect(self.open_settings)
         self.menu.addAction(self.settings_action)
 
@@ -62,7 +63,7 @@ class RizumDragDistanceSettings:
     def update_current_action_text(self) -> None:
         if self.current_action is not None:
             current_distance = self.get_current_drag_distance()
-            self.current_action.setText(f"Current: {current_distance} pixels")
+            self.current_action.setText(text("current", distance=current_distance))
 
     def open_settings(self) -> None:
         dialog = SettingsDialog(sp_ui.get_main_window())
