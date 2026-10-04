@@ -95,8 +95,10 @@ class LocalizationMechanismTests(unittest.TestCase):
 
     def test_format_text_returns_the_template_when_values_do_not_fit(self):
         text = self.loc.format_text
+        self.catalogs["en"]["brace"] = "Progress {"
         self.assertEqual(text(self.catalogs, "ja", "count", {}), "項目: {count}")
         self.assertEqual(text(self.catalogs, "en", "count", {"count": 2}), "Items: 2")
+        self.assertEqual(text(self.catalogs, "en", "brace", {"count": 2}), "Progress {")
 
     def test_supported_languages_lists_root_codes_only(self):
         self.assertEqual(
