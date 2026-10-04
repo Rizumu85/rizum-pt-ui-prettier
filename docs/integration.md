@@ -32,7 +32,12 @@ that language. A plugin tested only in an English Painter is untested.
   alone.
 - No language selector, override file or plugin-owned language setting.
 
-`rizum-pt-color-wheel/localization.py` is the reference implementation.
+`rizum_ui/localization.py` implements this mechanism. A plugin's
+`localization.py` keeps only its own texts (`FALLBACK_TEXT` and `i18n/`) and
+binds the shared functions to them, exposing `text(key, *, language=None,
+**values)`, `CURRENT_LANGUAGE`, `resolve_language()`, `supported_languages()`
+and `CATALOGS`. The module imports PySide6 only when it reads a candidate, so
+checks without PySide6 can load it with a stub.
 
 ### Catalogs
 
