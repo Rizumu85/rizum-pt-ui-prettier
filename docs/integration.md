@@ -74,6 +74,26 @@ Chinese or Italian Painter.
   translated in the languages listed.
 - Then run the plugin once in a non-English Painter.
 
+## Python Event Filters And Painter's Exit
+
+A Python application event filter (`QApplication.installEventFilter`) makes
+Painter crash when it exits: an access violation in `shiboken6` under
+`~QPMCache`, seen as a crash report after closing Painter.
+
+PySide tags every C++ QObject it passes to Python with a dynamic property
+whose destructor calls back into the bindings. An application filter is
+passed every object that receives an event, including Qt's global pixmap
+cache, a static that Painter destroys after it has unloaded the bindings.
+
+- Every plugin calls `rizum_ui.exit_guard.install()` when it starts and
+  `exit_guard.remove(guard)` when it closes, whether or not it installs a
+  filter itself: the UI kit's steppers and menus install short-lived ones.
+- The guard replaces the property on the cache once and removes itself; one
+  guard protects every Python filter in the process.
+- `tools/exit_crash_repro.py` reproduces the crash and shows the guard
+  preventing it. If a crash dump shows another Qt static under the same
+  stack, add its class name to `STATIC_CLASSES`.
+
 ## `rizum-pt-to-ps-bridge`
 
 Add this near the top of the UI module before constructing widgets:
