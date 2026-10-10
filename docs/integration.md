@@ -1,5 +1,42 @@
 # Painter Plugin Integration
 
+## New Plugin Checklist
+
+A new plugin is not done until each of these holds. The sections below give
+the reasons.
+
+1. The UI kit is vendored with `tools/sync_vendor.py`, never copied or edited
+   by hand ("Vendoring For Public Plugin Sharing").
+2. The entry module starts the exit guard before it builds any UI and removes
+   it when the plugin closes ("Python Event Filters And Painter's Exit"):
+
+   ```python
+   from .rizum_ui import exit_guard
+
+   _EXIT_GUARD = None
+
+
+   def start_plugin():
+       global _EXIT_GUARD
+       _EXIT_GUARD = exit_guard.install()
+       ...
+
+
+   def close_plugin():
+       global _EXIT_GUARD
+       exit_guard.remove(_EXIT_GUARD)
+       _EXIT_GUARD = None
+       ...
+   ```
+
+3. Every user-facing text goes through the plugin's `localization.py`, bound
+   to `rizum_ui.localization`, with catalogs for all nine Painter languages
+   and a test for key parity ("Painter Languages").
+4. Painter's own widgets are found by class name or by an object name checked
+   with `tools/painter_translations.py`, never by visible text ("Finding
+   Painter's Widgets").
+5. The plugin has been started once in a non-English Painter.
+
 ## Safe Boundary
 
 Do not patch Substance 3D Painter installation files. Use the UI kit in one of two scopes:
