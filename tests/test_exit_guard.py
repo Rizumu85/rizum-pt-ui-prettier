@@ -6,6 +6,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+import shiboken6
 from PySide6 import QtCore, QtWidgets
 
 from rizum_ui import exit_guard
@@ -18,9 +19,11 @@ class ExitGuardTests(unittest.TestCase):
 
     def setUp(self):
         self.app.setProperty(exit_guard.DONE_PROPERTY, None)
+        self.app.setProperty(exit_guard.QUITTING_PROPERTY, False)
 
     def tearDown(self):
         self.app.setProperty(exit_guard.DONE_PROPERTY, None)
+        self.app.setProperty(exit_guard.QUITTING_PROPERTY, False)
 
     def _timer_event(self, target):
         self.app.sendEvent(target, QtCore.QTimerEvent(1))
@@ -57,6 +60,36 @@ class ExitGuardTests(unittest.TestCase):
             self._timer_event(stand_in)
         self.assertIsNone(stand_in.property(exit_guard.PYSIDE_PROPERTY))
         self.assertFalse(self.app.property(exit_guard.DONE_PROPERTY))
+
+    def _toolbar_swatch(self):
+        parent = QtWidgets.QWidget()
+        self.addCleanup(parent.deleteLater)
+        swatch = type(exit_guard.TOOLBAR_SWATCH_CLASS, (QtWidgets.QWidget,), {})(parent)
+        other = QtWidgets.QWidget(parent)
+        return swatch, other
+
+    def test_painters_toolbar_swatch_is_deleted_when_plugins_close_for_the_exit(self):
+        swatch, other = self._toolbar_swatch()
+        guard = exit_guard.install()
+        exit_guard._mark_quitting()
+        exit_guard.remove(guard)
+        self.assertFalse(shiboken6.isValid(swatch))
+        self.assertTrue(shiboken6.isValid(other))
+        # The other plugins close after it and find nothing left to do.
+        exit_guard.remove(None)
+
+    def test_the_toolbar_swatch_stays_when_a_plugin_is_only_disabled(self):
+        swatch, _other = self._toolbar_swatch()
+        exit_guard.remove(exit_guard.install())
+        exit_guard.remove(None)
+        self.assertTrue(shiboken6.isValid(swatch))
+
+    def test_the_swatch_is_not_touched_when_the_filter_guard_finishes(self):
+        swatch, _other = self._toolbar_swatch()
+        guard = exit_guard.install()
+        exit_guard._mark_quitting()
+        exit_guard.remove(guard, done=True)
+        self.assertTrue(shiboken6.isValid(swatch))
 
 
 if __name__ == "__main__":
