@@ -131,6 +131,27 @@ cache, a static that Painter destroys after it has unloaded the bindings.
   preventing it. If a crash dump shows another Qt static under the same
   stack, add its class name to `STATIC_CLASSES`.
 
+## ACE Color Management And Painter's Exit
+
+Painter 12.1.2 itself crashes on exit when the project open at that moment
+uses Adobe ACE color management, with or without plugins: an access violation
+in `ACE.dll` under `~ToolBarSourceColorPickerView`, followed by Painter's
+crash report window. The swatch in the contextual toolbar releases its ACE
+transform while the main window is destroyed, after Painter has freed it.
+Users take the plugins for the cause, so the exit guard works around it.
+
+- `exit_guard.remove()` deletes that toolbar view when the plugins are closed
+  for the exit, which is after Qt's `aboutToQuit` and before Painter destroys
+  its windows. A plugin that is only disabled or reloaded leaves it alone.
+- The same two calls as above cover it. `remove()` must be called in
+  `close_plugin` even when `install()` returned `None`.
+- Measured in a temporary Painter with a project created under
+  `PAINTER_ACE_CONFIG`: exit code `0xC0000005` without the guard, `0` with
+  it, also with a single plugin. Legacy projects exit cleanly either way.
+- Painter's own crash dumps are in
+  `%APPDATA%\Adobe\Adobe Substance 3D Painter\Sentry-Crashpad\reports`, not in
+  Windows' `CrashDumps` folder.
+
 ## `rizum-pt-to-ps-bridge`
 
 Add this near the top of the UI module before constructing widgets:
