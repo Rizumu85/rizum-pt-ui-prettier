@@ -111,6 +111,22 @@ Chinese or Italian Painter.
   translated in the languages listed.
 - Then run the plugin once in a non-English Painter.
 
+Keep the wrapper a widget was found through. `sp.ui.get_main_window()` only
+wraps Painter's window, and with Painter's PySide (6.8) everything found
+through a wrapper with `findChild` or `findChildren` turns invalid when that
+wrapper is collected ("Internal C++ object already deleted"), although
+Painter deleted nothing.
+
+- `sp.ui.get_main_window().findChild(...)` in one expression returns a widget
+  that is invalid on the next line, unless some other code happens to hold
+  the main window wrapper. Reference and Color Wheel worked beside Time
+  Tracker and View Roll, which hold it, and failed without them.
+- A plugin that looks up Painter's widgets keeps the main window wrapper for
+  its own lifetime (a module-level variable is enough) and finds everything
+  through that one.
+- The PySide on a development machine may not behave this way, so a unit
+  test does not show it. Check in Painter with the other plugins disabled.
+
 ## Python Event Filters And Painter's Exit
 
 A Python application event filter (`QApplication.installEventFilter`) makes
