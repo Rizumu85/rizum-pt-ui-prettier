@@ -78,6 +78,16 @@ class ExitGuardTests(unittest.TestCase):
         # The other plugins close after it and find nothing left to do.
         exit_guard.remove(None)
 
+    def test_widgets_whose_python_side_is_dead_do_not_stop_the_plugin_from_closing(self):
+        # Painter hands such widgets out while plugins close one after the
+        # other; reading anything from one raises.
+        dead = QtWidgets.QFrame()
+        shiboken6.delete(dead)
+        swatch, other = self._toolbar_swatch()
+        exit_guard._delete_toolbar_swatch([dead, other, swatch, dead])
+        self.assertFalse(shiboken6.isValid(swatch))
+        self.assertTrue(shiboken6.isValid(other))
+
     def test_the_toolbar_swatch_stays_when_a_plugin_is_only_disabled(self):
         swatch, _other = self._toolbar_swatch()
         exit_guard.remove(exit_guard.install())
