@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import gc
 import os
 import unittest
+import weakref
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -63,6 +65,30 @@ class CompactDockSurfaceStateTests(unittest.TestCase):
         _settle(self.app)
         self.assertEqual(self._window_color(), COMPACT_DOCK_PANEL_BG)
         self.assertFalse(self.surface.property("rizumDockTabbed"))
+
+    def test_painters_main_window_is_left_without_connections(self):
+        # A connection from Python would keep the window's wrapper, and all
+        # that was found through it, alive until Painter exits.
+        signal = QtCore.SIGNAL("tabifiedDockWidgetActivated(QDockWidget*)")
+        self.assertEqual(self.window.receivers(signal), 0)
+
+    def test_a_closed_panel_is_not_kept_alive(self):
+        class Panel:
+            """Stands for a plugin's panel: it owns the surface and is reachable from it."""
+
+        panel = Panel()
+        panel.surface = self.surface
+        self.surface.panel = panel
+        gone = weakref.ref(panel)
+        del panel
+        self.surface = None
+        self.dock.setParent(None)
+        self.dock.deleteLater()
+        self.dock = None
+        self.app.sendPostedEvents(None, QtCore.QEvent.Type.DeferredDelete)
+        _settle(self.app)
+        gc.collect()
+        self.assertIsNone(gone())
 
 
 if __name__ == "__main__":
