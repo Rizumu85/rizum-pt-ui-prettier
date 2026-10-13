@@ -121,9 +121,9 @@ Painter deleted nothing.
   that is invalid on the next line, unless some other code happens to hold
   the main window wrapper. Reference and Color Wheel worked beside Time
   Tracker and View Roll, which hold it, and failed without them.
-- A plugin that looks up Painter's widgets keeps the main window wrapper for
-  its own lifetime (a module-level variable is enough) and finds everything
-  through that one.
+- A plugin that looks up Painter's widgets keeps the main window wrapper
+  while it runs and finds everything through that one, and lets go of it
+  when it closes (see "Painter's Widgets And Painter's Exit").
 - The PySide on a development machine may not behave this way, so a unit
   test does not show it. Check in Painter with the other plugins disabled.
 
@@ -146,6 +146,43 @@ cache, a static that Painter destroys after it has unloaded the bindings.
 - `tools/exit_crash_repro.py` reproduces the crash and shows the guard
   preventing it. If a crash dump shows another Qt static under the same
   stack, add its class name to `STATIC_CLASSES`.
+
+## Painter's Widgets And Painter's Exit
+
+A wrapper of something Painter owns must not outlive the plugin's close.
+Everything found through a wrapper hangs on it as a child wrapper. Painter
+destroys its widgets after it has closed the plugins and run a collection,
+and wrappers that are still alive then, with such children, crash it when it
+unloads the bindings: access violation in shiboken's `~BindingManager`, the
+crash report on most exits (found 2026-10-13 after the user met it on every
+exit; reproduced and bisected with real exits of temporary Painters).
+
+Three things kept such wrappers alive, each invisible to Python's collector:
+
+- A module-level variable holding the main window wrapper. A plugin sets it
+  to `None` as the last step of its close.
+- A connection made from Python to a signal of Painter's main window. It
+  keeps the window's wrapper alive for as long as Painter runs, with the
+  whole tree found through it by any plugin (measured: 66 wrapper families
+  left after close, 2 without the connection). Do not connect to signals of
+  Painter's main window. The kit's dock state tracker did, for
+  `tabifiedDockWidgetActivated`; it now follows the dock's own signals and
+  events, which a tab change also raises.
+- An object that holds a wrapper of the widget it filters events for, or a
+  closure connected to a signal: the watched object or the sender keeps it,
+  it keeps them, and the collector sees neither link. A closed panel stayed
+  alive whole this way, still holding Painter's widgets it had looked up.
+  Keep no wrapper in an event filter object (use `parent()`), connect
+  methods of QObjects instead of closures, and at close set every attribute
+  that holds one of Painter's widgets to `None` instead of counting on the
+  object being collected.
+
+How to check: after `close_all_plugins`, `shiboken6.getAllValidWrappers()`
+should hold no wrapper of Painter's main window, and `gc.get_objects()` no
+object of the plugin's classes. `shiboken6.dump()` shows a wrapper's parent
+and children (it crashes on a wrapper with a dead child, which is the state
+that also crashes the exit). The crash depends on the order shiboken tears
+its wrappers down, so one clean exit proves nothing: run several.
 
 ## ACE Color Management And Painter's Exit
 
