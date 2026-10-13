@@ -177,12 +177,21 @@ Three things kept such wrappers alive, each invisible to Python's collector:
   that holds one of Painter's widgets to `None` instead of counting on the
   object being collected.
 
-How to check: after `close_all_plugins`, `shiboken6.getAllValidWrappers()`
-should hold no wrapper of Painter's main window, and `gc.get_objects()` no
-object of the plugin's classes. `shiboken6.dump()` shows a wrapper's parent
-and children (it crashes on a wrapper with a dead child, which is the state
-that also crashes the exit). The crash depends on the order shiboken tears
-its wrappers down, so one clean exit proves nothing: run several.
+How to check: `python tools/painter_close_check.py`, before releasing a
+change that looks up, keeps or connects to something of Painter's, or that
+changes how a plugin closes. It starts a temporary Painter, closes the
+plugins the way Painter's exit does and fails if Painter's main window is
+still wrapped or a plugin's module or object still holds one of Painter's
+widgets or actions. The user asked for it as the standing guard: the cause
+shows on every run, where the crash it leads to depends on the order
+shiboken tears its wrappers down and stayed away on some exits. For the same
+reason one clean real exit proves nothing; when real exits are needed, run
+several.
+
+For digging further inside Painter: `shiboken6.getAllValidWrappers()` lists
+what is wrapped, `shiboken6.dump()` shows a wrapper's parent and children
+(it crashes on a wrapper with a dead child, the state that also crashes the
+exit), and `gc.get_referrers()` names who holds an object.
 
 ## ACE Color Management And Painter's Exit
 

@@ -23,6 +23,8 @@
 
 - **`docs/integration.md`, "Painter Languages"** — Before adding user-facing text to a plugin, or finding one of Painter's own widgets, read this standard. It says where Painter's UI language comes from, that every plugin ships catalogs for all nine Painter languages, and that Painter translates some Qt object names, so widgets are found by class. `tools/painter_translations.py` checks a name or looks up Painter's wording.
 
+- **`docs/integration.md`, "Painter's Widgets And Painter's Exit"** — Before code that looks up, keeps or connects to something Painter owns, and before changing how a plugin closes. What a closed plugin still holds of Painter's crashes Painter on some exits. Run `tools/painter_close_check.py` before releasing such a change, in the kit or in a plugin; the user asked for this check after such a crash shipped.
+
 - **`docs/integration.md`, "Python Event Filters And Painter's Exit"** — Every plugin starts `rizum_ui.exit_guard` at startup. Without it any Python application event filter, the UI kit's own included, crashes Painter on exit.
 
 - **`docs/font-scale-adaptation.md`** — Before adding or modifying any shared compact component (painted icon button, stepper, chevron, field control, footer button), read this standard. Every component with painted internals or a fixed pixel size must expose a runtime size setter (`setPaintedIconSize` / `setButtonSize` / `setSize` / `setCompactHeight`) so `rizum-pt-ui-font` can scale it at runtime. The doc contains the API contract, the caller pattern, and a checklist. Skipping it produces controls that clip or refuse to scale when the UI font grows.
