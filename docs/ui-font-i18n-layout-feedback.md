@@ -1,9 +1,5 @@
 ﻿# UI Font i18n Layout Feedback
 
-## Working Agreement
-
-- Rizum Guidelines are active for this project/thread until the user says otherwise.
-
 ## Context
 
 `rizum-pt-ui-font` now externalizes UI strings in `i18n/*.json` and supports the Substance 3D Painter language set: English, German, Spanish, French, Italian, Japanese, Korean, Portuguese, and Simplified Chinese.
