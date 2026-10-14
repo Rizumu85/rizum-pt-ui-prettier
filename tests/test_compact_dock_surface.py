@@ -4,11 +4,13 @@ import gc
 import os
 import unittest
 import weakref
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
+from rizum_ui import components
 from rizum_ui import (
     COMPACT_DOCK_PANEL_BG,
     COMPACT_DOCK_TABBED_PANEL_BG,
@@ -89,6 +91,32 @@ class CompactDockSurfaceStateTests(unittest.TestCase):
         _settle(self.app)
         gc.collect()
         self.assertIsNone(gone())
+
+    def test_a_refresh_waiting_at_close_keeps_nothing_alive(self):
+        # Painter removes a plugin's dock in the turn that asked for the
+        # refresh, so the refresh is still waiting when the tracker dies.
+        tracker = self.surface._rizum_compact_dock_tracker
+        gone = weakref.ref(tracker)
+        tracker.schedule()
+        del tracker
+        self.surface = None
+        self.dock.setParent(None)
+        self.dock.deleteLater()
+        self.dock = None
+        self.app.sendPostedEvents(None, QtCore.QEvent.Type.DeferredDelete)
+        _settle(self.app)
+        gc.collect()
+        self.assertIsNone(gone())
+
+    def test_changes_in_one_turn_share_one_refresh(self):
+        tracker = self.surface._rizum_compact_dock_tracker
+        with mock.patch.object(components, "_apply_compact_dock_state") as apply_state:
+            tracker.schedule()
+            tracker.schedule()
+            self.assertEqual(apply_state.call_count, 0)
+            _settle(self.app)
+
+        self.assertEqual(apply_state.call_count, 1)
 
 
 if __name__ == "__main__":
