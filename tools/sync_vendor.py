@@ -143,7 +143,8 @@ def stale_files(target: Path, next_relatives: set[str]) -> list[Path]:
 def write_manifest(target: Path, files: list[VendorFile]) -> None:
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "source_root": str(ROOT),
+        # Name only: an absolute path would publish the local folder layout.
+        "source_root": ROOT.name,
         "source_git_head": git_value("rev-parse", "--short", "HEAD"),
         "source_git_status": git_value(
             "status", "--short", "--", *MANAGED_ROOTS
