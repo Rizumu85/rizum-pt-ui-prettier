@@ -1,9 +1,0 @@
-__pycache__/
-*.py[cod]
-.DS_Store
-Thumbs.db
-
-# Local planning notes
-analysis.md
-design.md
-plan.md
