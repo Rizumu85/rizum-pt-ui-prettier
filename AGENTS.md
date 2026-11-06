@@ -14,6 +14,12 @@
 - When project direction changes, remove obsolete fallback paths and experimental remnants instead of carrying both designs forward. Keep a fallback only when a concrete runtime requirement justifies it.
 - Keep Markdown documentation intentional and sparse. Record material only when the user explicitly asks, or when a durable architectural or product constraint would otherwise be lost; do not turn documentation into a development diary.
 
+## Design rule
+
+- Avoid unnecessary secondary labels and descriptions. Let the layout do the
+  explaining. This is the user's rule for every Rizum plugin UI; the details
+  are in `docs/design.md`, "Interaction Principles".
+
 ## Required reading
 
 - **`docs/settings-proportions.md`** — Before designing or changing a settings

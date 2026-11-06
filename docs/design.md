@@ -16,6 +16,11 @@ Create a modern, fluid, beautiful PySide6 component library that Rizum Painter p
 Settings-dialog geometry and typography follow [Settings Proportions](settings-proportions.md),
 derived from the approved live PT-PS Bridge and Drag Distance dialogs.
 
+- Avoid unnecessary secondary labels and descriptions. Let the layout do the
+  explaining (user rule, 2026-10-26): no line of explanation, subtitle or
+  repeated hint under a control; position, grouping, icons and state make it
+  readable. An explanation that is truly needed goes into an ⓘ tooltip, or
+  appears only when something goes wrong or needs the user's action.
 - Use compact controls for repeated production workflows.
 - Make primary actions visually clear without turning every button into a large CTA.
 - Keep previews close to real plugin layouts so visual decisions transfer into Painter.
