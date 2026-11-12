@@ -6,12 +6,16 @@ The script is intentionally conservative:
 - only copies the shared `rizum_ui` package and shared SVG icons;
 - only deletes stale files when `--delete-stale` is passed and the stale file was
   recorded in a previous vendor manifest.
+
+Without `--target` it syncs every sibling `rizum-pt-*` folder that already has
+a vendor manifest. A manifest with `"pinned": "<reason>"` keeps its plugin out
+of that set: the plugin holds its own edits or a deliberate older snapshot, and
+is synced only when named with `--target`.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import shutil
 import subprocess
@@ -21,12 +25,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_TARGETS = (
-    ROOT.parent / "rizum-pt-to-ps-bridge",
-    ROOT.parent / "rizum-pt-ui-font",
-    ROOT.parent / "rizum-pt-view-roll",
-    ROOT.parent / "rizum-pt-drag-distance",
-)
+PLUGIN_PATTERN = "rizum-pt-*"
 MANIFEST_NAME = "rizum_ui_vendor_manifest.json"
 MANAGED_ROOTS = ("rizum_ui", "icons")
 
@@ -47,7 +46,8 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help=(
             "Target plugin folder. May be passed more than once. "
-            "Defaults to known sibling Rizum plugins."
+            "Defaults to every sibling plugin with a vendor manifest that is "
+            "not pinned."
         ),
     )
     parser.add_argument(
@@ -80,12 +80,11 @@ def iter_vendor_files() -> list[VendorFile]:
     return files
 
 
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def content(path: Path) -> bytes:
+    # Compared without regard to line endings: each repository checks its
+    # files out with its own, and raw bytes reported unchanged files as
+    # updates on every run.
+    return path.read_bytes().replace(b"\r\n", b"\n")
 
 
 def git_value(*args: str) -> str:
@@ -102,10 +101,19 @@ def git_value(*args: str) -> str:
     return result.stdout.strip()
 
 
-def target_paths(paths: list[Path] | None) -> list[Path]:
-    if paths:
-        return [path.resolve() for path in paths]
-    return [path.resolve() for path in DEFAULT_TARGETS if path.exists()]
+def default_targets(plugins: Path) -> tuple[list[Path], list[tuple[Path, str]]]:
+    """Plugins in ``plugins`` to sync, and the pinned ones with their reason."""
+    targets: list[Path] = []
+    pinned: list[tuple[Path, str]] = []
+    for folder in sorted(plugins.glob(PLUGIN_PATTERN)):
+        if not (folder / MANIFEST_NAME).is_file():
+            continue
+        reason = load_previous_manifest(folder).get("pinned")
+        if reason:
+            pinned.append((folder, str(reason)))
+        else:
+            targets.append(folder)
+    return targets, pinned
 
 
 def ensure_inside_target(target: Path, candidate: Path) -> Path:
@@ -152,6 +160,10 @@ def write_manifest(target: Path, files: list[VendorFile]) -> None:
         "managed_roots": list(MANAGED_ROOTS),
         "files": [file.relative.as_posix() for file in files],
     }
+    pinned = load_previous_manifest(target).get("pinned")
+    if pinned:
+        # A sync by name does not lift the pin; only editing the manifest does.
+        manifest["pinned"] = pinned
     manifest_path = target / MANIFEST_NAME
     manifest_path.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
@@ -170,7 +182,7 @@ def sync_target(target: Path, files: list[VendorFile], apply: bool, delete_stale
     for file in files:
         destination = ensure_inside_target(target, target / file.relative)
         if destination.exists() and destination.is_file():
-            if sha256(file.source) == sha256(destination):
+            if content(file.source) == content(destination):
                 unchanged += 1
                 status = "same"
             else:
@@ -208,7 +220,10 @@ def sync_target(target: Path, files: list[VendorFile], apply: bool, delete_stale
 def main() -> int:
     args = parse_args()
     files = iter_vendor_files()
-    targets = target_paths(args.target)
+    if args.target:
+        targets, pinned = [path.resolve() for path in args.target], []
+    else:
+        targets, pinned = default_targets(ROOT.parent)
     if not targets:
         raise SystemExit("No target plugin folders found. Pass --target PATH.")
 
@@ -218,6 +233,8 @@ def main() -> int:
 
     for target in targets:
         sync_target(target, files, args.apply, args.delete_stale)
+    for target, reason in pinned:
+        print(f"\nSkipped (pinned): {target}\n  {reason}")
 
     if not args.apply:
         print("\nDry-run only. Re-run with --apply to copy files.")
