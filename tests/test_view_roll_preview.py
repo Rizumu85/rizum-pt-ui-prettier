@@ -22,6 +22,7 @@ from rizum_ui import (
 )
 
 from view_roll_preview import (
+    DEFAULTS,
     SHORTCUT_ACTIONS,
     _VIEW_ROLL_TEXT,
     ViewRollConceptPanel,
@@ -164,7 +165,7 @@ class ViewRollConceptPanelTests(unittest.TestCase):
         panel.save_changes()
         self.assertFalse(panel.is_dirty())
         panel.restore_defaults()
-        self.assertEqual(panel.speed_stepper.value(), 90)
+        self.assertEqual(panel.speed_stepper.value(), DEFAULTS["speed"])
         self.assertTrue(panel.is_dirty())
 
     def test_mode_reveals_follow_segment(self):

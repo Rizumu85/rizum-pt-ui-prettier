@@ -17,6 +17,14 @@ from rizum_ui import (
 )
 
 
+def _wait_until(condition, timeout_ms=2000):
+    # A fixed wait of the animation's length failed on a loaded machine.
+    waited = 0
+    while not condition() and waited < timeout_ms:
+        QtTest.QTest.qWait(10)
+        waited += 10
+
+
 class SettingsControlTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -83,13 +91,13 @@ class SettingsControlTests(unittest.TestCase):
                 QtCore.QPointF(4, 4),
             )
         )
-        QtTest.QTest.qWait(button.HOVER_DURATION + 30)
+        _wait_until(lambda: button.hoverProgress() > 0.98)
         self.assertGreater(button.hoverProgress(), 0.98)
         hovered = button.grab().toImage().pixelColor(6, button.height() // 2)
         self.assertEqual(hovered.name(), "#444444")
 
         button.leaveEvent(QtCore.QEvent(QtCore.QEvent.Type.Leave))
-        QtTest.QTest.qWait(button.HOVER_DURATION + 30)
+        _wait_until(lambda: button.hoverProgress() < 0.02)
         self.assertLess(button.hoverProgress(), 0.02)
 
     def test_settings_toggle_scales_and_tracks_its_state(self):
