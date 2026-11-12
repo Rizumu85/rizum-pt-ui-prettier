@@ -82,6 +82,9 @@ class SDFPanel(QtWidgets.QWidget):
             self._last_stack_key = self._get_active_stack_key()
             group = sdf_layer_setup._find_sdf_group()
         except Exception:
+            # Without a project the poll compares against None; keeping the
+            # old key would rebuild this panel on every poll tick.
+            self._last_stack_key = None
             self.frame_list.addWidget(
                 QtWidgets.QLabel("(No project loaded)"))
             return
