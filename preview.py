@@ -69,6 +69,7 @@ WATCHED_MODULES = [
     "rizum_ui.settings_layout",
     "rizum_ui.components",
     "rizum_ui.settings_controls",
+    "rizum_ui.settings_dialog",
     "rizum_ui.animation",
     "rizum_ui",
     "view_roll_preview",
