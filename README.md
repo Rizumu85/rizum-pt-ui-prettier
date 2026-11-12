@@ -4,12 +4,9 @@ Shared PySide6 UI helpers for Rizum Substance 3D Painter plugins.
 
 ## What This Is
 
-This folder is meant to become a small component library used by sibling Painter plugins:
+This folder is the source of the UI kit shared by the Rizum Painter plugins. It is not a Painter plugin itself: every `rizum-pt-*` plugin beside it holds its own copy of `rizum_ui/` and `icons/`, written by `tools/sync_vendor.py`.
 
-- `rizum-pt-to-ps-bridge`
-- `rizum-pt-ui-font`
-
-It provides theme tokens, a generated Qt stylesheet, reusable widget factories, and a standalone preview app.
+It provides theme tokens, a generated Qt stylesheet, reusable widget factories, the mechanisms every plugin shares (Painter languages, the exit guard, shortcut conflicts), and a standalone preview app. The rules a plugin follows are in `docs/integration.md`.
 
 ## Preview
 
@@ -51,11 +48,7 @@ npm install
 
 You can keep Substance 3D Painter open while this preview runs. The preview is a separate Python process, so iterating on `theme.py`, `stylesheet.py`, or `components.py` does not require Painter or a Painter plugin reload. Changes to `preview.py` itself still require restarting the preview process.
 
-## Current Handoff
-
-Before continuing animation, icon, or compact-control work, read `docs/analysis.md`, especially `Handoff Notes For Next Session`. It records the live Painter findings for dropdown arrows, the icon-button rendering standard, combo sizing, and collapsible row animation so the next session does not repeat failed approaches.
-
-The standalone preview now uses a fixed Painter-like host baseline instead of reading a palette exported from Painter. Use live Painter checks only as final visual validation before vendoring the shared UI kit into a plugin.
+The standalone preview uses a fixed Painter-like host baseline instead of reading a palette exported from Painter. Use live Painter checks only as final visual validation before vendoring the shared UI kit into a plugin.
 
 If your normal Python does not have PySide6, run the preview from an environment that does:
 
@@ -66,49 +59,20 @@ python preview.py
 
 Substance Painter includes PySide6 in its plugin runtime, so missing PySide6 in system Python does not mean the Painter plugin path is blocked.
 
-## Sibling Plugin Import
+## Vendor Into The Plugins
 
-Painter plugin folders use hyphenated names, so sibling plugins should add this folder to `sys.path` before importing the package:
+Use this repository as the upstream preview/component lab. After a component pass is approved in live Painter, sync the snapshot into the plugins; a plugin imports its own copy (`from .rizum_ui import ...`), so users install nothing but the plugin.
 
-```python
-from pathlib import Path
-import sys
-
-ui_kit_root = Path(__file__).resolve().parents[1] / "rizum-pt-ui-prettier"
-if str(ui_kit_root) not in sys.path:
-    sys.path.insert(0, str(ui_kit_root))
-
-from rizum_ui import ActionButton, apply_theme
-```
-
-For plugin-owned panels and dialogs, apply the theme to the root widget:
-
-```python
-apply_theme(self.widget, mode="overlay")
-```
-
-For broad Painter UI experiments, apply it to the QApplication instance from the `rizum-pt-ui-font` plugin. Keep this optional and reversible because it affects more than one plugin.
-
-## Vendor Into Shareable Plugins
-
-Use this repository as the upstream preview/component lab. After a component pass is approved in live Painter, vendor the approved snapshot into each plugin you want to share so recipients do not need to install this helper plugin separately.
-
-Preview the copy operation:
+Preview the copy operation, then apply it:
 
 ```powershell
 python tools/sync_vendor.py
-```
-
-Apply it to the known sibling plugins:
-
-```powershell
 python tools/sync_vendor.py --apply
 ```
 
-The default target set includes `rizum-pt-to-ps-bridge`, `rizum-pt-ui-font`,
-`rizum-pt-view-roll`, and `rizum-pt-drag-distance`.
+Without `--target` this covers every sibling `rizum-pt-*` folder that already has a `rizum_ui_vendor_manifest.json`, except the ones whose manifest is pinned (`"pinned": "<reason>"`); those are printed as skipped.
 
-Apply it to one plugin folder:
+Apply it to one plugin folder, a new or a pinned one included:
 
 ```powershell
 python tools/sync_vendor.py --target ..\rizum-pt-to-ps-bridge --apply
@@ -121,6 +85,6 @@ The sync copies only `rizum_ui/*.py` and `icons/*.svg`, then writes `rizum_ui_ve
 - `rizum_ui/` and `icons/`: the reusable PySide6 component package and shared SVG assets.
 - `preview.py`: the standalone component preview app.
 - `tools/`: visual comparison and vendoring utilities.
-- `docs/`: project notes, integration guidance, design rationale, and handoff plans.
+- `docs/`: project notes, integration guidance, and design rationale.
 - `references/html/` and `references/media/`: source mockups and animation references used while matching the UI.
 - `tmp/` and `visual-diff/`: generated local screenshots; ignored and safe to regenerate.

@@ -8,7 +8,8 @@ the reasons.
 1. The UI kit is vendored with `tools/sync_vendor.py`, never copied or edited
    by hand ("Vendoring For Public Plugin Sharing").
 2. The entry module starts the exit guard before it builds any UI and removes
-   it when the plugin closes ("Python Event Filters And Painter's Exit"):
+   it as the first statement of `close_plugin`, before any early return
+   ("Python Event Filters And Painter's Exit"):
 
    ```python
    from .rizum_ui import exit_guard
@@ -35,7 +36,15 @@ the reasons.
 4. Painter's own widgets are found by class name or by an object name checked
    with `tools/painter_translations.py`, never by visible text ("Finding
    Painter's Widgets").
-5. The plugin has been started once in a non-English Painter.
+5. A deferred call runs from a timer its object owns, never from
+   `QTimer.singleShot`, and a menu or dialog is deleted after `exec()`
+   ("Deferred Calls, Menus And Dialogs").
+6. A key the user picks is checked with `rizum_ui.painter_shortcuts`
+   ("Shortcut Conflicts").
+7. The repository carries the root `conftest.py` and `pytest.ini`, so
+   `python -m pytest` runs its tests, and a test for catalog key parity
+   ("Plugin Tests").
+8. The plugin has been started once in a non-English Painter.
 
 ## Safe Boundary
 
@@ -193,6 +202,37 @@ what is wrapped, `shiboken6.dump()` shows a wrapper's parent and children
 (it crashes on a wrapper with a dead child, the state that also crashes the
 exit), and `gc.get_referrers()` names who holds an object.
 
+## Deferred Calls, Menus And Dialogs
+
+- Run a deferred call from a single-shot `QTimer` that is a child of the
+  object it calls, never from `QTimer.singleShot`. The owned timer dies with
+  its object. A `singleShot` call still fires after the plugin has closed, on
+  widgets that are gone, and PySide never releases the callable of a
+  zero-delay call it drops, which keeps the object alive.
+- Call `deleteLater()` on a menu built with `make_popup_menu` and on a dialog
+  parented to Painter's window once `exec()` returns. Qt keeps both as
+  children of their parent: every opening would add one, and a child of
+  Painter's window outlives the plugin's close.
+
+## Shortcut Conflicts
+
+Qt fires neither of two enabled actions that share a shortcut, so a plugin
+key that Painter already uses silently disables a Painter command. A plugin
+that lets the user pick a key marks such a key with
+`rizum_ui.painter_shortcuts`: `registered_shortcut_index(main_window,
+ignore=own_actions)` once per dialog, then `shortcut_conflicts(key, index)`.
+Do not scan Painter's actions privately: the shared scan compares keys in
+their portable spelling and keeps none of the wrappers it reads.
+
+## Plugin Tests
+
+A plugin's repository root is the plugin package and its `__init__.py`
+imports `substance_painter`, so pytest fails while collecting it. Every
+plugin repository carries the root `conftest.py` (collects the root as a
+plain directory) and `pytest.ini` (`testpaths = tests`), copied from an
+existing plugin, so `python -m pytest` runs the suite. The suite includes the
+test that asserts the nine catalogs and their identical keys.
+
 ## ACE Color Management And Painter's Exit
 
 Painter 12.1.2 itself crashes on exit when the project open at that moment
@@ -206,7 +246,9 @@ Users take the plugins for the cause, so the exit guard works around it.
   for the exit, which is after Qt's `aboutToQuit` and before Painter destroys
   its windows. A plugin that is only disabled or reloaded leaves it alone.
 - The same two calls as above cover it. `remove()` must be called in
-  `close_plugin` even when `install()` returned `None`.
+  `close_plugin` even when `install()` returned `None`, and before any early
+  return: a close that returns early because the plugin built nothing skips
+  the workaround, and Painter crashes on that exit.
 - Measured in a temporary Painter with a project created under
   `PAINTER_ACE_CONFIG`: exit code `0xC0000005` without the guard, `0` with
   it, also with a single plugin. Legacy projects exit cleanly either way.
@@ -214,33 +256,17 @@ Users take the plugins for the cause, so the exit guard works around it.
   `%APPDATA%\Adobe\Adobe Substance 3D Painter\Sentry-Crashpad\reports`, not in
   Windows' `CrashDumps` folder.
 
-## `rizum-pt-to-ps-bridge`
+## Using The Kit In A Plugin
 
-Add this near the top of the UI module before constructing widgets:
-
-```python
-from pathlib import Path
-import sys
-
-ui_kit_root = Path(__file__).resolve().parents[3] / "rizum-pt-ui-prettier"
-if str(ui_kit_root) not in sys.path:
-    sys.path.insert(0, str(ui_kit_root))
-
-from rizum_ui import ActionButton, SectionHeader, apply_theme
-```
-
-Then apply the theme once after creating the dock root widget:
+Import the kit from the plugin's vendored copy and apply the theme once to
+the plugin's own root widget:
 
 ```python
+from .rizum_ui import apply_theme, make_icon_button
+
 self.widget = QtWidgets.QWidget()
-self.widget.setObjectName("RizumPtToPsSmokeTestPanel")
+self.widget.setObjectName("RizumMyPluginPanel")
 apply_theme(self.widget, mode="overlay")
-```
-
-Use components gradually. For example:
-
-```python
-self.dock_export_button = ActionButton.create("Export", "primary")
 ```
 
 Keep plugin/window chrome owned by the plugin. For example, PT Bridge should keep its own panel title and close control; use shared components for the panel body, toolbar controls, export tree rows, and collapsible content.
@@ -363,7 +389,8 @@ popups are not composited on every Windows setup), shows disabled items as
 muted text instead of Painter's grey boxes, and restates the font and spacing
 at the current UI Font scale.
 
-Build menus when they open so they read the current scale. A menu kept alive
+Build menus when they open so they read the current scale, and delete them
+when they close ("Deferred Calls, Menus And Dialogs"). A menu kept alive
 across scale changes must call `menu.refreshMetrics()` from the plugin's
 metrics refresh. Plugin-specific rules go in `extra_stylesheet` so they are
 re-applied with the scaled shared rules:
@@ -372,6 +399,7 @@ re-applied with the scaled shared rules:
 menu = make_popup_menu(self.widget)
 menu.addAction("Fit to panel", self.fit)
 menu.exec(global_pos)
+menu.deleteLater()
 ```
 
 For compact one-click dock actions, use `make_dock_actions_panel()` and connect the returned buttons:
@@ -386,52 +414,26 @@ settings_button.clicked.connect(self.open_settings)
 
 ## Vendoring For Public Plugin Sharing
 
-During development, import this project as the sibling upstream UI kit. For public plugin sharing, vendor an approved snapshot into each plugin folder so users only need to install that plugin.
+Every plugin holds its own copy of the kit, so users only need to install that plugin. The copy is written by `tools/sync_vendor.py` and never edited by hand: a fix goes into this project and is synced out.
 
-Dry-run the default sibling targets:
+Dry-run, then apply:
 
 ```powershell
 python tools/sync_vendor.py
-```
-
-Apply the approved snapshot:
-
-```powershell
 python tools/sync_vendor.py --apply
 ```
 
-The default target set includes the bridge, UI Font, and View Roll plugins.
-
-Apply one target explicitly:
+Without `--target` the tool syncs every sibling `rizum-pt-*` folder that already has a `rizum_ui_vendor_manifest.json`. A new plugin, or one plugin alone, is named:
 
 ```powershell
 python tools/sync_vendor.py --target ..\rizum-pt-ui-font --apply
 ```
+
+A plugin whose manifest carries `"pinned": "<reason>"` is left out of the default set and printed as skipped with its reason. Pin a plugin whose copy must not be overwritten yet: one that still holds edits made in the plugin, or a deliberate older snapshot. It is synced only when named with `--target`, and the sync keeps the pin.
 
 The sync script copies only the generic shared package and icon assets:
 
 - `rizum_ui/*.py`
 - `icons/*.svg`
 
-It does not copy preview files, Painter mockups, palette exports, or plugin entry points. Each target receives a `rizum_ui_vendor_manifest.json` file so later syncs can identify stale vendored files safely. Use `--delete-stale` only with `--apply` when you intentionally want to remove old files listed by a previous manifest.
-
-## `rizum-pt-ui-font`
-
-Use app scope only for an explicit appearance experiment:
-
-```python
-from pathlib import Path
-import sys
-
-ui_kit_root = Path(__file__).resolve().parents[1] / "rizum-pt-ui-prettier"
-if str(ui_kit_root) not in sys.path:
-    sys.path.insert(0, str(ui_kit_root))
-
-from rizum_ui import apply_theme
-
-app = QtWidgets.QApplication.instance()
-if app is not None:
-    apply_theme(app, mode="overlay")
-```
-
-Keep the existing reset path so font and style experiments can be backed out during the Painter session.
+It does not copy preview files, Painter mockups, or plugin entry points. Files are compared without regard to line endings, so a copy that differs only in those is left alone. Each target receives a `rizum_ui_vendor_manifest.json` file so later syncs can identify stale vendored files safely. Use `--delete-stale` only with `--apply` when you intentionally want to remove old files listed by a previous manifest.

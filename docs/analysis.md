@@ -9,7 +9,7 @@
 
 ## Technical Direction
 
-Substance 3D Painter exposes PySide6 through its Python plugin runtime. A shared component library can live in this folder as an importable Python package and be added to `sys.path` by sibling plugins.
+Substance 3D Painter exposes PySide6 through its Python plugin runtime. The shared component library lives in this folder as a Python package; each plugin vendors its own copy (`docs/integration.md`, "Vendoring For Public Plugin Sharing").
 
 The safe styling boundary is:
 
@@ -86,7 +86,7 @@ Tree rows now share small primitives rather than one large cross-purpose compone
 
 Source SVG files must use the shared icon canvas standard even though the PySide render path passes an explicit target rectangle. Every shared icon should declare `width="24" height="24" viewBox="0 0 24 24"`, use a 2px stroke with round caps and joins for outline strokes, and default to `#9E9E9E` unless the icon has a deliberate component-specific color such as the dark checkmark used inside a white confirmation control. Do not compensate for visual weight by changing intrinsic SVG width/height or per-file canvas size; tune the path geometry inside the 24x24 viewBox instead. Filled accents, such as `folder-filled.svg` or the filled top plate in `layers.svg`, should use the same neutral color as the outline so file browser previews and Qt renders stay visually consistent.
 
-`dropdown-arrow-animation.html` uses a restrained 180 degree chevron rotation with a spring-like 400ms curve. The compact combo input mirrors that by rotating its passive painted chevron when the popup menu is open and easing it back when the menu closes. The arrow animation stays glyph-only so it does not create a separate hover surface or shift the field layout.
+The compact combo input rotates its chevron by 180 degrees (180 ms, OutCubic) while the popup menu is open and eases it back when the menu closes. The combo paints the chevron itself instead of holding a child widget for it, so the arrow has no hover surface of its own and does not shift the field layout.
 
 Combo popups use non-blocking `QMenu.popup()` instead of `exec()` so clicking the same field while the menu is open can close it. A short close debounce prevents the same click from closing the menu and immediately reopening it. Collapsible content uses a single fixed-height clipping frame so child rows can appear during expansion without delayed pop-in while still avoiding competing min/max layout constraints.
 
@@ -96,7 +96,6 @@ Recent iteration notes:
 
 - `make_combo_input()` now supports `setFitToContents(False)`. Keep export's `All Sets / Current Set` control fit-to-content, but keep UI Font's font-family combo expanded across the row. The regression where UI Font looked skewed came from applying fit-to-content to every combo.
 - The export dropdown should contain only `All Sets` and `Current Set`; no `Selected Channels` and no `Current Stack`.
-- The dropdown arrow animation still needs live Painter/preview validation. If a background block appears while rotating upward, inspect `CompactChevronDown` repaint/composition first. Avoid manual transparent `CompositionMode_Source` fills; that produced a black square in offscreen renders.
 - SVG icon sharpness is considered fixed after switching icon buttons to `QSvgRenderer` rendering at device pixel ratio and alpha-mask recoloring with `CompositionMode_SourceIn`. Future interactive toolbar/action icons should use `make_icon_button()` instead of direct `QIcon.pixmap()` or custom label renderers.
 - The export preview window is 260px wide, matching the compact HTML reference while keeping the full top-control toolbar and right-aligned checkboxes visually aligned without clipping. Its mode dropdown sizes to the longest option (`Current Set`) after final widget fonts/styles are applied. Its passive chevron intentionally does not rotate, matching the HTML material/export mockup behavior where only the whole select surface gets hover feedback.
 - The shared component boundary intentionally excludes plugin/window chrome such as the top `Export` title and close `x`; PT Bridge and UI Font should keep their own panel header/chrome. Shared internals now include `make_compact_action_bar()`, `make_compact_icon_toolbar()`, `make_export_tree_item()`, `update_export_tree_item()`, `compact_action_bar_width()`, `compact_top_controls_width()`, `make_combo_input()`, and `make_collapsible_group()`.
