@@ -1033,7 +1033,7 @@ class ShortcutCaptureField(QtWidgets.QFrame):
                 self.cancelCapture()
                 event.ignore()
                 return
-            sequence = QtGui.QKeySequence(int(event.modifiers()) | key)
+            sequence = QtGui.QKeySequence(event.keyCombination())
             text = sequence.toString(QtGui.QKeySequence.SequenceFormat.PortableText)
             if text:
                 self._finish_capture(text)

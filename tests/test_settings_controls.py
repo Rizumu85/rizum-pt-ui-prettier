@@ -218,6 +218,43 @@ QFrame { background: #aa0000; border: 0; border-radius: 8px; }
             "the mode slot must not add a background behind Speed or Angle",
         )
 
+    def test_shortcut_capture_records_modified_keys(self):
+        field = ShortcutCaptureField("Switch")
+        self.addCleanup(field.deleteLater)
+        field.show()
+        field.startCapture()
+        QtTest.QTest.keyClick(field, QtCore.Qt.Key.Key_K, QtCore.Qt.KeyboardModifier.ControlModifier)
+        self.assertEqual(field.shortcut(), "Ctrl+K")
+        field.startCapture()
+        QtTest.QTest.keyClick(field, QtCore.Qt.Key.Key_4, QtCore.Qt.KeyboardModifier.KeypadModifier)
+        self.assertEqual(field.shortcut(), "Num+4")
+
+    def test_shortcut_capture_takes_keys_from_application_shortcuts(self):
+        window = QtWidgets.QWidget()
+        self.addCleanup(window.deleteLater)
+        fired = []
+        action = QtGui.QAction(window)
+        action.setShortcut(QtGui.QKeySequence("G"))
+        action.setShortcutContext(QtCore.Qt.ShortcutContext.ApplicationShortcut)
+        action.triggered.connect(lambda: fired.append(True))
+        window.addAction(action)
+        field = ShortcutCaptureField("Switch", parent=window)
+        layout = QtWidgets.QVBoxLayout(window)
+        layout.addWidget(field)
+        window.show()
+        QtWidgets.QApplication.setActiveWindow(window)
+        field.setFocus()
+        field.startCapture()
+        override = QtGui.QKeyEvent(QtCore.QEvent.Type.ShortcutOverride, QtCore.Qt.Key.Key_G, QtCore.Qt.KeyboardModifier.NoModifier, "g")
+        QtWidgets.QApplication.sendEvent(field, override)
+        self.assertTrue(override.isAccepted())
+        QtTest.QTest.keyClick(field, QtCore.Qt.Key.Key_G)
+        self.assertEqual(field.shortcut(), "G")
+        self.assertEqual(fired, [])
+        override = QtGui.QKeyEvent(QtCore.QEvent.Type.ShortcutOverride, QtCore.Qt.Key.Key_G, QtCore.Qt.KeyboardModifier.NoModifier, "g")
+        QtWidgets.QApplication.sendEvent(field, override)
+        self.assertFalse(override.isAccepted())
+
     def test_shortcut_rounding_survives_painter_qframe_style(self):
         host = QtWidgets.QWidget()
         self.addCleanup(host.deleteLater)
