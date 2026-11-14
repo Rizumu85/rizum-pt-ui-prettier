@@ -45,6 +45,10 @@ the reasons.
    `python -m pytest` runs its tests, and a test for catalog key parity
    ("Plugin Tests").
 8. The plugin has been started once in a non-English Painter.
+9. The plugin is within the budget of `tools/painter_perf_check.py`: no
+   timer that reads Painter's widgets by the clock, no application event
+   filter that stays installed, no search of Painter's whole window
+   ("Performance On Painter's Main Thread").
 
 ## Safe Boundary
 
@@ -150,6 +154,9 @@ cache, a static that Painter destroys after it has unloaded the bindings.
 - Every plugin calls `rizum_ui.exit_guard.install()` when it starts and
   `exit_guard.remove(guard)` when it closes, whether or not it installs a
   filter itself: the UI kit's steppers and menus install short-lived ones.
+- An application filter is also the most expensive thing a plugin can
+  install; see "Performance On Painter's Main Thread" for what to use
+  instead.
 - The guard replaces the property on the cache once and removes itself; one
   guard protects every Python filter in the process.
 - `tools/exit_crash_repro.py` reproduces the crash and shows the guard
@@ -223,6 +230,150 @@ that lets the user pick a key marks such a key with
 ignore=own_actions)` once per dialog, then `shortcut_conflicts(key, index)`.
 Do not scan Painter's actions privately: the shared scan compares keys in
 their portable spelling and keeps none of the wrappers it reads.
+
+## Performance On Painter's Main Thread
+
+The user's rule (2026-11-13): a plugin has to be fast, and a new plugin is
+planned for that from the start.
+
+Everything a plugin does in Python runs on the thread that also paints
+strokes and turns the camera. What it costs there does not show in the
+plugin's own panel or in a unit test. It shows somewhere else: the user
+noticed it as View Roll's rotation hitching, and the causes were another
+plugin's timers and four application event filters. Fast is what
+`tools/painter_perf_check.py` measures, not what the code looks like.
+
+Measured in Painter 12.2.0 on the user's project of nine texture sets,
+eleven plugins, milliseconds of the main thread taken per second:
+
+| | idle | pointer moves | camera turns | strokes |
+| --- | --- | --- | --- | --- |
+| before | about 20 | 67 | 38 | 57 |
+| after, all plugins | 5.5 | 21 | 15 | 23 |
+| after, without UI Font | 2.0 | 5.5 | 2.5 | 8.2 |
+
+The idle figure before is the sum of its parts measured separately; taken
+during the burst of widget events that follows a tool showing its
+Properties, it was 110.
+
+### What things cost
+
+Measured in Painter 12.2.0. The check's hook makes Python about twice as
+slow, so these are upper bounds.
+
+- **A call from Painter's event loop into Python: 2 to 10 microseconds**,
+  most of it for wrapping the receiver. An application event filter gets
+  one for every event of every object: about 400 a second in an idle
+  Painter, 3,000 to 5,000 while the pointer moves, the camera turns or a
+  stroke is painted, and 8,000 for some ten seconds after a tool shows its
+  Properties for the first time.
+- **A search by type: about 10 microseconds for each object Python has never
+  wrapped, on every search.** `findChildren(QAbstractItemView)` on a dock of
+  320 objects took 3 ms each time, and 0.03 ms once something had wrapped all
+  of them. Painter's main window has about 13,000 objects, a Properties page
+  1,700.
+- **Listing widgets to compare their class names** wraps every one of them:
+  a thousand wrappers for a Properties page, and the collector's pauses over
+  them (24 ms for a full collection) land on whatever runs next.
+- **Asking a Qt event for its buttons or modifiers, or looking its type up
+  in a set, costs several microseconds each**: PySide's enums are Python
+  objects. Comparing the type with `is` does not.
+- **Painter's own work**: a tool switch stalls the event loop for about
+  90 ms without any plugin. Setting a font on each widget a tool shows adds
+  60 ms to it.
+
+### Rules
+
+1. **Nothing runs while nothing happens.** No timer reads Painter's widgets
+   by the clock. What has no signal is read on the next tick after input
+   that can change it, and every few seconds otherwise, for a change that
+   came from somewhere else:
+
+   ```python
+   class _InputMark(QtCore.QObject):
+       def __init__(self, parent):
+           super().__init__(parent)
+           self.seen = True
+
+       def eventFilter(self, watched, event):
+           kind = event.type()
+           if kind is _Type.MouseButtonRelease or kind is _Type.KeyPress or kind is _Type.ShortcutOverride:
+               self.seen = True
+           return False
+   ```
+
+   with `WindowInputWatch(mark).start()` and, in the timer's slot, the read
+   only `if mark.seen or quiet_ticks >= QUIET_TICKS`. Brush Memory read the
+   brush 24 times in six idle seconds before this and twice after.
+2. **No application event filter stays installed.**
+   `QApplication.installEventFilter` is for something short: an inline edit,
+   an open popup. For input, use `rizum_ui.window_input.WindowInputWatch`:
+   it keeps the filter on the application's windows, where Qt delivers
+   keyboard, mouse, tablet and wheel input first, so the filter sees each
+   input event once and nothing else. What a window does not get comes from
+   signals: `applicationStateChanged`, `focusWindowChanged`,
+   `focusObjectChanged` (a menu or dialog appearing moves the focus),
+   `QShortcut.activated`. A key that fires a shortcut sends the window a
+   `ShortcutOverride` and a release, no press.
+3. **A filter on input is short for a move.** A pen sends 200 moves a
+   second. Tell a move by `kind is Type.MouseMove` before anything else is
+   asked of the event, sample a drag (Time Tracker: every 100 ms) instead of
+   following it, and look at the pointer only while there is something to do
+   with it.
+4. **Search small.** Find a widget by an object name Painter does not
+   translate (`tools/painter_translations.py`), inside the dock or page it
+   lives in, with `FindDirectChildrenOnly` where the path is known, and keep
+   the class as the check and the fallback. Walk level by level over direct
+   children instead of asking a large subtree for a type. Never search the
+   main window on a timer.
+5. **Keep the first time out of the hot path.** What is slow once (a first
+   search, building a panel) runs at start or when the user asks for it.
+6. **Measure before a release.** `python tools/painter_perf_check.py`, from
+   PowerShell, for a new plugin and for a change to a timer, an event filter
+   or a search of Painter's widgets; with `--project FILE.spp` on a real
+   project (it is opened from a copy). It exits with 1 when a plugin is over
+   the budget.
+
+### The budget
+
+Milliseconds of the main thread a plugin may take per second, as the check
+reports them, and the longest single call:
+
+| idle | pointer | keys | turn | paint | tools | longest call |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1.0 | 2.5 | 6.0 | 2.5 | 4.0 | 10 | 8 ms |
+
+`keys` allows more because a key is input that most plugins must look at.
+A call longer than half a frame at 60 Hz is a dropped frame.
+
+### Reading the check
+
+The check starts a temporary Painter with the user's plugins, opens the
+project, picks the Paint tool and plays six scenarios with input posted to
+the 3D view's window. For each it prints, per plugin, the time of every call
+Painter's event loop made into its Python and the entries that took most,
+and an "event loop" line: how late an 8 ms timer got its turn.
+
+- Python time is the plugin's own. Time a plugin causes inside Qt (a style
+  sheet, fonts set on Painter's widgets) is not in it: compare the "event
+  loop" lines with a run of `--only ""`, Painter alone.
+- `--only a,b` starts only those plugins; `--census` counts the events by
+  type and receiver instead; `--scenarios tools,tools,idle` plays a chosen
+  list.
+- The temporary Painter runs the plugins with the user's real settings and
+  data. The check puts back the plugins' registry settings, their files
+  under `%LOCALAPPDATA%/Rizum` (a plugin that keeps files there adds its
+  folder to `PLUGIN_DATA_FOLDERS` in the tool) and Painter's list of recent
+  projects, unless another Painter ran meanwhile.
+
+### Open
+
+`rizum-pt-ui-font` is over the budget while a font is applied: 4 ms of an
+idle second and 15 ms of a second of painting. Its watcher needs the `Show`
+and `FontChange` of every widget, which only an application filter gets. It
+is installed only while a font is applied. The way out is to let Qt scale
+the fonts itself, through the style sheet, so that no widget needs Python
+when it appears; that is a redesign of the plugin's applier.
 
 ## Plugin Tests
 

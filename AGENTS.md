@@ -33,4 +33,6 @@
 
 - **`docs/integration.md`, "Python Event Filters And Painter's Exit"** — Every plugin starts `rizum_ui.exit_guard` at startup. Without it any Python application event filter, the UI kit's own included, crashes Painter on exit.
 
+- **`docs/integration.md`, "Performance On Painter's Main Thread"** — Before adding a timer, an event filter or a search of Painter's widgets to a plugin, and before designing a new plugin. Python runs on the thread that paints strokes: the user's rule is that a plugin has to be fast, measured with `tools/painter_perf_check.py` against the budget there. The section says what an application event filter, a search by type and a poll cost, and what to use instead (`rizum_ui.window_input`, polling after input, searching by name in a small subtree).
+
 - **`docs/font-scale-adaptation.md`** — Before adding or modifying any shared compact component (painted icon button, stepper, chevron, field control, footer button), read this standard. Every component with painted internals or a fixed pixel size must expose a runtime size setter (`setPaintedIconSize` / `setButtonSize` / `setSize` / `setCompactHeight`) so `rizum-pt-ui-font` can scale it at runtime. The doc contains the API contract, the caller pattern, and a checklist. Skipping it produces controls that clip or refuse to scale when the UI font grows.
