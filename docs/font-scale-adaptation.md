@@ -67,11 +67,23 @@ treatment as Painter's own widgets:
   such as the close-time save prompt) get the same treatment from an
   application event filter on Show, before their first paint, and again on
   FontChange when Painter repolishes a widget back to its stylesheet size.
+  Painter's style sheet sizes every widget at polish
+  (`QWidget { font-size: 11px }`), so only the size needs this: a new widget
+  inherits family and hinting by itself, and at scale 1.0 the filter is not
+  used at all. It is installed only for two seconds after something that can
+  make Painter build widgets (a key, a click or a wheel turn in a panel, a
+  plain right click in a view, a window resized or focused, Painter busy or
+  reading its shelves, a layer change) and never during strokes or camera
+  drags; `font_watch.py` in ui-font has the reasons and the measurements.
   Widgets inside a root whose object name starts with `Rizum` (every
   plugin panel, settings dialog and kit component) are skipped by that
   filter, because they scale themselves; keep the prefix on new roots. The
   `QDockWidget` itself is not counted, so dock title bars follow Painter.
   Shared components therefore need no re-apply hook of their own.
+- A plugin that builds Painter-side widgets from a timer or a thread's
+  result, with no input before it, will find them at Painter's size (the
+  family is right). Build them in the click's own turn, or inside a root
+  named `Rizum...`, which sizes itself.
 - The original font is stored on the widget in the reserved
   `rizumUiFontBaseline` property and the applied one in `rizumUiFontTarget`;
   both are restored or cleared on revert. Do not write to them.

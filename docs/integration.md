@@ -272,8 +272,8 @@ eleven plugins, milliseconds of the main thread taken per second:
 | | idle | pointer moves | camera turns | strokes |
 | --- | --- | --- | --- | --- |
 | before | about 20 | 67 | 38 | 57 |
-| after, all plugins | 5.5 | 21 | 15 | 23 |
-| after, without UI Font | 2.0 | 5.5 | 2.5 | 8.2 |
+| after the timers and input filters (2026-11-13) | 5.5 | 21 | 15 | 23 |
+| after UI Font's watch on demand (2026-11-14) | 2.2 | 7.5 | 1.4 | 9.7 |
 
 The idle figure before is the sum of its parts measured separately; taken
 during the burst of widget events that follows a tool showing its
@@ -304,6 +304,13 @@ slow, so these are upper bounds.
 - **Painter's own work**: a tool switch stalls the event loop for about
   90 ms without any plugin. Setting a font on each widget a tool shows adds
   60 ms to it.
+- **A style sheet set on something that already has widgets: about 3 ms for
+  each widget under it**, because Qt polishes every one of them again
+  against Painter's 2,800 rules. Replacing the application's sheet took 40 s
+  with a project open, a one-rule sheet on the main window 17 s (4 s right
+  after Painter starts) and on the Layers panel 0.2 s, also when nothing in
+  the sheet changed. `setFont` on a widget takes 0.01 ms. A style sheet is
+  for a plugin's own root, set before the root is shown.
 
 ### Rules
 
@@ -338,6 +345,18 @@ slow, so these are upper bounds.
    `focusObjectChanged` (a menu or dialog appearing moves the focus),
    `QShortcut.activated`. A key that fires a shortcut sends the window a
    `ShortcutOverride` and a release, no press.
+
+   What only an application filter gets (a widget's `Show`, its
+   `FontChange`) is watched on demand: the filter goes on for a short hold
+   after something that can cause the event and comes off again, with the
+   window input watch and Painter's own events as the triggers. UI Font's
+   `font_watch.py` does this, and lists what wakes it: nothing in a view but
+   a plain right click, no modifier key, and holds while a button is down in
+   a panel, while Painter is busy and while it reads its shelves. Find the
+   triggers by measuring, with the filter always on and a log of when it had
+   work: there the first guess missed a layer added by a script, the tool's
+   popup, and the Assets path bar that Painter rebuilds for twenty seconds
+   after it starts.
 3. **A filter on input is short for a move.** A pen sends 200 moves a
    second. Tell a move by `kind is Type.MouseMove` before anything else is
    asked of the event, sample a drag (Time Tracker: every 100 ms) instead of
@@ -391,14 +410,23 @@ and an "event loop" line: how late an 8 ms timer got its turn.
   folder to `PLUGIN_DATA_FOLDERS` in the tool) and Painter's list of recent
   projects, unless another Painter ran meanwhile.
 
-### Open
+### UI Font's watcher (closed 2026-11-14)
 
-`rizum-pt-ui-font` is over the budget while a font is applied: 4 ms of an
-idle second and 15 ms of a second of painting. Its watcher needs the `Show`
-and `FontChange` of every widget, which only an application filter gets. It
-is installed only while a font is applied. The way out is to let Qt scale
-the fonts itself, through the style sheet, so that no widget needs Python
-when it appears; that is a redesign of the plugin's applier.
+`rizum-pt-ui-font` was over the budget while a font was applied: 4 ms of an
+idle second and 15 ms of a second of painting, for an application filter
+that needs the `Show` and `FontChange` of every widget. Letting Qt scale the
+fonts through the style sheet was measured and is not possible (see "A style
+sheet set on something that already has widgets" above). The filter is now
+installed on demand (rule 2): 0.1 ms of an idle second and 0.7 ms of a
+second of painting on the same project, and not at all when only the family
+or the hinting is changed, which a new widget inherits by itself.
+
+What a watch on demand cannot see is a widget Painter builds with nothing
+before it that the watch knows of. Such a widget keeps Painter's size (its
+family is right) until it is shown again. None was left in the checks of
+2026-11-14 (startup, a project created and closed, layers added by script,
+menus, the tool's popup, panel drags); one that turns up needs its trigger
+added to `font_watch.py`.
 
 ## Plugin Tests
 
