@@ -193,6 +193,22 @@ Three things kept such wrappers alive, each invisible to Python's collector:
   that holds one of Painter's widgets to `None` instead of counting on the
   object being collected.
 
+A fourth way needs two plugins. `findChildren` makes every widget it returns
+a child of the wrapper it was called on, another plugin's widgets included.
+Brush Memory listed every dock of Painter's window to look at its name:
+Color Wheel's dock became a child of the window's wrapper, Color Wheel
+deleted its dock when it closed, and Painter crashed in shiboken (access
+violation) when the window's wrapper went after both had closed
+(2026-11-14). Ask by name for what is Painter's, so the search returns
+nothing else:
+
+```python
+SHELF_DOCKS = QtCore.QRegularExpression(r"^(NewShelf|\{[0-9A-Fa-f-]+\})$")
+main.findChildren(QtWidgets.QDockWidget, SHELF_DOCKS, QtCore.Qt.FindChildOption.FindDirectChildrenOnly)
+```
+
+Never list a kind of widget under Painter's window to pick from the list.
+
 How to check: `python tools/painter_close_check.py`, before releasing a
 change that looks up, keeps or connects to something of Painter's, or that
 changes how a plugin closes. It starts a temporary Painter, closes the
@@ -203,6 +219,13 @@ shows on every run, where the crash it leads to depends on the order
 shiboken tears its wrappers down and stayed away on some exits. For the same
 reason one clean real exit proves nothing; when real exits are needed, run
 several.
+
+Run it without `--only`, with every plugin, before a release. `--only` is
+for finding which plugin is at fault. The crash from a search that returned
+another plugin's dock needed two plugins: the check of Brush Memory alone
+passed, and the change went out to the user's Painter. When the check gives
+no result within its time, the temporary Painter has crashed or hangs; the
+Windows event log (Application, event 1000) names the module.
 
 For digging further inside Painter: `shiboken6.getAllValidWrappers()` lists
 what is wrapped, `shiboken6.dump()` shows a wrapper's parent and children
@@ -325,7 +348,9 @@ slow, so these are upper bounds.
    lives in, with `FindDirectChildrenOnly` where the path is known, and keep
    the class as the check and the fallback. Walk level by level over direct
    children instead of asking a large subtree for a type. Never search the
-   main window on a timer.
+   main window on a timer. A search must return nothing but Painter's own
+   widgets: one that returned another plugin's dock crashed Painter at exit
+   ("Painter's Widgets And Painter's Exit").
 5. **Keep the first time out of the hot path.** What is slow once (a first
    search, building a panel) runs at start or when the user asks for it.
 6. **Measure before a release.** `python tools/painter_perf_check.py`, from
