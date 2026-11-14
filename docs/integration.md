@@ -311,6 +311,19 @@ slow, so these are upper bounds.
   after Painter starts) and on the Layers panel 0.2 s, also when nothing in
   the sheet changed. `setFont` on a widget takes 0.01 ms. A style sheet is
   for a plugin's own root, set before the root is shown.
+- **A loop over every widget: Painter has nine thousand with a project open,
+  so what is done once for each is the whole cost.** UI Font's apply took
+  1.2 s for each step of its size slider and 0.4 s after four changes
+  (2026-11-14), with the same font on every widget as before:
+  - an `import` statement inside the function called for each widget: every
+    `import` goes through shiboken's import hook, several microseconds also
+    for a module that is loaded. Import at the top of the module;
+  - a walk up the parents repeated for each sibling: remember the answer by
+    parent for the length of the loop;
+  - a font built for each widget where nineteen different ones exist:
+    `QFont.key()` tells which baselines are the same;
+  - the plugin's own application filter left on while the loop raises
+    several events for each widget: take it off for the loop.
 
 ### Rules
 
