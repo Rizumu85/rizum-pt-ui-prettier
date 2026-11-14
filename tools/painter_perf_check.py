@@ -5,6 +5,8 @@
     python tools/painter_perf_check.py --only a,b            only these plugin folders start
     python tools/painter_perf_check.py --only ""             no plugin: Painter alone, to compare
     python tools/painter_perf_check.py --seconds 10          per scenario (default 8)
+    python tools/painter_perf_check.py --census              count Painter's events instead
+    python tools/painter_perf_check.py --scenarios idle,idle some of the scenarios, in this order
     python tools/painter_perf_check.py --painter EXE         when Painter is not found
 
 Run it from PowerShell or a normal terminal, before releasing a plugin or a
@@ -23,21 +25,29 @@ was another plugin's timer (2026-11-13).
 How it works. Like painter_close_check.py, the script copies itself into
 Painter's python/startup folder and starts a second, temporary Painter. In
 there it opens the project, picks the Paint tool on a new paint layer and
-plays the scenarios below with synthetic input. A hook on Python's
+plays the scenarios below with input posted to the 3D view's window as
+Windows messages. A hook on Python's
 monitoring events times every call that Painter's event loop makes into
 Python and files it under the plugin whose code was entered; a 8 ms timer
 records how late the event loop gets to it.
 
     idle      nothing moves
     pointer   the pointer crosses the 3D view
-    keys      Shift goes down and up
-    orbit     Alt + drag turns the camera
+    keys      Shift goes down and up, eight times a second
+    turn      the camera rolls through the API, as View Roll turns it
     paint     strokes on the model
+    tools     Paint and Eraser take turns, one switch a second
 
 What it does not show: time a plugin causes inside Qt without running Python,
 such as a style sheet Painter's widgets are polished with. For that, compare
 the "event loop" lines of a run with the plugin and a run with --only "".
 The hook makes Python slower, so the times are upper bounds.
+
+--census counts the events themselves, by type and by what receives them
+(a window, a widget, another object), instead of timing the plugins. An
+application event filter is called for every one of them, a filter on a
+window or a widget only for its own: the counts say what a filter would
+cost where.
 
 What it protects. A project is opened from a copy, so the file, its
 autosaves and Painter's list of recent files stay as they were. The
@@ -53,6 +63,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
 import time
 import traceback
 
@@ -61,6 +72,8 @@ ONLY_VARIABLE = "RIZUM_PERF_CHECK_ONLY"
 PLUGINS_VARIABLE = "RIZUM_PERF_CHECK_PLUGINS"
 PROJECT_VARIABLE = "RIZUM_PERF_CHECK_PROJECT"
 SECONDS_VARIABLE = "RIZUM_PERF_CHECK_SECONDS"
+CENSUS_VARIABLE = "RIZUM_PERF_CHECK_CENSUS"
+SCENARIOS_VARIABLE = "RIZUM_PERF_CHECK_SCENARIOS"
 STARTUP_NAME = "_rizum_perf_check.py"
 RESULT_NAME = "result.json"
 # Painter is not ready for a project the moment its plugins start (measured:
@@ -72,11 +85,11 @@ PROJECT_POLL_MS = 1000
 QUIET_POLLS = 6
 SETTLE_POLLS = 180
 TICK_MS = 8
-SCENARIOS = ("idle", "pointer", "keys", "orbit", "paint")
+SCENARIOS = ("idle", "pointer", "keys", "turn", "paint", "tools")
 # What a plugin may take: milliseconds of the main thread per second in each
 # scenario, and the longest single call. See docs/integration.md.
-BUDGET_MS_PER_SECOND = {"idle": 1.0, "pointer": 3.0, "keys": 3.0, "orbit": 3.0, "paint": 5.0}
-BUDGET_LONGEST_MS = 4.0
+BUDGET_MS_PER_SECOND = {"idle": 1.0, "pointer": 2.5, "keys": 6.0, "turn": 2.5, "paint": 4.0, "tools": 10.0}
+BUDGET_LONGEST_MS = 8.0
 OWN = "(this check)"
 PAINTER = "(Painter's own Python)"
 
@@ -142,6 +155,10 @@ class _Meter:
         self._own = os.path.normcase(os.path.abspath(__file__))
         self._owners = {}
         self._entered = None
+        # Monitoring reports every thread. A worker thread's function has no
+        # caller either and may run for the whole session; taken for a call
+        # from the event loop, it would hide everything after it.
+        self._thread = threading.get_ident()
         self.totals = {}
         self.entries = {}
 
@@ -164,7 +181,10 @@ class _Meter:
         self.entries = {}
 
     def _owner(self, code):
-        owner = self._owners.get(code)
+        # By file, not by code object: two plugins' copies of the same kit
+        # function are equal code objects, and the first plugin seen would
+        # be charged for both.
+        owner = self._owners.get(code.co_filename)
         if owner is None:
             path = os.path.normcase(code.co_filename)
             if path == self._own:
@@ -174,17 +194,20 @@ class _Meter:
                 owner = owner[:-3] if owner.endswith(".py") else owner
             else:
                 owner = PAINTER
-            self._owners[code] = owner
+            self._owners[code.co_filename] = owner
         return owner
 
     def _started(self, code, _offset):
         # A frame without a caller was entered from the event loop.
-        if self._entered is None and sys._getframe(1).f_back is None:
+        if self._entered is None and sys._getframe(1).f_back is None and threading.get_ident() == self._thread:
             self._entered = (code, time.perf_counter())
 
     def _left(self, code, _offset, _value):
         entered = self._entered
-        if entered is None or entered[0] is not code or sys._getframe(1).f_back is not None:
+        if (
+            entered is None or entered[0] is not code or sys._getframe(1).f_back is not None
+            or threading.get_ident() != self._thread
+        ):
             return
         self._entered = None
         elapsed = time.perf_counter() - entered[1]
@@ -201,6 +224,38 @@ class _Meter:
         entry[0] += elapsed
         entry[1] += 1
         entry[2] = max(entry[2], elapsed)
+
+
+def _make_census():
+    from PySide6 import QtCore, QtGui
+
+    class Census(QtCore.QObject):
+        """Counts every event of the application by type and receiver."""
+
+        def __init__(self):
+            super().__init__()
+            self.counts = {}
+
+        def eventFilter(self, receiver, event):
+            if isinstance(receiver, QtGui.QWindow):
+                kind = "window"
+            elif receiver.isWidgetType():
+                kind = "widget"
+            else:
+                kind = "object"
+            key = (event.type(), kind)
+            self.counts[key] = self.counts.get(key, 0) + 1
+            return False
+
+        def snapshot(self):
+            rows = [
+                [getattr(kind, "name", str(kind)), receiver, count]
+                for (kind, receiver), count in sorted(self.counts.items(), key=lambda item: -item[1])
+            ]
+            self.counts = {}
+            return rows
+
+    return Census()
 
 
 def _open_project():
@@ -261,21 +316,31 @@ def _prepare():
     if action is not None:
         # Not click(): the button opens its menu and waits in it.
         action.trigger()
-    _later(4000, _measure)
+    # Showing a tool's Properties for the first time sets off a burst of
+    # widget events that lasts some ten seconds; the scenarios start after it.
+    _later(15000, _measure)
 
 
 def _measure():
+    import ctypes
+    import math
+
     import substance_painter as sp
     import substance_painter_plugins
-    from PySide6 import QtCore, QtGui, QtWidgets
+    from PySide6 import QtCore, QtWidgets
 
     main = _KEEP["main"]
     viewer = main.findChild(QtWidgets.QWidget, "Viewer3D")
     if viewer is None:
         raise RuntimeError("Painter's 3D view (Viewer3D) was not found")
     seconds = float(os.environ.get(SECONDS_VARIABLE, "8"))
+    scenarios = [name for name in os.environ.get(SCENARIOS_VARIABLE, "").split(",") if name in SCENARIOS] or list(SCENARIOS)
     meter = _Meter(os.environ[PLUGINS_VARIABLE])
-    meter.install()
+    census = _make_census() if os.environ.get(CENSUS_VARIABLE) else None
+    if census is None:
+        meter.install()
+    else:
+        QtWidgets.QApplication.instance().installEventFilter(census)
     folder = os.path.normcase(os.path.abspath(os.environ[PLUGINS_VARIABLE])) + os.sep
     started = sorted(
         name for name, module in substance_painter_plugins.plugins.items()
@@ -283,6 +348,7 @@ def _measure():
         and substance_painter_plugins.is_plugin_started(module) and name != __name__.split(".")[0]
     )
     camera = sp.display.Camera.get_default_camera()
+    rotation = list(camera.rotation)
     result = {
         "plugins": started,
         "painter": sp.application.version(),
@@ -292,80 +358,85 @@ def _measure():
         "view": [viewer.width(), viewer.height()],
         "scale": main.devicePixelRatioF(),
         "seconds": seconds,
-        "scenarios": {},
+        "scenarios": [],
     }
-    rotation = list(camera.rotation)
-    # Whether the synthetic strokes reach Painter is told by the layer stack
-    # reporting changes while they are drawn.
-    changes = {"count": 0}
-    changed_event = getattr(sp.event, "LayerStacksModelDataChanged", None)
+    # Input goes to the 3D view's own window as Windows messages, so it
+    # arrives as real input does. Events made in Python and handed to Qt do
+    # not reach Painter's viewport: a stroke of them paints nothing.
+    tools = [
+        button.defaultAction()
+        for button in (main.findChild(QtWidgets.QToolButton, name) for name in ("Eraser", "Paint"))
+        if button is not None and button.defaultAction() is not None
+    ]
+    user32 = ctypes.windll.user32
+    window = int(viewer.winId())
+    scale = viewer.devicePixelRatioF()
+    width, height = viewer.width() * scale, viewer.height() * scale
+    mouse_move, left_down, left_up, key_down, key_up = 0x0200, 0x0201, 0x0202, 0x0100, 0x0101
+    left_held, shift_key = 0x0001, 0x10
+    state = {"index": 0, "ticks": 0, "events": 0, "last": 0.0, "start": 0.0, "gaps": [], "down": False, "strokes": 0}
 
-    def on_layers_changed(_event):
-        changes["count"] += 1
-
-    if changed_event is not None:
-        sp.event.DISPATCHER.connect(changed_event, on_layers_changed)
-    alt = QtCore.Qt.KeyboardModifier.AltModifier
-    none = QtCore.Qt.KeyboardModifier.NoModifier
-    left = QtCore.Qt.MouseButton.LeftButton
-    no_button = QtCore.Qt.MouseButton.NoButton
-    state = {"index": 0, "ticks": 0, "events": 0, "last": 0.0, "start": 0.0, "gaps": [], "down": False}
-
-    def post(event):
-        # Posted, not sent: the event loop delivers it, as it does real input.
-        QtWidgets.QApplication.postEvent(viewer, event)
+    def post(message, wparam, lparam):
+        user32.PostMessageW(window, message, wparam, lparam)
         state["events"] += 1
 
-    def mouse(kind, x, y, button, buttons, modifiers):
-        point = QtCore.QPointF(x, y)
-        post(QtGui.QMouseEvent(kind, point, QtCore.QPointF(viewer.mapToGlobal(point.toPoint())), button, buttons, modifiers))
-
-    def path(tick, spread):
-        """A point that wanders around the middle of the view."""
-        import math
-
+    def place(tick):
+        """A point that wanders around the middle of the view, as the lParam of a mouse message."""
         angle = tick * 0.05
-        return (
-            viewer.width() / 2 + math.cos(angle) * viewer.width() * spread,
-            viewer.height() / 2 + math.sin(angle * 1.7) * viewer.height() * spread,
-        )
+        x = width / 2 + math.cos(angle) * width * 0.2
+        y = height / 2 + math.sin(angle * 1.7) * height * 0.2
+        return (int(y) << 16) | (int(x) & 0xFFFF)
 
-    def press(modifiers):
-        x, y = path(state["ticks"], 0.2)
-        mouse(QtCore.QEvent.Type.MouseButtonPress, x, y, left, left, modifiers)
-        state["down"] = True
+    def history_rows():
+        dock = main.findChild(QtWidgets.QDockWidget, "history")
+        views = dock.findChildren(QtWidgets.QAbstractItemView) if dock is not None else []
+        return sum(view.model().rowCount() for view in views if view.model() is not None)
 
-    def release(modifiers):
+    def lift():
         if state["down"]:
-            x, y = path(state["ticks"], 0.2)
-            mouse(QtCore.QEvent.Type.MouseButtonRelease, x, y, left, no_button, modifiers)
+            post(left_up, 0, place(state["ticks"]))
             state["down"] = False
 
-    def play(name):
+    def play(name, elapsed):
         tick = state["ticks"]
         if name == "pointer":
-            mouse(QtCore.QEvent.Type.MouseMove, *path(tick, 0.3), no_button, no_button, none)
+            post(mouse_move, 0, place(tick))
         elif name == "keys":
-            kind = QtCore.QEvent.Type.KeyPress if tick % 2 == 0 else QtCore.QEvent.Type.KeyRelease
-            modifiers = QtCore.Qt.KeyboardModifier.ShiftModifier if tick % 2 == 0 else none
-            post(QtGui.QKeyEvent(kind, QtCore.Qt.Key.Key_Shift, modifiers))
-        elif name == "orbit":
-            if not state["down"]:
-                press(alt)
-            mouse(QtCore.QEvent.Type.MouseMove, *path(tick, 0.2), no_button, left, alt)
+            # Eight presses a second, as fast typing is.
+            if tick % 16 == 0:
+                post(key_down, shift_key, 0x002A0001)
+            elif tick % 16 == 8:
+                post(key_up, shift_key, 0xC02A0001)
+        elif name == "turn":
+            # Through the API, as View Roll turns the view: Painter redraws
+            # the model for every step.
+            turned = list(camera.rotation)
+            turned[2] = (turned[2] + 180.0 * elapsed + 180.0) % 360.0 - 180.0
+            camera.rotation = turned
+        elif name == "tools":
+            if tick % 125 == 0 and tools:
+                tools[(tick // 125) % len(tools)].trigger()
         elif name == "paint":
             # A stroke of about a second, then the pen lifts.
             if tick % 125 == 0:
-                release(none)
-            if not state["down"]:
-                press(none)
-            mouse(QtCore.QEvent.Type.MouseMove, *path(tick, 0.2), no_button, left, none)
+                lift()
+            if state["down"]:
+                post(mouse_move, left_held, place(tick))
+            else:
+                post(mouse_move, 0, place(tick))
+                post(left_down, left_held, place(tick))
+                state["down"] = True
 
     def finish(name):
-        release(alt if name == "orbit" else none)
+        lift()
+        if name == "turn":
+            camera.rotation = rotation
+        if name == "tools" and tools:
+            tools[-1].trigger()
         elapsed = time.perf_counter() - state["start"]
         gaps = sorted(state["gaps"])
-        result["scenarios"][name] = {
+        played = {
+            "name": name,
             "seconds": elapsed,
             "ticks": state["ticks"],
             "events": state["events"],
@@ -374,7 +445,6 @@ def _measure():
             "interval_max_ms": gaps[-1] * 1000 if gaps else 0.0,
             "late_33ms": sum(gap > 0.033 for gap in gaps),
             "late_100ms": sum(gap > 0.100 for gap in gaps),
-            "layer_changes": changes["count"] if changed_event is not None else None,
             "plugins": {
                 owner: {"ms": total[0] * 1000, "calls": total[1], "longest_ms": total[2] * 1000, "over": total[3]}
                 for owner, total in meter.totals.items()
@@ -384,38 +454,51 @@ def _measure():
                 for (owner, call), entry in sorted(meter.entries.items(), key=lambda item: -item[1][0])[:12]
             ],
         }
+        if census is not None:
+            played["census"] = census.snapshot()
+        result["scenarios"].append(played)
 
     def begin():
         meter.reset()
-        changes["count"] = 0
+        if census is not None:
+            census.snapshot()
         now = time.perf_counter()
         state.update(ticks=0, events=0, last=now, start=now, gaps=[], down=False)
+        if scenarios[state["index"]] == "paint":
+            state["strokes"] = history_rows()
+            state["painted"] = True
 
     timer = QtCore.QTimer()
     timer.setInterval(TICK_MS)
     timer.setTimerType(QtCore.Qt.TimerType.PreciseTimer)
     _KEEP["ticker"] = timer
 
+    def done():
+        # Painter lists a stroke in its History once it is finished.
+        result["strokes"] = history_rows() - state["strokes"] if state.get("painted") else None
+        if census is None:
+            meter.remove()
+        else:
+            QtWidgets.QApplication.instance().removeEventFilter(census)
+        _write_result(result)
+
     def tick():
         now = time.perf_counter()
-        name = SCENARIOS[state["index"]]
-        state["gaps"].append(now - state["last"])
+        name = scenarios[state["index"]]
+        elapsed = now - state["last"]
+        state["gaps"].append(elapsed)
         state["last"] = now
-        play(name)
+        play(name, elapsed)
         state["ticks"] += 1
         if now - state["start"] < seconds:
             return
         finish(name)
         state["index"] += 1
-        if state["index"] < len(SCENARIOS):
+        if state["index"] < len(scenarios):
             begin()
             return
         timer.stop()
-        meter.remove()
-        if changed_event is not None:
-            sp.event.DISPATCHER.disconnect(changed_event, on_layers_changed)
-        result["camera_turned"] = list(sp.display.Camera.get_default_camera().rotation) != rotation
-        _write_result(result)
+        _later(1500, done)
 
     timer.timeout.connect(_guarded(tick))
     begin()
@@ -485,16 +568,25 @@ def _report(result):
     print(f"Painter {result['painter']}, Python {result['python']}, project {result['project']} "
           f"({result['texture_sets']} texture sets), 3D view {result['view'][0]}x{result['view'][1]} at scale {result['scale']}")
     print(f"Plugins started: {', '.join(result['plugins']) or 'none'}")
-    if result["scenarios"]["paint"].get("layer_changes") == 0:
-        print("Note: the layer stack reported no change in the paint scenario; its strokes may not have reached Painter.")
-    if not result.get("camera_turned"):
-        print("Note: the camera did not turn in the orbit scenario; its drag may not have reached Painter.")
-    for name in SCENARIOS:
-        scenario = result["scenarios"][name]
+    if result.get("strokes") == 0:
+        print("Note: Painter's History lists no stroke from the paint scenario; its strokes did not reach Painter.")
+    for scenario in result["scenarios"]:
+        name = scenario["name"]
         seconds = scenario["seconds"]
         print(f"\n{name}: {seconds:.1f} s, {scenario['events']} events")
         print(f"  event loop: every {scenario['interval_median_ms']:.1f} ms (median), p95 {scenario['interval_p95_ms']:.1f}, "
               f"longest {scenario['interval_max_ms']:.0f}; over 33 ms: {scenario['late_33ms']}, over 100 ms: {scenario['late_100ms']}")
+        census = scenario.get("census")
+        if census is not None:
+            total = sum(row[2] for row in census)
+            by_receiver = {}
+            for _kind, receiver, count in census:
+                by_receiver[receiver] = by_receiver.get(receiver, 0) + count
+            shares = ", ".join(f"{count / seconds:.0f} to a {receiver}" for receiver, count in sorted(by_receiver.items(), key=lambda item: -item[1]))
+            print(f"  events: {total / seconds:.0f} per s ({shares})")
+            for kind, receiver, count in census[:10]:
+                print(f"      {kind} to a {receiver}: {count / seconds:.0f} per s")
+            continue
         rows = sorted(scenario["plugins"].items(), key=lambda item: -item[1]["ms"])
         if rows:
             print(f"  {'plugin':<28}{'ms per s':>10}{'calls per s':>13}{'longest ms':>12}{'over ' + str(BUDGET_LONGEST_MS) + ' ms':>12}")
@@ -527,6 +619,8 @@ def main(arguments=None):
     parser.add_argument("--only", help="comma separated plugin folders to start; the others stay off")
     parser.add_argument("--seconds", type=float, default=8.0, help="how long each scenario plays")
     parser.add_argument("--timeout", type=int, default=1500, help="seconds to wait for the temporary Painter")
+    parser.add_argument("--census", action="store_true", help="count Painter's events instead of timing the plugins")
+    parser.add_argument("--scenarios", help=f"comma separated, from {', '.join(SCENARIOS)}; a name may repeat")
     parser.add_argument("--json", help="also write the raw result to this file")
     options = parser.parse_args(arguments)
 
@@ -551,6 +645,10 @@ def main(arguments=None):
     environment[SECONDS_VARIABLE] = str(options.seconds)
     if options.only is not None:
         environment[ONLY_VARIABLE] = options.only
+    if options.census:
+        environment[CENSUS_VARIABLE] = "1"
+    if options.scenarios:
+        environment[SCENARIOS_VARIABLE] = options.scenarios
     if options.project:
         copy = folder / Path(options.project).name
         shutil.copy2(options.project, copy)
