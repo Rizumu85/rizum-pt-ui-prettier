@@ -22,7 +22,7 @@ Every shared compact component that paints its own glyphs or has a fixed pixel s
 | Compact tooltip / hover popup (`install_compact_tooltip`) | `setCompactTooltipScale(scale)` | Tooltip font, padding, corner radius, and popup offset |
 | Popup menu (`make_popup_menu`) | Built per open; kept menus call `refreshMetrics()` | Menu font, padding, item padding, separator margins |
 | Dialog actions (`TextActionButton`, `SecondaryActionButton`, `AnimatedSaveButton`) | `setCompactHeight(px)` | Fixed height, measured width, text metrics, radius, and painted feedback glyph |
-| Shortcut capture (`ShortcutCaptureField`) | `setCompactHeight(px)` | Field height and width, text metrics, clear glyph, conflict marker, and radius |
+| Shortcut capture (`ShortcutCaptureField`) | `setCompactHeight(px)` | Field height and width, text metrics, clear glyph, conflict marker, and radius. The field sets its own width on every capture and change: a column's width goes through `setMinimumFieldWidth(px)`, not `setFixedWidth` |
 | Mode parameter slot (`ModeParameterSlot`) | `setExpandedHeight(px)` | Active row height and collapsed/expanded slot geometry |
 | Container control with fixed height (`_SpinInput`, `_ComboInput`) | `setCompactHeight(px)` | Own height + margins + label height + delegate to child glyph setters |
 | Field row wrapper (`make_field_row`) | (no setter — caller sets `row.setFixedHeight(h)` and calls `control.setCompactHeight(h)`) | Outer row height; caller drives the inner control |

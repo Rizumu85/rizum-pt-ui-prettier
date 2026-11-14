@@ -263,6 +263,56 @@ QFrame { background: #aa0000; border: 0; border-radius: 8px; }
         QtWidgets.QApplication.sendEvent(field, override)
         self.assertFalse(override.isAccepted())
 
+    def test_shortcut_field_keeps_a_column_width_through_capture(self):
+        field = ShortcutCaptureField("Switch", "G")
+        self.addCleanup(field.deleteLater)
+        natural = field.sizeHint().width()
+        field.setMinimumFieldWidth(natural + 80)
+        field.show()
+        field.startCapture()
+        self.assertEqual(field.width(), natural + 80)
+        QtTest.QTest.keyClick(field, QtCore.Qt.Key.Key_K)
+        self.assertEqual(field.width(), natural + 80)
+        field.setShortcut("")
+        self.assertEqual(field.width(), natural + 80)
+        field.setShortcut("Ctrl+Shift+Alt+F12")
+        field.setMinimumFieldWidth(10)
+        self.assertEqual(field.width(), field.sizeHint().width())
+
+    def test_shortcut_outline_is_even_at_fractional_display_scales(self):
+        page, fill, line = "#202020", "#444444", "#ffffff"
+        field = ShortcutCaptureField(
+            "Switch", visual_style={"control": "#333333", "control_hover": fill}
+        )
+        self.addCleanup(field.deleteLater)
+        field.setFixedWidth(96)
+        field._capturing = True
+        for scale in (1.0, 1.125, 1.25, 1.5, 1.75, 2.0):
+            image = QtGui.QImage(
+                round(120 * scale), round(48 * scale), QtGui.QImage.Format.Format_ARGB32
+            )
+            image.setDevicePixelRatio(scale)
+            image.fill(QtGui.QColor(page))
+            painter = QtGui.QPainter(image)
+            field.render(painter, QtCore.QPoint(13, 9))
+            painter.end()
+            # Clear of the rounded corners and of the text.
+            row = round((9 + field.height() / 2) * scale)
+            column = round((13 + 8) * scale)
+            left = [image.pixelColor(x, row).name() for x in range(round(21 * scale))]
+            right = [image.pixelColor(x, row).name() for x in range(round(102 * scale), image.width())]
+            down = [image.pixelColor(column, y).name() for y in range(image.height())]
+            runs = {
+                "left": left.count(line),
+                "right": right.count(line),
+                "top and bottom": down.count(line) / 2,
+            }
+            with self.subTest(scale=scale):
+                for side in (left, right, down):
+                    self.assertLessEqual(set(side), {page, fill, line})
+                self.assertEqual(len(set(runs.values())), 1, runs)
+                self.assertGreaterEqual(runs["left"], 1)
+
     def test_shortcut_rounding_survives_painter_qframe_style(self):
         host = QtWidgets.QWidget()
         self.addCleanup(host.deleteLater)
