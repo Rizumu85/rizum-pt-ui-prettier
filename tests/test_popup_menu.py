@@ -50,6 +50,33 @@ class PopupMenuScaleTests(unittest.TestCase):
         menu.ensurePolished()
         self.assertEqual(menu.font().weight(), QtGui.QFont.Weight.Normal)
 
+    def test_colours_are_the_kits_under_painters_menu_rules(self):
+        # Painter's application style sheet, set before the menu's owner is themed.
+        self.addCleanup(self.app.setStyleSheet, self.app.styleSheet())
+        self.app.setStyleSheet(
+            "QMenu { color: hsl(0, 0%, 80%); background: #4D4D4D; padding: 0px; }"
+            " QMenu::item { margin: 0px; padding: 4px 10px 4px 20px; }"
+            " QMenu::item:selected { color: white; background-color: #666666; }"
+        )
+        owner = QtWidgets.QWidget()
+        self.addCleanup(owner.deleteLater)
+        owner.show()
+        menu = make_popup_menu(owner)
+        action = menu.addAction("Base color")
+        menu.addAction("Normal")
+        menu.popup(owner.mapToGlobal(owner.rect().bottomLeft()))
+        self.app.processEvents()
+        menu.setActiveAction(action)
+        self.app.processEvents()
+        image = menu.grab().toImage()
+        normal = menu.actionGeometry(menu.actions()[1])
+        selected = menu.actionGeometry(action)
+        self.assertEqual(image.pixelColor(normal.right() - 3, normal.center().y()).name(), "#1b1b1b")
+        self.assertEqual(image.pixelColor(0, image.height() // 2).name(), "#414141")
+        # White at 13 of 255 over the surface, not Painter's grey selection.
+        self.assertEqual(image.pixelColor(selected.right() - 6, selected.center().y()).name(), "#272727")
+        menu.close()
+
     def test_disabled_items_are_muted_text_not_boxes(self):
         sheet = popup_menu_stylesheet(1.0)
         self.assertIn("::item:disabled", sheet)
