@@ -277,6 +277,22 @@ QFrame { background: #aa0000; border: 0; border-radius: 8px; }
         field.cancelCapture()
         self.assertEqual(field.width(), width)
 
+    def test_shortcut_field_puts_its_text_and_its_x_where_the_combo_puts_text_and_chevron(self):
+        from rizum_ui import make_combo_input
+
+        combo = make_combo_input([("Base color", 1)])
+        field = ShortcutCaptureField("Switch", "G")
+        self.addCleanup(combo.deleteLater)
+        self.addCleanup(field.deleteLater)
+        for height in (23, 30, 36, 60):
+            combo.setCompactHeight(height)
+            field.setCompactHeight(height)
+            margins = combo.layout().contentsMargins()
+            chevron_from_right = margins.right() + combo._arrow_size / 2.0
+            x_from_right = field.width() - field._clear_rect().center().x()
+            self.assertEqual(x_from_right, chevron_from_right, height)
+            self.assertEqual(field._TEXT_INSET, margins.left(), height)
+
     def test_shortcut_field_keeps_a_column_width_through_capture(self):
         field = ShortcutCaptureField("Switch", "G")
         self.addCleanup(field.deleteLater)
@@ -296,7 +312,9 @@ QFrame { background: #aa0000; border: 0; border-radius: 8px; }
     def test_shortcut_outline_is_even_at_fractional_display_scales(self):
         page, fill, line = "#202020", "#444444", "#ffffff"
         field = ShortcutCaptureField(
-            "Switch", visual_style={"control": "#333333", "control_hover": fill}
+            "Switch", visual_style={"control": "#333333", "control_hover": fill},
+            # No text: only the outline is looked at, wherever the text would start.
+            capture_text="",
         )
         self.addCleanup(field.deleteLater)
         field.setFixedWidth(96)
@@ -310,7 +328,7 @@ QFrame { background: #aa0000; border: 0; border-radius: 8px; }
             painter = QtGui.QPainter(image)
             field.render(painter, QtCore.QPoint(13, 9))
             painter.end()
-            # Clear of the rounded corners and of the text.
+            # Clear of the rounded corners.
             row = round((9 + field.height() / 2) * scale)
             column = round((13 + 8) * scale)
             left = [image.pixelColor(x, row).name() for x in range(round(21 * scale))]

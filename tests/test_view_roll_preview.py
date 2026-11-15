@@ -814,7 +814,7 @@ class ViewRollLayoutRegressionTests(unittest.TestCase):
                     for text in ("Type shortcut…", field.shortcut()):
                         available = (
                             field.width()
-                            - field._scaled(10)
+                            - field._TEXT_INSET
                             - field._clear_slot_width()
                             - field._scaled(8)
                         )
