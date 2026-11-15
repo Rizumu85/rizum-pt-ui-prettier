@@ -56,6 +56,10 @@ separation belongs between semantic groups, not between every field. Use the
   changes, shrinking as well as growing.
 - Controls align to a common right edge; labels share a left edge. A numeric
   stepper keeps its intrinsic width. Avoid stretching it to fill a field column.
+  Fields that stand in consecutive rows (pickers, a shortcut field) share one
+  width, the widest one's own: unequal fields under each other read as a
+  mistake (the user's choice for View Switch, 2026-11-15). The shared width
+  never exceeds what the widest field needs, so it does not widen the dialog.
 - Footer spacing follows the chosen layout family. Do not insert a divider or
   large empty footer zone merely because another, longer form has one.
 - Compare at the same UI Scale, font family, DPI and content state. Check 0.75,

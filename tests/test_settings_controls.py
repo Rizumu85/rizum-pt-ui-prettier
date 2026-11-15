@@ -277,6 +277,22 @@ QFrame { background: #aa0000; border: 0; border-radius: 8px; }
         field.cancelCapture()
         self.assertEqual(field.width(), width)
 
+    def test_shortcut_field_keeps_a_column_width_through_capture(self):
+        field = ShortcutCaptureField("Switch", "G")
+        self.addCleanup(field.deleteLater)
+        natural = field.sizeHint().width()
+        field.setMinimumFieldWidth(natural + 80)
+        field.show()
+        field.startCapture()
+        self.assertEqual(field.width(), natural + 80)
+        QtTest.QTest.keyClick(field, QtCore.Qt.Key.Key_K)
+        self.assertEqual(field.width(), natural + 80)
+        field.setShortcut("")
+        self.assertEqual(field.width(), natural + 80)
+        field.setShortcut("Ctrl+Shift+Alt+F12")
+        field.setMinimumFieldWidth(10)
+        self.assertEqual(field.width(), field.sizeHint().width())
+
     def test_shortcut_outline_is_even_at_fractional_display_scales(self):
         page, fill, line = "#202020", "#444444", "#ffffff"
         field = ShortcutCaptureField(
