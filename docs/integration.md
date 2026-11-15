@@ -390,6 +390,13 @@ slow, so these are upper bounds.
    or a search of Painter's widgets; with `--project FILE.spp` on a real
    project (it is opened from a copy). It exits with 1 when a plugin is over
    the budget.
+   It measures once Painter has read its shelves: for a minute or more
+   after it starts Painter is not idle (its own event loop stalls, the
+   Assets path bar is rebuilt several times a second), and a plugin that
+   follows that, as UI Font does, read 20 to 120 ms per second in the first
+   idle windows (2026-11-15). A plugin over the budget in one run only:
+   look at the event loop line first. Gaps of hundreds of milliseconds mean
+   the machine or Painter was busy, and every call took longer.
 
 ### The budget
 

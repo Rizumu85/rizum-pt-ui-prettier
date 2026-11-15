@@ -84,6 +84,14 @@ PROJECT_POLL_MS = 1000
 # once Painter has been idle this long.
 QUIET_POLLS = 6
 SETTLE_POLLS = 180
+# Painter reads its shelves for a minute or more after it starts, and is not
+# idle while it does: its event loop stalls for hundreds of milliseconds and
+# it rebuilds the Assets path bar several times a second, which a plugin may
+# rightly follow (UI Font keeps its filter on for it). Measuring waits for
+# the shelves, at most this long, and then this much longer.
+SHELVES_POLL_MS = 1000
+SHELVES_POLLS = 300
+SHELVES_REST_MS = 4000
 TICK_MS = 8
 SCENARIOS = ("idle", "pointer", "keys", "turn", "paint", "tools")
 # What a plugin may take: milliseconds of the main thread per second in each
@@ -318,7 +326,24 @@ def _prepare():
         action.trigger()
     # Showing a tool's Properties for the first time sets off a burst of
     # widget events that lasts some ten seconds; the scenarios start after it.
-    _later(15000, _measure)
+    _later(15000, _await_shelves)
+
+
+def _await_shelves():
+    import substance_painter as sp
+
+    state = {"polls": 0}
+
+    def poll():
+        state["polls"] += 1
+        reading = any(shelf.is_crawling() for shelf in sp.resource.Shelves.all())
+        if reading and state["polls"] < SHELVES_POLLS:
+            _later(SHELVES_POLL_MS, poll)
+        else:
+            _KEEP["shelves_read"] = not reading
+            _later(SHELVES_REST_MS, _measure)
+
+    poll()
 
 
 def _measure():
@@ -351,6 +376,7 @@ def _measure():
     rotation = list(camera.rotation)
     result = {
         "plugins": started,
+        "shelves_read": _KEEP.get("shelves_read", False),
         "painter": sp.application.version(),
         "python": sys.version.split()[0],
         "project": os.path.basename(os.environ.get(PROJECT_VARIABLE) or "plane.obj"),
@@ -568,6 +594,8 @@ def _report(result):
     print(f"Painter {result['painter']}, Python {result['python']}, project {result['project']} "
           f"({result['texture_sets']} texture sets), 3D view {result['view'][0]}x{result['view'][1]} at scale {result['scale']}")
     print(f"Plugins started: {', '.join(result['plugins']) or 'none'}")
+    if not result.get("shelves_read", True):
+        print("Painter was still reading its shelves when measuring began: it was not idle.")
     if result.get("strokes") == 0:
         print("Note: Painter's History lists no stroke from the paint scenario; its strokes did not reach Painter.")
     for scenario in result["scenarios"]:
@@ -674,7 +702,16 @@ def main(arguments=None):
         if process is not None and process.poll() is None:
             process.terminate()
             process.wait(30)
-        startup.unlink(missing_ok=True)
+        # The file can still be held for a moment after Painter is ended;
+        # left behind, it stops every later check.
+        for attempt in range(10):
+            try:
+                startup.unlink(missing_ok=True)
+                break
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(1)
     if recent.is_file():
         subprocess.run(["reg", "import", str(recent)], capture_output=True)
     if other_painter:
