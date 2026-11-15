@@ -5,7 +5,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6 import QtWidgets
+from PySide6 import QtGui, QtWidgets
 
 from rizum_ui import make_combo_input, make_popup_menu, popup_menu_stylesheet
 
@@ -36,6 +36,19 @@ class PopupMenuScaleTests(unittest.TestCase):
         menu.refreshMetrics()
         self.assertIn("font-size: 24px;", menu.styleSheet())
         self.assertTrue(menu.styleSheet().rstrip().endswith("left: 6px; }"))
+
+    def test_items_are_regular_under_a_medium_application_font(self):
+        # Painter's application font is Medium; a menu must not inherit that.
+        before = self.app.font()
+        self.addCleanup(self.app.setFont, before)
+        medium = QtGui.QFont(before)
+        medium.setWeight(QtGui.QFont.Weight.Medium)
+        self.app.setFont(medium)
+        menu = make_popup_menu()
+        self.addCleanup(menu.deleteLater)
+        menu.addAction("Base color")
+        menu.ensurePolished()
+        self.assertEqual(menu.font().weight(), QtGui.QFont.Weight.Normal)
 
     def test_disabled_items_are_muted_text_not_boxes(self):
         sheet = popup_menu_stylesheet(1.0)

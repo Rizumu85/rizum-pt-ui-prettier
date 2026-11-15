@@ -603,8 +603,9 @@ class _Surface(QtWidgets.QWidget):
 Create every context or dropdown menu with `make_popup_menu(parent)`. It sets
 the shared `RizumPopupMenu` identity, masks the rounded corners (translucent
 popups are not composited on every Windows setup), shows disabled items as
-muted text instead of Painter's grey boxes, and restates the font and spacing
-at the current UI Font scale.
+muted text instead of Painter's grey boxes, and restates the font (size and
+regular weight; Painter's application font is Medium) and spacing at the
+current UI Font scale.
 
 Build menus when they open so they read the current scale, and delete them
 when they close ("Deferred Calls, Menus And Dialogs"). A menu kept alive
