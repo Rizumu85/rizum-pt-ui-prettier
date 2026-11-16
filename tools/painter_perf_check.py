@@ -93,6 +93,14 @@ SHELVES_POLL_MS = 1000
 SHELVES_POLLS = 300
 SHELVES_REST_MS = 4000
 TICK_MS = 8
+# Input is played at one rate whatever the event loop's own: Painter's loop
+# turns every 15.6 ms on some runs and every 8 ms on others (the system's
+# timer resolution, which other programs set), and input played on every
+# turn was then twice as much, with twice the cost per second for every
+# plugin that listens to it (pointer: 517 events against 1000, 2026-11-15).
+# The budgets were measured at the slower rate, about 64 a second; a turn
+# counts as due this long after the last one played.
+PLAY_MS = 12
 SCENARIOS = ("idle", "pointer", "keys", "turn", "paint", "tools")
 # What a plugin may take: milliseconds of the main thread per second in each
 # scenario, and the longest single call. See docs/integration.md.
@@ -420,11 +428,11 @@ def _measure():
 
     def lift():
         if state["down"]:
-            post(left_up, 0, place(state["ticks"]))
+            post(left_up, 0, place(state["plays"]))
             state["down"] = False
 
     def play(name, elapsed):
-        tick = state["ticks"]
+        tick = state["plays"]
         if name == "pointer":
             post(mouse_move, 0, place(tick))
         elif name == "keys":
@@ -489,7 +497,7 @@ def _measure():
         if census is not None:
             census.snapshot()
         now = time.perf_counter()
-        state.update(ticks=0, events=0, last=now, start=now, gaps=[], down=False)
+        state.update(ticks=0, plays=0, played=now, events=0, last=now, start=now, gaps=[], down=False)
         if scenarios[state["index"]] == "paint":
             state["strokes"] = history_rows()
             state["painted"] = True
@@ -514,7 +522,10 @@ def _measure():
         elapsed = now - state["last"]
         state["gaps"].append(elapsed)
         state["last"] = now
-        play(name, elapsed)
+        if now - state["played"] >= PLAY_MS / 1000.0 or not state["plays"]:
+            play(name, now - state["played"])
+            state["plays"] += 1
+            state["played"] = now
         state["ticks"] += 1
         if now - state["start"] < seconds:
             return
@@ -737,6 +748,8 @@ def main(arguments=None):
         print("\nOVER BUDGET (docs/integration.md, \"Performance On Painter's Main Thread\"):")
         for line in over:
             print(f"  {line}")
+        if other_painter:
+            print("Another Painter ran during the check, which makes every call slower: repeat it alone.")
         return 1
     print("\nOK: every plugin is within the budget.")
     return 0
